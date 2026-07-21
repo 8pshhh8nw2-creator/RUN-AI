@@ -1334,6 +1334,7 @@ Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
             mime="text/plain", 
             use_container_width=True
         )      
+
 # ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
