@@ -1053,297 +1053,159 @@ elif pagina == "ANALISI PREDITTIVA ML":
     except Exception as e:
         st.error(f"Errore caricamento modelli ML: {str(e)}")  
 # ---------------------------------------------------------
-# PAGINA 5: CONSIGLIO FINALE (ULTRA-DENSE METRICS & TACTICS)
+# PAGINA 5: CONSIGLIO FINALE
 # ---------------------------------------------------------
 elif pagina == "CONSIGLIO FINALE":
-    st.markdown("""
-        <div style='border-bottom: 2px solid #00F2FE; padding-bottom: 10px; margin-bottom: 20px;'>
-            <h1 style='font-family:"Inter", sans-serif; font-weight:900; font-size:2.5rem; color:#FFFFFF; margin:0;'>TACTICAL DASHBOARD</h1>
-            <p style='font-family:"JetBrains Mono", monospace; color:#00F2FE; letter-spacing:2px; font-size:0.9rem; margin:0;'>// DIAGNOSTICA COMPLETA, PREDITTIVA E PROTOCOLLI DI INGAGGIO //</p>
-        </div>
-    """, unsafe_allow_html=True)
+    header_block(
+        "Modulo 05 — Action Plan",
+        "CONSIGLIO FINALE",
+        "Protocollo operativo, proiezioni fisiologiche e export report per la sessione odierna.",
+        IMG_HERO_PLAN, "Coach Protocol"
+    )
 
-    if not st.session_state.get('analisi_fatta', False):
-        st.error("⚠️ Nessun dato rilevato. Completa l'Analisi Stato di Forma.")
+    if not st.session_state.analisi_fatta:
+        st.warning("Completa prima il questionario nella pagina 'ANALISI STATO DI FORMA'.")
     else:
         r = st.session_state.risultati_analisi
         df_base = st.session_state.dati.copy()
 
-        # --- VARIABILI BASE ---
-        ore_sonno = r.get('ore_sonno', 7.0)
-        stress = r.get('stress_lavoro', 5.0)
-        rpe = r.get('rpe_previsto', 5.0)
-        target_km = r.get('distanza_oggi', 10.0)
-        tipo_all = r.get('tipo_allenamento', 'Corsa')
-
-        media_sonno = df_base.get('Ore Sonno', pd.Series([7.0])).mean()
-        media_stress = df_base.get('Stress Lavoro', pd.Series([5.0])).mean()
-        media_rpe = df_base.get('RPE', pd.Series([5.0])).mean()
-
-        # --- CALCOLI PREDITTIVI ---
-        readiness = max(0, min(100, 100 - ((7.5 - ore_sonno)*10) - ((stress - 4)*5) - ((rpe - 4)*4)))
-        status_col = "#00FF66" if readiness >= 70 else "#FFB020" if readiness >= 40 else "#FF0055"
-        dist_cons = target_km if readiness >= 60 else target_km * (readiness/100)
-        fatica_accumulata = (stress * 1.5) + (rpe * 1.2) - (ore_sonno * 0.8)
-        tempo_recupero_stimato = max(12, int((rpe * 4) + (stress * 2) - (ore_sonno * 1.5)))
-
-        # --- CONFIGURAZIONI PLOTLY ---
-        layout_dark = dict(
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
-            font=dict(color="#94A3B8", family="JetBrains Mono, monospace", size=10),
-            margin=dict(l=20, r=20, t=35, b=20), hovermode="x unified",
-            xaxis=dict(gridcolor="#1E293B", zerolinecolor="#1E293B"),
-            yaxis=dict(gridcolor="#1E293B", zerolinecolor="#1E293B")
+        risk_score = min(100,
+            (40 if r['ore_sonno'] < 6 else 25 if r['ore_sonno'] < 6.5 else 10) +
+            (35 if r['stress_lavoro'] >= 8 else 20 if r['stress_lavoro'] >= 6 else 5) +
+            (30 if r['rpe_previsto'] >= 8 else 15 if r['rpe_previsto'] >= 6 else 5) +
+            (20 if r['ore_sonno'] < 6.5 and r['stress_lavoro'] >= 7 and r['rpe_previsto'] >= 7 else 0)
         )
-        config_no_menu = {'displayModeBar': False}
-        figs_export = {}
+        recovery_score = max(0, 100 - abs(r['ore_sonno'] - 7.5) * 13.33)
+        sma = (r['stress_lavoro'] * r['rpe_previsto']) / r['ore_sonno'] if r['ore_sonno'] > 0 else 0
 
-        st.markdown("<h3 style='color:#F8FAFC;'>1. TELEMETRIA PRINCIPALE</h3>", unsafe_allow_html=True)
+        distanza_target = r.get('distanza_oggi', 10.0)
+        distanza_consigliata = distanza_target if risk_score < 40 else distanza_target * 0.6 if risk_score < 70 else 0.0
+
+        if risk_score < 25: tit, col = "ALLENAMENTO INTENSO AUTORIZZATO", "#00F5A0"
+        elif risk_score < 60: tit, col = "RECUPERO ATTIVO CONSIGLIATO", "#FFB020"
+        else: tit, col = "RIPOSO OBBLIGATORIO", "#FF6A3D"
+
+        st.markdown(f"""
+        <div class='kpi-card' style='border: 1px solid {col}; background-color: rgba(0,0,0,0.35);'>
+            <h2 style='color: {col}; margin: 0; border: none; font-size:1.6em;'>{tit}</h2>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <style>
+        .kpi-card-equal { background: #0E1420; border-radius: 12px; padding: 25px 20px; border: 1px solid #1c2333; height: 480px; display: flex; flex-direction: column; }
+        .kpi-card-equal .kpi-equal-body { overflow-y: auto; flex-grow: 1; }
+        .kpi-card-equal .kpi-equal-body::-webkit-scrollbar { width: 6px; }
+        .kpi-card-equal .kpi-equal-body::-webkit-scrollbar-thumb { background: #1c2333; border-radius: 4px; }
+        </style>
+        """, unsafe_allow_html=True)
+
+        tipo_all = r.get('tipo_allenamento', 'Easy Run')
+        col_new1, col_new2, col_new3 = st.columns(3)
         
-        # =========================================================
-        # GRIGLIA GRAFICI 1: STATUS E BILANCIAMENTO
-        # =========================================================
-        col_g1, col_g2, col_g3 = st.columns(3)
+        with col_new1:
+            st.markdown(f"""
+            <div class='kpi-card-equal'>
+                <h3 style='color:#00E5FF;'>Distanza Consigliata</h3>
+                <div class='kpi-equal-body' style='display:flex; flex-direction:column; justify-content:center; align-items:center;'>
+                    <h1 style='color:white; font-size:3em; margin:0; font-family:"JetBrains Mono",monospace;'>{distanza_consigliata:.1f} km</h1>
+                    <p style='color:#8792A3; font-family:"Inter",sans-serif;'>su {distanza_target}km desiderati</p>
+                    <p style='color:#566178; font-size:0.85em; margin-top:15px; text-align:center;'>Tipo allenamento: <strong style='color:#B8C2D0;'>{tipo_all}</strong></p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_new2:
+            st.markdown(f"""
+            <div class='kpi-card-equal'>
+                <h3 style='color:{col};'>Rischio Calcolato</h3>
+                <div class='kpi-equal-body' style='display:flex; flex-direction:column; justify-content:center; align-items:center;'>
+                    <h1 style='color:white; font-size:3em; margin:0; font-family:"JetBrains Mono",monospace;'>{risk_score:.0f}%</h1>
+                    <p style='color:#8792A3; font-family:"Inter",sans-serif;'>Probabilità Infortunio/Burnout</p>
+                    <p style='color:#566178; font-size:0.85em; margin-top:15px; text-align:center;'>Recovery Score: <strong style='color:#B8C2D0;'>{recovery_score:.0f}%</strong> · SMA: <strong style='color:#B8C2D0;'>{sma:.1f}</strong></p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_new3:
+            st.markdown(f"""
+            <div class='kpi-card-equal'>
+                <h3 style='color:#00F5A0;'>Protocollo Coach Dettagliato</h3>
+                <div class='kpi-equal-body' style='color:#B8C2D0; font-size:0.85em; text-align:left;'>
+                    <strong style='color:#00E5FF;'>PRE-ALLENAMENTO (T-90/-15 min)</strong>
+                    <ul style='margin-top:5px; padding-left:18px;'>
+                        <li>T-90': pasto leggero, ~{round(distanza_target * 3)}g carboidrati.</li>
+                        <li>T-30': {round(distanza_target * 20)}ml di liquidi.</li>
+                        <li>T-15': mobilità dinamica anche/caviglie, skip (5').</li>
+                    </ul>
+                    <strong style='color:#FFB020;'>DURANTE</strong>
+                    <ul style='margin-top:5px; padding-left:18px;'>
+                        <li>Sorso d'acqua ogni 20' se superi i 60'.</li>
+                        <li>Cadenza target 170-180 spm, respiro controllato.</li>
+                    </ul>
+                    <strong style='color:#00F5A0;'>POST (0-30 min)</strong>
+                    <ul style='margin-top:5px; padding-left:18px;'>
+                        <li>Entro 30': ~{round(distanza_target * 1.2) + 15}g proteine + ~{round(distanza_target * 4) + 20}g carboidrati.</li>
+                        <li>Stretching statico gentile 8-10'.</li>
+                        <li>Rullo miofasciale 5' su quadricipiti.</li>
+                    </ul>
+                    <strong style='color:#8b5cf6;'>SERALE</strong>
+                    <ul style='margin-top:5px; padding-left:18px; margin-bottom:0;'>
+                        <li>Punta a {max(r['ore_sonno'],7.5):.1f}h di sonno per recupero cellulare.</li>
+                    </ul>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        with col_g1:
-            # 1. GAUGE READINESS
-            fig_1 = go.Figure(go.Indicator(
-                mode="gauge+number", value=readiness, title={'text': "SYSTEM READINESS %", 'font': {'color': '#94A3B8'}},
-                gauge={'axis': {'range': [0, 100]}, 'bar': {'color': status_col}, 'bgcolor': "rgba(255,255,255,0.05)"}
-            ))
-            fig_1.update_layout(**layout_dark, height=220)
-            st.plotly_chart(fig_1, use_container_width=True, config=config_no_menu)
-            figs_export['Readiness'] = fig_1
-
-        with col_g2:
-            # 2. RADAR CHART VETTORIALE
-            fig_2 = go.Figure()
-            cat = ['Sonno', 'RPE Inverso', 'Stress Inv.', 'Readiness']
-            fig_2.add_trace(go.Scatterpolar(r=[min(10, media_sonno), max(0,10-media_rpe), max(0,10-media_stress), 6], theta=cat, fill='toself', name='Media', line_color='#475569'))
-            fig_2.add_trace(go.Scatterpolar(r=[min(10, ore_sonno), max(0,10-rpe), max(0,10-stress), readiness/10], theta=cat, fill='toself', name='Oggi', line_color='#00F2FE'))
-            fig_2.update_layout(**layout_dark, height=220, polar=dict(radialaxis=dict(visible=False)), showlegend=False, title="Bilanciamento Vettoriale")
-            st.plotly_chart(fig_2, use_container_width=True, config=config_no_menu)
-            figs_export['Radar Vettoriale'] = fig_2
-
-        with col_g3:
-            # 3. DONUT CHART SPLIT VOLUME
-            fig_3 = go.Figure(data=[go.Pie(labels=['Warm-up', 'Target Zone', 'Cool-down'], values=[15, 70, 15], hole=.6, marker_colors=['#FFB020', status_col, '#00F2FE'])])
-            fig_3.update_layout(**layout_dark, height=220, showlegend=False, title=f"Allocazione su {dist_cons:.1f} km")
-            fig_3.add_annotation(text="STRUTTURA", showarrow=False, font=dict(size=14, color="#FFF"))
-            st.plotly_chart(fig_3, use_container_width=True, config=config_no_menu)
-            figs_export['Volume Split'] = fig_3
-
-        # =========================================================
-        # GRIGLIA GRAFICI 2: PREDITTIVI E STORICI
-        # =========================================================
-        st.markdown("<h3 style='color:#F8FAFC; margin-top:30px;'>2. MODELLISTICA PREDITTIVA & TREND</h3>", unsafe_allow_html=True)
-        col_g4, col_g5, col_g6 = st.columns(3)
-
-        with col_g4:
-            # 4. CURVA DECADIMENTO PERFORMANCE (PREDITTIVA)
-            km_points = list(range(0, int(dist_cons)+2))
-            fatigue_curve = [min(100, (k/max(1, dist_cons))*100 * (1 + (stress/20))) for k in km_points]
-            fig_4 = go.Figure(go.Scatter(x=km_points, y=fatigue_curve, mode='lines', line=dict(color='#FF0055', width=3), fill='tozeroy', fillcolor='rgba(255,0,85,0.2)'))
-            fig_4.update_layout(**layout_dark, height=220, title="Curva Affaticamento Stimata", xaxis_title="Km", yaxis_title="% Fatica")
-            st.plotly_chart(fig_4, use_container_width=True, config=config_no_menu)
-            figs_export['Fatigue Curve'] = fig_4
-
-        with col_g5:
-            # 5. ZONE CARDIACHE (WATERFALL)
-            fig_5 = go.Figure(go.Bar(
-                x=['Z1 (Recupero)', 'Z2 (Base)', 'Z3 (Tempo)', 'Z4/5 (Soglia)'],
-                y=[20, 60 if readiness > 50 else 30, 15 if readiness > 70 else 5, 5 if readiness > 80 else 0],
-                marker_color=['#00F2FE', '#00FF66', '#FFB020', '#FF0055']
-            ))
-            fig_5.update_layout(**layout_dark, height=220, title="% Tempo in Zona Consigliata", yaxis_title="%")
-            st.plotly_chart(fig_5, use_container_width=True, config=config_no_menu)
-            figs_export['HR Zones'] = fig_5
-
-        with col_g6:
-            # 6. TIMELINE RECUPERO ETA
-            fig_6 = go.Figure(go.Bar(
-                y=['Clearance Lattato', 'SNC Reset', 'Ripristino Glicogeno', 'Tessuti'],
-                x=[1, 6, max(12, tempo_recupero_stimato-8), tempo_recupero_stimato],
-                orientation='h', marker_color='#9D00FF'
-            ))
-            fig_6.update_layout(**layout_dark, height=220, title="Timeline Recupero (Ore)", xaxis_title="Ore Post-WO")
-            st.plotly_chart(fig_6, use_container_width=True, config=config_no_menu)
-            figs_export['Recovery ETA'] = fig_6
-
-        # =========================================================
-        # GRIGLIA GRAFICI 3: CONFRONTO DIRETTO
-        # =========================================================
-        col_g7, col_g8 = st.columns(2)
+        st.markdown("<br>---<br>", unsafe_allow_html=True)
         
-        with col_g7:
-            # 7. TREND STORICO (MULTI-LINE)
-            if 'Data' in df_base.columns and len(df_base) > 2:
-                df_plot = df_base.sort_values('Data').tail(14) # Ultimi 14 allenamenti
-                fig_7 = go.Figure()
-                fig_7.add_trace(go.Scatter(x=df_plot['Data'], y=df_plot['Stress Lavoro'], name='Stress', line=dict(color='#FF0055')))
-                fig_7.add_trace(go.Scatter(x=df_plot['Data'], y=df_plot['Ore Sonno'], name='Sonno', line=dict(color='#00F2FE')))
-                fig_7.update_layout(**layout_dark, height=250, title="Trend Stress vs Sonno (14 Sessioni)", legend=dict(orientation="h", y=-0.2))
-                st.plotly_chart(fig_7, use_container_width=True, config=config_no_menu)
-                figs_export['Trend Storico'] = fig_7
-            else:
-                st.info("Dati storici insufficienti per il grafico di trend.")
+        st.subheader("Generazione Report per Coach / Export")
+        report_testo = f"""--- RUNAI PERFORMANCE REPORT ---
+Status: {tit}
+Distanza Consigliata: {distanza_consigliata:.1f} km (Target: {distanza_target} km)
+Indice Rischio: {risk_score:.0f}%
+Recovery Score: {recovery_score:.0f}%
+Stress Mentale (SMA): {sma:.1f}
+Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
+--------------------------------"""
+        st.text_area("Testo Report Formattato:", value=report_testo, height=120)
+        st.download_button("SCARICA REPORT TXT", data=report_testo, file_name="runai_report_allenamento.txt", mime="text/plain", use_container_width=True)
 
-        with col_g8:
-            # 8. SCATTER DENSITA (RISCHIO)
-            if all(c in df_base.columns for c in ['Stress Lavoro', 'RPE']):
-                fig_8 = px.scatter(df_base, x='Stress Lavoro', y='RPE', opacity=0.5, color_discrete_sequence=['#475569'])
-                fig_8.add_trace(go.Scatter(x=[stress], y=[rpe], mode='markers+text', text=["OGGI"], marker=dict(size=15, color=status_col, symbol='cross'), textposition="top center"))
-                fig_8.update_layout(**layout_dark, height=250, title="Matrice di Rischio (Oggi vs Storico)")
-                st.plotly_chart(fig_8, use_container_width=True, config=config_no_menu)
-                figs_export['Risk Matrix'] = fig_8
-            else:
-                st.info("Dati storici insufficienti per la matrice di rischio.")
+        st.markdown("<br><hr><br>", unsafe_allow_html=True)
+        st.subheader("Analisi Parametri vs Media (90 giorni)")
+        media_sonno_90, media_stress_90, media_rpe_90 = df_base['Ore Sonno'].mean(), df_base['Stress Lavoro'].mean(), df_base['RPE'].mean()
+        sonno_vs_media, stress_vs_media, rpe_vs_media = r['ore_sonno'] - media_sonno_90, r['stress_lavoro'] - media_stress_90, r['rpe_previsto'] - media_rpe_90
 
-
-        # =========================================================
-        # PLAYBOOK OPERATIVO: CONSIGLI ESTREMI E DETTAGLIATI
-        # =========================================================
-        st.markdown("<h3 style='color:#F8FAFC; margin-top:40px; border-bottom:1px solid #1E293B; padding-bottom:10px;'>3. TACTICAL PLAYBOOK (PROTOCOLLI DI INGAGGIO)</h3>", unsafe_allow_html=True)
-
-        t1, t2 = st.columns(2)
-
-        with t1:
+        col_a1, col_a2, col_a3 = st.columns(3)
+        with col_a1:
+            sb, sc = ("SOTTO MEDIA", "#FF6A3D") if sonno_vs_media < -0.5 else ("SOPRA MEDIA", "#00F5A0") if sonno_vs_media > 0.5 else ("NELLA MEDIA", "#8792A3")
             st.markdown(f"""
-            <div style="background:#0F172A; border-left:4px solid #00F2FE; padding:20px; border-radius:4px; margin-bottom:20px;">
-                <h4 style="color:#00F2FE; margin-top:0; font-family:'JetBrains Mono';">FASE 1: PRE-CARICO (T-30 MIN)</h4>
-                <ul style="color:#CBD5E1; font-size:0.95rem; line-height:1.6;">
-                    <li><b>Nutrizione Tattica:</b> Assumere carboidrati a rapido assorbimento (es. 20-30g da gel o miele) 20 min prima se la sessione supera i 60 minuti.</li>
-                    <li><b>Idratazione:</b> 250ml di acqua con un pizzico di sodio per massimizzare il volume plasmatico pre-impatto.</li>
-                    <li><b>Attivazione SNC:</b> 5 min mobilità dinamica (cerchi d'anca, leg swings). NESSUN allungamento statico pre-corsa per non inibire il riflesso miotatico.</li>
-                    <li><b>Drills:</b> 3 serie da 20m di skip A (ginocchia alte) e B (calciata) per settare le rigidità tendinee.</li>
-                </ul>
+            <div class='kpi-card'>
+                <p style='color:{sc}; font-weight:bold; font-family:"JetBrains Mono",monospace; font-size:0.78em; letter-spacing:0.08em;'>{sb}</p>
+                <h1 style='font-family:"JetBrains Mono",monospace;'>{r['ore_sonno']:.1f}h</h1>
+                <p style='font-family:"Inter",sans-serif; color:#8792A3;'>vs media {media_sonno_90:.1f}h</p>
+                <p style='font-family:"Inter",sans-serif; color:#566178; font-size:0.85em; margin-top:8px;'>Tempo di rigenerazione cellulare. Un deficit prolungato rallenta il recupero muscolare.</p>
             </div>
             """, unsafe_allow_html=True)
-
+        with col_a2:
+            stb, stc = ("SOTTO MEDIA", "#00F5A0") if stress_vs_media < -1 else ("SOPRA MEDIA", "#FF6A3D") if stress_vs_media > 1 else ("NELLA MEDIA", "#8792A3")
             st.markdown(f"""
-            <div style="background:#0F172A; border-left:4px solid {status_col}; padding:20px; border-radius:4px; margin-bottom:20px;">
-                <h4 style="color:{status_col}; margin-top:0; font-family:'JetBrains Mono';">FASE 2: ESECUZIONE (BIOMECCANICA E PACING)</h4>
-                <ul style="color:#CBD5E1; font-size:0.95rem; line-height:1.6;">
-                    <li><b>Volume Autorizzato:</b> {dist_cons:.1f} km (Pacing calibrato su readiness al {readiness:.0f}%).</li>
-                    <li><b>Cadenza (SPM):</b> Mantenere <b>170-180 passi/minuto</b>. Aumentare la frequenza del passo del 5% riduce il carico sulle ginocchia fino al 20%.</li>
-                    <li><b>Appoggio:</b> Focus sul mesopiede. Evitare l'overstriding (atterrare col tallone troppo avanti rispetto al baricentro).</li>
-                    <li><b>Gestione RPE:</b> Se lo sforzo percepito supera il {rpe}/10 stabilito, declassare immediatamente l'allenamento in Z1 (Camminata) per 2 minuti.</li>
-                    <li><b>Respirazione:</b> Sincronizza sul ritmo 2:2 o 3:3 (passi per inspirazione:passi per espirazione) per prevenire fitte diaframmatiche.</li>
-                </ul>
+            <div class='kpi-card'>
+                <p style='color:{stc}; font-weight:bold; font-family:"JetBrains Mono",monospace; font-size:0.78em; letter-spacing:0.08em;'>{stb}</p>
+                <h1 style='font-family:"JetBrains Mono",monospace;'>{r['stress_lavoro']}/10</h1>
+                <p style='font-family:"Inter",sans-serif; color:#8792A3;'>vs media {media_stress_90:.1f}/10</p>
+                <p style='font-family:"Inter",sans-serif; color:#566178; font-size:0.85em; margin-top:8px;'>Carico cognitivo e nervoso accumulato. Uno stress elevato innalza i livelli di cortisolo.</p>
             </div>
             """, unsafe_allow_html=True)
-
-        with t2:
+        with col_a3:
+            rpb, rpc = ("SOTTO MEDIA", "#00F5A0") if rpe_vs_media < -1 else ("SOPRA MEDIA", "#FF6A3D") if rpe_vs_media > 1 else ("NELLA MEDIA", "#8792A3")
             st.markdown(f"""
-            <div style="background:#0F172A; border-left:4px solid #FFB020; padding:20px; border-radius:4px; margin-bottom:20px;">
-                <h4 style="color:#FFB020; margin-top:0; font-family:'JetBrains Mono';">FASE 3: SHUTDOWN (POST-WORKOUT 0-60 MIN)</h4>
-                <ul style="color:#CBD5E1; font-size:0.95rem; line-height:1.6;">
-                    <li><b>Clearance Metabolica:</b> Non sedersi immediatamente. Ultime 5-8 minuti obbligatori in camminata per smaltire H+ e lattato muscolare.</li>
-                    <li><b>Finestra Anabolica:</b> Entro 45 minuti, assumere un rapporto 3:1 Carboidrati/Proteine (es. 60g CHO / 20g PRO) per bloccare il catabolismo.</li>
-                    <li><b>Ripristino Fasciale:</b> Stretching statico profondo (45-60 secondi per gruppo muscolare). Focus primario su Flessori dell'anca (Iliopsoas) e Polpacci.</li>
-                    <li><b>Termoregolazione:</b> Doccia fredda sulle gambe (1-2 minuti) per vasocostrizione e riduzione micro-infiammazioni articolari.</li>
-                </ul>
+            <div class='kpi-card'>
+                <p style='color:{rpc}; font-weight:bold; font-family:"JetBrains Mono",monospace; font-size:0.78em; letter-spacing:0.08em;'>{rpb}</p>
+                <h1 style='font-family:"JetBrains Mono",monospace;'>{r['rpe_previsto']}/10</h1>
+                <p style='font-family:"Inter",sans-serif; color:#8792A3;'>vs media {media_rpe_90:.1f}/10</p>
+                <p style='font-family:"Inter",sans-serif; color:#566178; font-size:0.85em; margin-top:8px;'>Sforzo pianificato per la sessione odierna rispetto alla media storica registrata.</p>
             </div>
             """, unsafe_allow_html=True)
-
-            st.markdown(f"""
-            <div style="background:#0F172A; border-left:4px solid #9D00FF; padding:20px; border-radius:4px; margin-bottom:20px;">
-                <h4 style="color:#9D00FF; margin-top:0; font-family:'JetBrains Mono';">FASE 4: NEURO-RECOVERY (SERALE)</h4>
-                <ul style="color:#CBD5E1; font-size:0.95rem; line-height:1.6;">
-                    <li><b>Target Sonno:</b> Impostare allarme per garantire <b>{max(ore_sonno, 7.5) + 0.5:.1f} ore</b> di sonno stanotte. Fondamentale per il rilascio di HGH (ormone della crescita).</li>
-                    <li><b>Igiene della Luce:</b> Filtri luce blu attivati sui dispositivi 90 minuti prima di coricarsi per massimizzare la produzione di melatonina.</li>
-                    <li><b>SNC Down-Regulation:</b> Protocollo "Box Breathing" a letto (4 sec inspiro, 4 sec trattenuta, 4 sec espiro, 4 sec trattenuta) per 5 minuti. Sforza il passaggio dal sistema Simpatico (Fight/Flight) a quello Parasimpatico (Rest/Digest).</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
-
-        # =========================================================
-        # ESPORTAZIONE MASSIVA HTML (REPORT AUTONOMO CON 8 GRAFICI)
-        # =========================================================
-        st.markdown("<h3 style='color:#F8FAFC; margin-top:40px; border-bottom:1px solid #1E293B; padding-bottom:10px;'>4. MASTER EXPORT TERMINAL</h3>", unsafe_allow_html=True)
-        
-        # Rendering dei grafici in HTML
-        html_graphs = ""
-        for title, fig in figs_export.items():
-            div = fig.to_html(full_html=False, include_plotlyjs=False)
-            html_graphs += f"<div style='background:#111827; border:1px solid #334155; border-radius:8px; padding:15px; margin-bottom:20px;'><h4 style='color:#38BDF8; font-family:monospace; margin-top:0;'>// {title.upper()}</h4>{div}</div>"
-
-        master_html = f"""<!DOCTYPE html>
-<html lang="it">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RunAI - Master Tactical Report</title>
-<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-<style>
-    body {{ background: #020617; color: #94A3B8; font-family: 'Inter', sans-serif; padding: 30px; margin: 0; }}
-    h1 {{ color: #F8FAFC; font-weight: 900; font-size: 2.5rem; border-bottom: 2px solid #00F2FE; padding-bottom: 10px; }}
-    .kpi-container {{ display: flex; gap: 20px; margin-bottom: 40px; flex-wrap: wrap; }}
-    .kpi-box {{ background: #0F172A; border: 1px solid #1E293B; border-left: 5px solid {status_col}; padding: 20px; border-radius: 6px; flex: 1; min-width: 200px; }}
-    .kpi-box h3 {{ margin: 0; font-size: 0.8rem; color: #64748B; text-transform: uppercase; letter-spacing: 1px; }}
-    .kpi-box .val {{ font-size: 2.5rem; font-weight: 900; color: #F8FAFC; margin-top: 10px; }}
-    .charts-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 40px; }}
-    .advice-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }}
-    .advice-box {{ background: #0F172A; border-top: 4px solid #00F2FE; padding: 25px; border-radius: 6px; }}
-    .advice-box h3 {{ color: #E2E8F0; margin-top:0; }}
-    .advice-box li {{ margin-bottom: 10px; line-height: 1.5; }}
-</style>
-</head>
-<body>
-    <h1>MASTER TACTICAL REPORT</h1>
-    <div class="kpi-container">
-        <div class="kpi-box"><h3>System Readiness</h3><div class="val" style="color:{status_col};">{readiness:.0f}%</div></div>
-        <div class="kpi-box"><h3>Target Consigliato</h3><div class="val">{dist_cons:.1f} <span style="font-size:1rem; color:#64748B;">km</span></div></div>
-        <div class="kpi-box"><h3>Recovery ETA</h3><div class="val">{tempo_recupero_stimato} <span style="font-size:1rem; color:#64748B;">Ore</span></div></div>
-    </div>
-    
-    <h2 style="color:#F8FAFC;">TELEMETRIA GRAFICA</h2>
-    <div class="charts-grid">
-        {html_graphs}
-    </div>
-
-    <h2 style="color:#F8FAFC;">PLAYBOOK OPERATIVO</h2>
-    <div class="advice-grid">
-        <div class="advice-box" style="border-color:#00F2FE;">
-            <h3>1. PRE-CARICO</h3>
-            <ul>
-                <li>Nutrizione: 20-30g CHO a rapido assorbimento.</li>
-                <li>Attivazione SNC: 5 min mobilità dinamica, NO statico.</li>
-            </ul>
-        </div>
-        <div class="advice-box" style="border-color:{status_col};">
-            <h3>2. ESECUZIONE</h3>
-            <ul>
-                <li>Cadenza Target: 170-180 spm.</li>
-                <li>RPE Cap: Non superare {rpe}/10.</li>
-                <li>Respirazione 2:2 o 3:3 per prevenire fitte.</li>
-            </ul>
-        </div>
-        <div class="advice-box" style="border-color:#FFB020;">
-            <h3>3. SHUTDOWN</h3>
-            <ul>
-                <li>Clearance: 5 min finali in camminata.</li>
-                <li>Finestra Anabolica: CHO/PRO (3:1) entro 45 min.</li>
-            </ul>
-        </div>
-        <div class="advice-box" style="border-color:#9D00FF;">
-            <h3>4. NEURO-RECOVERY</h3>
-            <ul>
-                <li>Target Sonno: {max(ore_sonno, 7.5) + 0.5:.1f}h minime.</li>
-                <li>SNC Down-Regulation: Box breathing e no schermi.</li>
-            </ul>
-        </div>
-    </div>
-</body>
-</html>"""
-
-        st.download_button(
-            label="📊 SCARICA MASTER REPORT HTML (TUTTI I GRAFICI INTERATTIVI E CONSIGLI)",
-            data=master_html,
-            file_name=f"RunAI_Overload_Report_{pd.Timestamp.now().strftime('%Y%m%d')}.html",
-            mime="text/html",
-            use_container_width=True
-        )
+       
 # ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
