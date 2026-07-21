@@ -1024,7 +1024,14 @@ elif pagina == "CONSIGLIO FINALE":
             """, unsafe_allow_html=True)
 
         st.markdown("<br>---<br>", unsafe_allow_html=True)
-        
+        st.markdown("#### 🎯 Zone Cardiache Consigliate per Oggi")
+st.markdown(
+    """
+* **Zona 1-2 (Recupero / Base):** Sforzo confortevole (Test del parlato OK). Ideale per Easy Run o recuperi.
+* **Zona 3 (Aerobico / Tempo):** Ritmo sostenuto ma controllato.
+* **Zona 4-5 (Soglia / Anaerobico):** Da evitare se il rischio infortunio è alto (>40%).
+"""
+)
         # NUOVA IDEA 4: EXPORT REPORT RAPIDO
         st.subheader("Generazione Report per Coach / Export")
         report_testo = f"""--- RUNAI PERFORMANCE REPORT ---
