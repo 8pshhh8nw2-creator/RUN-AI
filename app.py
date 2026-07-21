@@ -1064,8 +1064,11 @@ elif pagina == "ANALISI PREDITTIVA ML":
 # - Si assume che df_base (st.session_state.dati) abbia una colonna
 #   data chiamata 'Data'. Se si chiama diversamente (es. 'Date'),
 #   sostituisci il nome nella sezione "GRAFICI ANALITICI".
-# - Ho tolto ogni riferimento nutrizionale dal coach: solo consigli
-#   di allenamento (mobilità, drills, pacing, stretching, recupero).
+# - Coach: solo consigli di allenamento (mobilità, drills, pacing,
+#   stretching, recupero), nessun riferimento nutrizionale.
+# - Nessuna emoji nel testo, tono professionale/tecnico.
+# - Grafici più piccoli (altezza ridotta) e suddivisi in più unità
+#   invece di pochi grafici grandi.
 # ---------------------------------------------------------
 
 elif pagina == "CONSIGLIO FINALE":
@@ -1123,7 +1126,7 @@ elif pagina == "CONSIGLIO FINALE":
         </style>
         """, unsafe_allow_html=True)
 
-        # ---------------- KPI PRINCIPALI (2 colonne, il coach ora è full-width sotto) ----------------
+        # ---------------- KPI PRINCIPALI ----------------
         col_new1, col_new2 = st.columns(2)
 
         with col_new1:
@@ -1153,11 +1156,10 @@ elif pagina == "CONSIGLIO FINALE":
         st.markdown("<br>", unsafe_allow_html=True)
 
         # =========================================================
-        # COACH PERSONALIZZATO — GRANDE, SOLO ALLENAMENTO (no nutrizione)
+        # COACH PERSONALIZZATO — SOLO ALLENAMENTO (no nutrizione)
         # =========================================================
-        st.subheader("🎯 Coach Personalizzato — Protocollo Dettagliato")
+        st.subheader("Coach Personalizzato — Protocollo Dettagliato")
 
-        # Livello di cautela in base al rischio
         if risk_score < 25:
             liv = "basso"
         elif risk_score < 60:
@@ -1171,7 +1173,7 @@ elif pagina == "CONSIGLIO FINALE":
         )
 
         tab_pre, tab_durante, tab_post, tab_serale = st.tabs(
-            ["🏃 Pre-Allenamento", "⚡ Durante", "🧊 Post-Allenamento", "🌙 Recupero Serale"]
+            ["Pre-Allenamento", "Durante", "Post-Allenamento", "Recupero Serale"]
         )
 
         with tab_pre:
@@ -1187,7 +1189,7 @@ elif pagina == "CONSIGLIO FINALE":
             <strong style='color:#FFB020;'>T-5 min — Progressione d'ingresso</strong>
             <ul style='padding-left:18px; margin-bottom:0;'>
                 <li>Parti sempre 3-5' a ritmo molto blando prima di raggiungere il ritmo target ({zona_consigliata}).</li>
-                <li>Livello di cautela oggi: <strong style='color:#B8C2D0;'>{liv.upper()}</strong> — {"puoi spingere con la solita progressione." if liv=="basso" else ("mantieni un'andatura più conservativa del solito." if liv=="medio" else "limita a mobilità/cammino, evita qualsiasi accelerazione.")}</li>
+                <li>Livello di cautela oggi: <strong style='color:#B8C2D0;'>{liv.upper()}</strong> — {"puoi mantenere la progressione abituale." if liv=="basso" else ("mantieni un'andatura più conservativa del solito." if liv=="medio" else "limita a mobilità/cammino, evita qualsiasi accelerazione.")}</li>
             </ul>
             </div>
             """, unsafe_allow_html=True)
@@ -1255,7 +1257,7 @@ elif pagina == "CONSIGLIO FINALE":
         # =========================================================
         # ZONE CARDIACHE
         # =========================================================
-        st.markdown("#### 🎯 Zone Cardiache Consigliate per Oggi")
+        st.markdown("#### Zone Cardiache Consigliate per Oggi")
         st.markdown("""
         * **Zona 1-2 (Recupero / Base):** Sforzo confortevole (Test del parlato OK). Ideale per Easy Run o recuperi.
         * **Zona 3 (Aerobico / Tempo):** Ritmo sostenuto ma controllato.
@@ -1265,115 +1267,133 @@ elif pagina == "CONSIGLIO FINALE":
         st.markdown("<br><hr><br>", unsafe_allow_html=True)
 
         # =========================================================
-        # GRAFICI ANALITICI
+        # GRAFICI ANALITICI — piccoli e numerosi
         # =========================================================
-        st.subheader("📊 Grafici Analitici")
+        st.subheader("Grafici Analitici")
 
+        CHART_HEIGHT = 230
         colore_sfondo = "#0E1420"
-        layout_dark = dict(
+        layout_dark_small = dict(
             paper_bgcolor=colore_sfondo, plot_bgcolor=colore_sfondo,
-            font=dict(color="#B8C2D0", family="Inter, sans-serif"),
-            margin=dict(l=30, r=30, t=40, b=30)
+            font=dict(color="#B8C2D0", family="Inter, sans-serif", size=10),
+            margin=dict(l=25, r=15, t=35, b=25),
+            height=CHART_HEIGHT,
+            showlegend=False,
+            title_font=dict(size=13)
         )
 
-        figs_per_export = []  # raccogliamo le figure per l'export HTML
-
-        # --- Grafico 1: trend 90 giorni sonno/stress/rpe ---
-        if 'Data' in df_base.columns:
-            df_plot = df_base.sort_values('Data').tail(90)
-            fig_trend = go.Figure()
-            fig_trend.add_trace(go.Scatter(x=df_plot['Data'], y=df_plot['Ore Sonno'], name='Ore Sonno', line=dict(color='#00E5FF')))
-            fig_trend.add_trace(go.Scatter(x=df_plot['Data'], y=df_plot['Stress Lavoro'], name='Stress Lavoro', line=dict(color='#FF6A3D'), yaxis='y2'))
-            fig_trend.add_trace(go.Scatter(x=df_plot['Data'], y=df_plot['RPE'], name='RPE', line=dict(color='#00F5A0'), yaxis='y2'))
-            fig_trend.update_layout(
-                **layout_dark, title="Trend ultimi 90 giorni",
-                yaxis=dict(title="Ore Sonno"),
-                yaxis2=dict(title="Stress / RPE (0-10)", overlaying='y', side='right', range=[0, 10]),
-                legend=dict(orientation="h", y=-0.2)
-            )
-            st.plotly_chart(fig_trend, use_container_width=True)
-            figs_per_export.append(fig_trend)
-
-            trend_sonno = df_plot['Ore Sonno'].tail(14).mean() - df_plot['Ore Sonno'].head(max(len(df_plot) - 14, 1)).mean()
-            if trend_sonno < -0.3:
-                st.info("📉 Il tuo sonno medio nelle ultime 2 settimane è in calo rispetto al periodo precedente: valuta di anticipare l'orario di andare a letto.")
-            elif trend_sonno > 0.3:
-                st.info("📈 Il tuo sonno medio è migliorato nelle ultime 2 settimane: ottimo per il recupero.")
-            else:
-                st.info("➡️ Il tuo sonno è stabile nelle ultime settimane.")
-        else:
-            st.caption("Colonna data non trovata nel dataset — grafico di trend non disponibile (verifica il nome colonna 'Data').")
-
-        # --- Grafico 2: oggi vs media (barre) ---
         media_sonno_90, media_stress_90, media_rpe_90 = df_base['Ore Sonno'].mean(), df_base['Stress Lavoro'].mean(), df_base['RPE'].mean()
         sonno_vs_media = r['ore_sonno'] - media_sonno_90
         stress_vs_media = r['stress_lavoro'] - media_stress_90
         rpe_vs_media = r['rpe_previsto'] - media_rpe_90
 
-        fig_bar = go.Figure()
-        metriche = ['Ore Sonno', 'Stress Lavoro', 'RPE']
-        valori_oggi = [r['ore_sonno'], r['stress_lavoro'], r['rpe_previsto']]
-        valori_media = [media_sonno_90, media_stress_90, media_rpe_90]
-        fig_bar.add_trace(go.Bar(name='Oggi', x=metriche, y=valori_oggi, marker_color='#00E5FF'))
-        fig_bar.add_trace(go.Bar(name='Media 90gg', x=metriche, y=valori_media, marker_color='#566178'))
-        fig_bar.update_layout(**layout_dark, title="Oggi vs Media 90 giorni", barmode='group')
-        st.plotly_chart(fig_bar, use_container_width=True)
-        figs_per_export.append(fig_bar)
+        figs_per_export = []
+
+        # --- Riga 1: trend 90 giorni, un grafico piccolo per parametro ---
+        if 'Data' in df_base.columns:
+            df_plot = df_base.sort_values('Data').tail(90)
+
+            r1c1, r1c2, r1c3 = st.columns(3)
+
+            fig_t1 = go.Figure(go.Scatter(x=df_plot['Data'], y=df_plot['Ore Sonno'], line=dict(color='#00E5FF', width=1.5)))
+            fig_t1.update_layout(**layout_dark_small, title="Trend Ore Sonno (90gg)")
+            r1c1.plotly_chart(fig_t1, use_container_width=True)
+            figs_per_export.append(fig_t1)
+
+            fig_t2 = go.Figure(go.Scatter(x=df_plot['Data'], y=df_plot['Stress Lavoro'], line=dict(color='#FF6A3D', width=1.5)))
+            fig_t2.update_layout(**layout_dark_small, title="Trend Stress Lavoro (90gg)", yaxis=dict(range=[0, 10]))
+            r1c2.plotly_chart(fig_t2, use_container_width=True)
+            figs_per_export.append(fig_t2)
+
+            fig_t3 = go.Figure(go.Scatter(x=df_plot['Data'], y=df_plot['RPE'], line=dict(color='#00F5A0', width=1.5)))
+            fig_t3.update_layout(**layout_dark_small, title="Trend RPE (90gg)", yaxis=dict(range=[0, 10]))
+            r1c3.plotly_chart(fig_t3, use_container_width=True)
+            figs_per_export.append(fig_t3)
+
+            trend_sonno = df_plot['Ore Sonno'].tail(14).mean() - df_plot['Ore Sonno'].head(max(len(df_plot) - 14, 1)).mean()
+            if trend_sonno < -0.3:
+                st.caption("Il sonno medio delle ultime due settimane risulta in calo rispetto al periodo precedente.")
+            elif trend_sonno > 0.3:
+                st.caption("Il sonno medio delle ultime due settimane risulta in miglioramento rispetto al periodo precedente.")
+            else:
+                st.caption("Il sonno risulta stabile nelle ultime settimane.")
+        else:
+            st.caption("Colonna data non trovata nel dataset — grafici di trend non disponibili (verificare il nome colonna 'Data').")
+
+        # --- Riga 2: oggi vs media, un grafico piccolo per parametro ---
+        r2c1, r2c2, r2c3 = st.columns(3)
+
+        fig_b1 = go.Figure()
+        fig_b1.add_trace(go.Bar(x=['Oggi', 'Media'], y=[r['ore_sonno'], media_sonno_90], marker_color=['#00E5FF', '#566178']))
+        fig_b1.update_layout(**layout_dark_small, title="Ore Sonno: Oggi vs Media")
+        r2c1.plotly_chart(fig_b1, use_container_width=True)
+        figs_per_export.append(fig_b1)
+
+        fig_b2 = go.Figure()
+        fig_b2.add_trace(go.Bar(x=['Oggi', 'Media'], y=[r['stress_lavoro'], media_stress_90], marker_color=['#FF6A3D', '#566178']))
+        fig_b2.update_layout(**layout_dark_small, title="Stress Lavoro: Oggi vs Media")
+        r2c2.plotly_chart(fig_b2, use_container_width=True)
+        figs_per_export.append(fig_b2)
+
+        fig_b3 = go.Figure()
+        fig_b3.add_trace(go.Bar(x=['Oggi', 'Media'], y=[r['rpe_previsto'], media_rpe_90], marker_color=['#00F5A0', '#566178']))
+        fig_b3.update_layout(**layout_dark_small, title="RPE: Oggi vs Media")
+        r2c3.plotly_chart(fig_b3, use_container_width=True)
+        figs_per_export.append(fig_b3)
 
         note_bar = []
         if sonno_vs_media < -0.5:
-            note_bar.append("hai dormito meno del solito")
+            note_bar.append("il sonno è inferiore alla media")
         if stress_vs_media > 1:
-            note_bar.append("lo stress lavorativo è sopra la media")
+            note_bar.append("lo stress lavorativo è superiore alla media")
         if rpe_vs_media > 1:
-            note_bar.append("il carico percepito previsto è più alto del solito")
+            note_bar.append("il carico percepito previsto è superiore alla media")
         if note_bar:
-            st.info("⚠️ Oggi: " + ", ".join(note_bar) + " — motivo principale del livello di rischio calcolato.")
+            st.caption("Fattori principali del rischio calcolato: " + ", ".join(note_bar) + ".")
         else:
-            st.info("✅ I tuoi parametri di oggi sono in linea con la tua media storica.")
+            st.caption("I parametri odierni risultano in linea con la media storica.")
 
-        # --- Grafico 3: scatter stress vs rpe colorato per rischio storico (se disponibile) ---
+        # --- Riga 3: scatter e due gauge, tutti piccoli ---
+        r3c1, r3c2, r3c3 = st.columns(3)
+
         if all(c in df_base.columns for c in ['Stress Lavoro', 'RPE', 'Ore Sonno']):
-            df_scatter = df_base.copy()
             fig_scatter = px.scatter(
-                df_scatter, x='Stress Lavoro', y='RPE', color='Ore Sonno',
-                color_continuous_scale='Turbo', title="Relazione Stress vs RPE (storico, colore = Ore Sonno)"
+                df_base, x='Stress Lavoro', y='RPE', color='Ore Sonno',
+                color_continuous_scale='Turbo'
             )
             fig_scatter.add_trace(go.Scatter(
                 x=[r['stress_lavoro']], y=[r['rpe_previsto']], mode='markers',
-                marker=dict(size=16, color='#00F5A0', symbol='star', line=dict(width=2, color='white')),
-                name='Oggi'
+                marker=dict(size=12, color='#00F5A0', symbol='diamond', line=dict(width=1.5, color='white'))
             ))
-            fig_scatter.update_layout(**layout_dark)
-            st.plotly_chart(fig_scatter, use_container_width=True)
+            fig_scatter.update_layout(**layout_dark_small, title="Stress vs RPE (storico)", coloraxis_showscale=False)
+            r3c1.plotly_chart(fig_scatter, use_container_width=True)
             figs_per_export.append(fig_scatter)
-            st.info("La stella verde indica dove si posiziona la sessione di oggi rispetto allo storico: più è in alto a destra, più il carico combinato stress+RPE è elevato.")
 
-        # --- Grafico 4: gauge rischio e recovery ---
-        fig_gauge = go.Figure()
-        fig_gauge.add_trace(go.Indicator(
-            mode="gauge+number", value=risk_score, title={'text': "Rischio %"},
-            domain={'x': [0, 0.48], 'y': [0, 1]},
+        fig_g1 = go.Figure(go.Indicator(
+            mode="gauge+number", value=risk_score,
             gauge={'axis': {'range': [0, 100]}, 'bar': {'color': col},
                    'steps': [{'range': [0, 25], 'color': '#0E1420'}, {'range': [25, 60], 'color': '#1c2333'}, {'range': [60, 100], 'color': '#2a1c1c'}]}
         ))
-        fig_gauge.add_trace(go.Indicator(
-            mode="gauge+number", value=recovery_score, title={'text': "Recovery %"},
-            domain={'x': [0.52, 1], 'y': [0, 1]},
+        fig_g1.update_layout(**layout_dark_small, title="Indice di Rischio")
+        r3c2.plotly_chart(fig_g1, use_container_width=True)
+        figs_per_export.append(fig_g1)
+
+        fig_g2 = go.Figure(go.Indicator(
+            mode="gauge+number", value=recovery_score,
             gauge={'axis': {'range': [0, 100]}, 'bar': {'color': '#00F5A0'},
                    'steps': [{'range': [0, 40], 'color': '#2a1c1c'}, {'range': [40, 75], 'color': '#1c2333'}, {'range': [75, 100], 'color': '#0E1420'}]}
         ))
-        fig_gauge.update_layout(**layout_dark, title="Indicatori di Sintesi")
-        st.plotly_chart(fig_gauge, use_container_width=True)
-        figs_per_export.append(fig_gauge)
+        fig_g2.update_layout(**layout_dark_small, title="Recovery Score")
+        r3c3.plotly_chart(fig_g2, use_container_width=True)
+        figs_per_export.append(fig_g2)
 
         st.markdown("<br><hr><br>", unsafe_allow_html=True)
 
         # =========================================================
-        # ANALISI PARAMETRI VS MEDIA (90 GIORNI) — card con delta esplicito
+        # ANALISI PARAMETRI VS MEDIA (90 GIORNI)
         # =========================================================
         st.subheader("Analisi Parametri vs Media (90 giorni)")
-        st.caption("Il valore \"Δ vs media\" indica di quanto il parametro di oggi si discosta dalla tua media storica (segno + = sopra media, − = sotto media).")
+        st.caption("Il valore \"Δ vs media\" indica di quanto il parametro di oggi si discosta dalla media storica (segno + = sopra media, − = sotto media).")
 
         col_a1, col_a2, col_a3 = st.columns(3)
 
@@ -1446,7 +1466,6 @@ Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
             )
 
         with colb2:
-            # Costruzione report HTML completo con grafici incorporati
             charts_html = ""
             for i, f in enumerate(figs_per_export):
                 include_js = 'cdn' if i == 0 else False
@@ -1459,15 +1478,19 @@ Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
 <title>RunAI Performance Report</title>
 <style>
   body {{ background:#0E1420; color:#B8C2D0; font-family: Inter, sans-serif; padding: 30px; }}
-  h1 {{ color:{col}; }}
+  h1 {{ color:{col}; font-weight:600; }}
   pre {{ background:#161d2b; padding:15px; border-radius:8px; white-space:pre-wrap; }}
+  .charts-grid {{ display:flex; flex-wrap:wrap; gap:10px; }}
+  .charts-grid > div {{ flex: 1 1 30%; min-width:260px; }}
 </style>
 </head>
 <body>
   <h1>{tit}</h1>
   <pre>{report_testo}</pre>
   <h2>Grafici Analitici</h2>
+  <div class="charts-grid">
   {charts_html}
+  </div>
 </body>
 </html>"""
 
