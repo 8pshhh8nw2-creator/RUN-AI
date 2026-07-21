@@ -1373,7 +1373,7 @@ elif pagina == "CONSIGLIO FINALE":
         ))
         fig_b3.update_layout(**layout_base, yaxis=dict(range=[0, 10.5]))
         spieg_b3 = f"Sforzo muscolare programmato <b>{rpe_previsto}/10</b>. Deviazione standard dallo storico: <b>{delta_rpe:+.1f} pt</b>."
-        render_tech_chart(r2c3, "Output Programmato", fig_b3, C_RPE, spieg_b3)    
+        render_tech_chart(r2c3, "Output Programmato", fig_b3, C_RPE, spieg_b3)   
 # ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
