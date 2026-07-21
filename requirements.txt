@@ -4,3 +4,4 @@ pandas
 numpy
 mediapipe
 opencv-python-headless
+scikit-learn
