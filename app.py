@@ -393,7 +393,7 @@ else:
     df = df_full
 
 # ---------------------------------------------------------
-# PAGINA 0: HOME / LANDING PAGE
+# PAGINA 0: HOME / LANDING PAGE (VERSIONE MIGLIORATA)
 # ---------------------------------------------------------
 if pagina == "HOME":
     header_block(
@@ -403,43 +403,116 @@ if pagina == "HOME":
         IMG_HERO_HOME, "Executive Dashboard"
     )
 
+    # --- Badge di stato live, per dare un senso di "sistema attivo" ---
+    st.markdown("""
+    <div style='display:flex; align-items:center; gap:8px; margin-bottom:18px;'>
+        <span style='width:8px; height:8px; border-radius:50%; background:#00F5A0;
+                     box-shadow:0 0 8px #00F5A0; display:inline-block;'></span>
+        <span style='font-family:"JetBrains Mono",monospace; font-size:0.75em; color:#00F5A0;
+                     letter-spacing:0.1em;'>SISTEMA ONLINE — DATI SINCRONIZZATI</span>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("""
     <div class='info-box'>
     <strong>Benvenuto in RUNAI.</strong> Questo sistema integra IoT, Wearable Analytics e modelli di Machine Learning supervisionati per ottimizzare i carichi di allenamento e supportare le decisioni del preparatore o dell'atleta.
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+
+    # --- Calcolo variazioni settimanali per dare contesto ai numeri (non solo il totale secco) ---
+    tot_km = df_full['Distanza (km)'].sum()
+    n_sessioni = len(df_full)
+    km_ultimi_15 = df_full['Distanza (km)'].tail(15).sum()
+    km_precedenti_15 = df_full['Distanza (km)'].tail(30).head(15).sum() if len(df_full) >= 30 else 0
+    delta_km = km_ultimi_15 - km_precedenti_15 if km_precedenti_15 > 0 else 0
+    delta_pct = (delta_km / km_precedenti_15 * 100) if km_precedenti_15 > 0 else 0
+
     col_h1, col_h2, col_h3, col_h4 = st.columns(4)
-    col_h1.metric("KM Totali (90gg)", f"{df_full['Distanza (km)'].sum():.0f} km")
-    col_h2.metric("Sessioni Monitorate", f"{len(df_full)}")
-    col_h3.metric("Modelli ML Attivi", "5 Algoritmi")
-    col_h4.metric("Stato Sistema", "Online / Sync")
+    col_h1.metric("KM Totali (90gg)", f"{tot_km:.0f} km",
+                   f"{delta_pct:+.0f}% ultime 2 sett." if km_precedenti_15 > 0 else None)
+    col_h2.metric("Sessioni Monitorate", f"{n_sessioni}")
+    col_h3.metric("Modelli ML Attivi", "5 Algoritmi", "Random Forest, Regressioni, K-Means")
+    col_h4.metric("Stato Sistema", "Online", "Sync attivo")
+
+    st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+
+    # --- Trend rapido delle ultime sessioni: dà subito un colpo d'occhio visivo, non solo numeri ---
+    st.markdown("<p style='font-size:0.8em; color:#8792A3; font-family:\"JetBrains Mono\",monospace; letter-spacing:0.08em; margin-bottom:4px;'>TREND DISTANZA — ULTIME SESSIONI</p>", unsafe_allow_html=True)
+    serie_km = df_full['Distanza (km)'].tail(30).reset_index(drop=True)
+    fig_trend = go.Figure()
+    fig_trend.add_trace(go.Scatter(
+        y=serie_km, mode='lines', fill='tozeroy',
+        line=dict(color='#00E5FF', width=2.5),
+        fillcolor='rgba(0,229,255,0.12)',
+        hovertemplate='%{y:.1f} km<extra></extra>'
+    ))
+    fig_trend.update_layout(
+        height=140, margin=dict(l=0, r=0, t=6, b=0),
+        showlegend=False,
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+    )
+    st.plotly_chart(style_fig(fig_trend), use_container_width=True, config={'displayModeBar': False})
 
     st.markdown("---")
     st.subheader("Panoramica Moduli Principali")
 
-    c_card1, c_card2, c_card3 = st.columns(3)
-    with c_card1:
-        st.markdown("""
-        <div class='kpi-card' style='text-align:left; height: 210px;'>
-            <h3 style='color:#00E5FF; margin-bottom:8px;'>01. Stato di Forma</h3>
-            <p style='color:#8792A3; font-size:0.9em;'>Configura i parametri biologici giornalieri, sonno e stress per avviare il calcolo predittivo dell'allenamento.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with c_card2:
-        st.markdown("""
-        <div class='kpi-card' style='text-align:left; height: 210px;'>
-            <h3 style='color:#00F5A0; margin-bottom:8px;'>02. Analytics & ML</h3>
-            <p style='color:#8792A3; font-size:0.9em;'>Esplora Random Forest, Regressioni e Cluster K-Means per comprendere i pattern nascosti nel tuo storico.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with c_card3:
-        st.markdown("""
-        <div class='kpi-card' style='text-align:left; height: 210px;'>
-            <h3 style='color:#FFB020; margin-bottom:8px;'>03. Computer Vision</h3>
-            <p style='color:#8792A3; font-size:0.9em;'>Analisi biomeccanica della falcata tramite video e stima del rischio clinico associato ai sovraccarichi.</p>
-        </div>
-        """, unsafe_allow_html=True)
+    moduli = [
+        {
+            "num": "01", "titolo": "Stato di Forma", "colore": "#00E5FF",
+            "icona": "⚡",
+            "desc": "Configura i parametri biologici giornalieri, sonno e stress per avviare il calcolo predittivo dell'allenamento.",
+            "tag": "Input Giornaliero"
+        },
+        {
+            "num": "02", "titolo": "Analytics & ML", "colore": "#00F5A0",
+            "icona": "📊",
+            "desc": "Esplora Random Forest, Regressioni e Cluster K-Means per comprendere i pattern nascosti nel tuo storico.",
+            "tag": "5 Modelli Attivi"
+        },
+        {
+            "num": "03", "titolo": "Computer Vision", "colore": "#FFB020",
+            "icona": "🎯",
+            "desc": "Analisi biomeccanica della falcata tramite video e stima del rischio associato ai sovraccarichi articolari.",
+            "tag": "Pose Estimation"
+        },
+    ]
+
+    cols_moduli = st.columns(3)
+    for col, m in zip(cols_moduli, moduli):
+        with col:
+            st.markdown(f"""
+            <div class='kpi-card' style='text-align:left; height: 240px; position:relative;
+                        border-left: 3px solid {m['colore']};
+                        transition: box-shadow 0.2s ease;
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.25);'>
+                <div style='display:flex; justify-content:space-between; align-items:flex-start;'>
+                    <span style='font-family:"JetBrains Mono",monospace; font-size:1.6em;'>{m['icona']}</span>
+                    <span style='font-family:"JetBrains Mono",monospace; font-size:0.7em; color:#566178;
+                                 letter-spacing:0.1em;'>{m['num']}</span>
+                </div>
+                <h3 style='color:{m['colore']}; margin-top:10px; margin-bottom:8px; font-size:1.15em;'>{m['titolo']}</h3>
+                <p style='color:#8792A3; font-size:0.88em; line-height:1.5; margin-bottom:14px;'>{m['desc']}</p>
+                <div style='position:absolute; bottom:16px; left:20px; right:20px;'>
+                    <span style='font-family:"JetBrains Mono",monospace; font-size:0.7em; color:{m['colore']};
+                                 background:rgba(255,255,255,0.04); padding:4px 10px; border-radius:20px;
+                                 letter-spacing:0.05em;'>● {m['tag']}</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
+
+    # --- Footer informativo, dà un tocco di "prodotto finito" alla tesi ---
+    st.markdown("""
+    <div style='text-align:center; padding:18px 0 4px 0; border-top:1px solid #1c2333;'>
+        <p style='color:#566178; font-size:0.75em; font-family:"JetBrains Mono",monospace; letter-spacing:0.08em;'>
+            RUNAI PERFORMANCE INTELLIGENCE SYSTEM — Master Thesis Project
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # PAGINA 1: ANALISI STATO DI FORMA
