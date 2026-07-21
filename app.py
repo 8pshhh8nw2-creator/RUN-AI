@@ -391,7 +391,6 @@ elif filtro_tempo == "Ultimi 60 giorni":
     df = df_full.tail(60)
 else:
     df = df_full
-
 # ---------------------------------------------------------
 # PAGINA 0: HOME / LANDING PAGE (VERSIONE MIGLIORATA)
 # ---------------------------------------------------------
@@ -443,7 +442,7 @@ if pagina == "HOME":
     serie_km = df_full['Distanza (km)'].tail(30).reset_index(drop=True)
     fig_trend = go.Figure()
     fig_trend.add_trace(go.Scatter(
-        y=serie_km, mode='lines', fill='tozeroy',
+        y=serie_km, mode='lines', fill='tozeroy', name='Distanza',
         line=dict(color='#00E5FF', width=2.5),
         fillcolor='rgba(0,229,255,0.12)',
         hovertemplate='%{y:.1f} km<extra></extra>'
@@ -451,10 +450,13 @@ if pagina == "HOME":
     fig_trend.update_layout(
         height=140, margin=dict(l=0, r=0, t=6, b=0),
         showlegend=False,
-        xaxis=dict(visible=False),
-        yaxis=dict(visible=False),
+        xaxis=dict(visible=False, title=None),
+        yaxis=dict(visible=False, title=None),
+        title=None,
     )
-    st.plotly_chart(style_fig(fig_trend), use_container_width=True, config={'displayModeBar': False})
+    fig_trend_finale = style_fig(fig_trend)
+    fig_trend_finale.update_layout(showlegend=False, title=None)
+    st.plotly_chart(fig_trend_finale, use_container_width=True, config={'displayModeBar': False})
 
     st.markdown("---")
     st.subheader("Panoramica Moduli Principali")
@@ -467,27 +469,49 @@ if pagina == "HOME":
             "tag": "Input Giornaliero"
         },
         {
-            "num": "02", "titolo": "Analytics & ML", "colore": "#00F5A0",
-            "icona": "📊",
-            "desc": "Esplora Random Forest, Regressioni e Cluster K-Means per comprendere i pattern nascosti nel tuo storico.",
+            "num": "02", "titolo": "Statistiche & Analisi", "colore": "#00F5A0",
+            "icona": "📈",
+            "desc": "Esplora lo storico delle sessioni con grafici e statistiche descrittive su volumi, ritmi e andamento nel tempo.",
+            "tag": "Storico Sessioni"
+        },
+        {
+            "num": "03", "titolo": "KPI Dashboard", "colore": "#FFB020",
+            "icona": "🧭",
+            "desc": "Colpo d'occhio sugli indicatori chiave di performance: carico, recupero e stato generale dell'atleta.",
+            "tag": "Metriche Chiave"
+        },
+        {
+            "num": "04", "titolo": "Analisi Predittiva ML", "colore": "#FF6A3D",
+            "icona": "🤖",
+            "desc": "Random Forest, Regressioni e Cluster K-Means per comprendere i pattern nascosti nel tuo storico e prevedere il rischio.",
             "tag": "5 Modelli Attivi"
         },
         {
-            "num": "03", "titolo": "Computer Vision", "colore": "#FFB020",
+            "num": "05", "titolo": "Consiglio Finale", "colore": "#00E5FF",
+            "icona": "✅",
+            "desc": "Sintesi operativa: distanza consigliata, zone cardiache e raccomandazioni per la sessione odierna.",
+            "tag": "Report Giornaliero"
+        },
+        {
+            "num": "06", "titolo": "Computer Vision", "colore": "#00F5A0",
             "icona": "🎯",
             "desc": "Analisi biomeccanica della falcata tramite video e stima del rischio associato ai sovraccarichi articolari.",
             "tag": "Pose Estimation"
         },
     ]
 
-    cols_moduli = st.columns(3)
-    for col, m in zip(cols_moduli, moduli):
+    riga1 = st.columns(3)
+    riga2 = st.columns(3)
+    colonne_moduli = riga1 + riga2
+
+    for col, m in zip(colonne_moduli, moduli):
         with col:
             st.markdown(f"""
             <div class='kpi-card' style='text-align:left; height: 240px; position:relative;
                         border-left: 3px solid {m['colore']};
                         transition: box-shadow 0.2s ease;
-                        box-shadow: 0 4px 20px rgba(0,0,0,0.25);'>
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+                        margin-bottom: 16px;'>
                 <div style='display:flex; justify-content:space-between; align-items:flex-start;'>
                     <span style='font-family:"JetBrains Mono",monospace; font-size:1.6em;'>{m['icona']}</span>
                     <span style='font-family:"JetBrains Mono",monospace; font-size:0.7em; color:#566178;
@@ -513,6 +537,11 @@ if pagina == "HOME":
         </p>
     </div>
     """, unsafe_allow_html=True)
+
+
+   
+
+   
 
 # ---------------------------------------------------------
 # PAGINA 1: ANALISI STATO DI FORMA
