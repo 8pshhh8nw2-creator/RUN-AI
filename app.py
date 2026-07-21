@@ -949,18 +949,45 @@ elif pagina == "ANALISI PREDITTIVA ML":
     )
 
     df_base = st.session_state.dati.copy()
+    try:
+        feature_cols = ['Distanza (km)', 'Ore Sonno', 'Stress Lavoro', 'FC Media', 'RPE']
+        feature_names = ['Distanza', 'Sonno', 'Stress', 'FC Media', 'RPE']
 
-    # --- PULIZIA PREVENTIVA DEI DATI (Elimina NaN e forza i tipi numerici) ---
-    feature_cols = ['Distanza (km)', 'Ore Sonno', 'Stress Lavoro', 'FC Media', 'RPE']
-    feature_names = ['Distanza', 'Sonno', 'Stress', 'FC Media', 'RPE']
+        # --- PULIZIA PREVENTIVA DEI DATI ---
+        for col in feature_cols + ['Rischio Infortunio', 'Velocità (km/h)', 'Temp (°C)', 'SMA']:
+            if col in df_base.columns:
+                df_base[col] = pd.to_numeric(df_base[col], errors='coerce').fillna(0)
 
-    # Riempie eventuali valori mancanti con la media o 0 e converte in numerico
-    for col in feature_cols + ['Rischio Infortunio', 'Velocità (km/h)', 'Temp (°C)', 'SMA']:
-        if col in df_base.columns:
-            df_base[col] = pd.to_numeric(df_base[col], errors='coerce').fillna(0)
+        X_class = df_base[feature_cols].values
+        y_class = df_base['Rischio Infortunio'].astype(int).values
 
-    X_class = df_base[feature_cols].values
-    y_class = df_base['Rischio Infortunio'].astype(int).values
+        scaler = StandardScaler()
+        X_scaled_class = scaler.fit_transform(X_class)
+
+        # -----------------------------------------------------
+        # SPLIT TRAIN/TEST SICURO
+        # -----------------------------------------------------
+        unique_classes = np.unique(y_class)
+        has_multiple_classes = bool(len(unique_classes) > 1)
+        has_enough_samples = bool(len(df_base) >= 10)
+        
+        stratify_arg = y_class if (has_multiple_classes and has_enough_samples) else None
+        
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_scaled_class, y_class, test_size=0.25, random_state=42, stratify=stratify_arg
+        )
+
+        # -----------------------------------------------------
+        # DEFINIZIONE TAB
+        # -----------------------------------------------------
+        t_ml1, t_ml2, t_ml3, t_ml4, t_ml5, t_ml6, t_ml7, t_ml8, t_ml9, t_ml10 = st.tabs([
+            "Random Forest", "Logistic Regression", "Linear Regression", "Cluster K-Means",
+            "Stress Prediction", "Simulatore What-If", "Confronto Modelli",
+            "Explainability (SHAP)", "Anomaly Detection", "PCA"
+        ])
+
+    
+    
 
         # -----------------------------------------------------
         # SPLIT TRAIN/TEST SICURO (Evita qualsiasi array ambigua)
