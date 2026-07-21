@@ -1333,8 +1333,7 @@ Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
             file_name="runai_report_allenamento_completo.txt", 
             mime="text/plain", 
             use_container_width=True
-        )
-```eof       
+        )      
 # ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
