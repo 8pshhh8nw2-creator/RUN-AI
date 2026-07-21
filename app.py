@@ -22,6 +22,7 @@ from sklearn.metrics import r2_score
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import silhouette_score
 from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import IsolationForest
 warnings.filterwarnings('ignore')
 try:
     import shap
