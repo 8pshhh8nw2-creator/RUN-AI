@@ -937,12 +937,8 @@ elif pagina == "KPI DASHBOARD":
 # except ImportError:
 #     SHAP_AVAILABLE = False
 
-# ---------------------------------------------------------
-# PAGINA 4: ANALISI PREDITTIVA ML — VERSIONE COMPLETA
-# ---------------------------------------------------------
-
 # =========================================================
-# PAGINA 4: ANALISI PREDITTIVA ML — VERSIONE COMPLETA
+# PAGINA 4: ANALISI PREDITTIVA ML — VERSIONE INTEGRALE COMPLETA
 # =========================================================
 elif pagina == "ANALISI PREDITTIVA ML":
     header_block(
@@ -974,7 +970,8 @@ elif pagina == "ANALISI PREDITTIVA ML":
         # -----------------------------------------------------
         # SPLIT TRAIN/TEST CONDIVISO
         # -----------------------------------------------------
-        stratify_arg = y_class if len(np.unique(y_class)) > 1 and len(df_base) >= 10 else None
+        unique_classes = np.unique(y_class)
+        stratify_arg = y_class if len(unique_classes) > 1 and len(df_base) >= 10 else None
         X_train, X_test, y_train, y_test = train_test_split(
             X_scaled_class, y_class, test_size=0.25, random_state=42, stratify=stratify_arg
         )
@@ -1010,14 +1007,12 @@ elif pagina == "ANALISI PREDITTIVA ML":
                 fig_cm.update_layout(height=350, title="Matrice di Confusione (dati di TEST)")
                 st.plotly_chart(style_fig(fig_cm), use_container_width=True)
 
+            # --- Metriche di validazione ---
             acc = accuracy_score(y_test, y_pred_rf)
             prec = precision_score(y_test, y_pred_rf, zero_division=0)
             rec = recall_score(y_test, y_pred_rf, zero_division=0)
             f1 = f1_score(y_test, y_pred_rf, zero_division=0)
-            try:
-                roc_auc_rf = roc_auc_score(y_test, y_proba_rf)
-            except ValueError:
-                roc_auc_rf = float('nan')
+            roc_auc_rf = roc_auc_score(y_test, y_proba_rf) if len(np.unique(y_test)) > 1 else float('nan')
 
             mc1, mc2, mc3, mc4, mc5 = st.columns(5)
             mc1.metric("Accuracy", f"{acc*100:.1f}%")
@@ -1026,6 +1021,7 @@ elif pagina == "ANALISI PREDITTIVA ML":
             mc4.metric("F1-Score", f"{f1*100:.1f}%")
             mc5.metric("ROC-AUC", f"{roc_auc_rf:.2f}" if not np.isnan(roc_auc_rf) else "N/D")
 
+            # --- Cross-validation ---
             try:
                 cv_scores = cross_val_score(
                     RandomForestClassifier(n_estimators=100, random_state=42, max_depth=8, min_samples_split=5),
@@ -1035,6 +1031,7 @@ elif pagina == "ANALISI PREDITTIVA ML":
             except ValueError:
                 st.caption("Cross-validation non disponibile: servono più campioni per classe.")
 
+            # --- Curva ROC ---
             if not np.isnan(roc_auc_rf):
                 fpr, tpr, _ = roc_curve(y_test, y_proba_rf)
                 fig_roc = go.Figure()
@@ -1066,24 +1063,21 @@ elif pagina == "ANALISI PREDITTIVA ML":
 
             acc_l = accuracy_score(y_test, y_pred_log)
             f1_l = f1_score(y_test, y_pred_log, zero_division=0)
-            try:
-                auc_l = roc_auc_score(y_test, y_proba_log)
-            except ValueError:
-                auc_l = float('nan')
+            auc_l = roc_auc_score(y_test, y_proba_log) if len(np.unique(y_test)) > 1 else float('nan')
 
             lc1, lc2, lc3 = st.columns(3)
             lc1.metric("Accuracy (test)", f"{acc_l*100:.1f}%")
             lc2.metric("F1-Score (test)", f"{f1_l*100:.1f}%")
             lc3.metric("ROC-AUC (test)", f"{auc_l:.2f}" if not np.isnan(auc_l) else "N/D")
 
-            st.markdown("<div class='explain-text'><strong>Analisi Risultati:</strong> I coefficienti verdi agiscono come fattori protettivi riducendo la probabilità di rischio; i coefficienti arancioni aumentano le probabilità di sovraccarico.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Analisi Risultati:</strong> I coefficienti verdi (es. ore di sonno) agiscono come fattori protettivi riducendo la probabilità di rischio; i coefficienti arancioni (es. stress o RPE elevato) aumentano esponenzialmente le probabilità di sovraccarico. Le metriche a destra confermano quanto questa lettura lineare regga sui dati di test.</div>", unsafe_allow_html=True)
 
         # =====================================================
         # TAB 3 — LINEAR REGRESSION
         # =====================================================
         with t_ml3:
             st.markdown("### Linear Regression (Previsione FC Media)")
-            st.markdown("<div class='explain-text'><strong>Spiegazione Algoritmo:</strong> Algoritmo di regressione supervisionata che modella il legame lineare tra una variabile continua dipendente (Frequenza Cardiaca) e variabili indipendenti.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Spiegazione Algoritmo:</strong> Algoritmo di regressione supervisionata che modella il legame lineare tra una variabile continua dipendente (Frequenza Cardiaca) e variabili indipendenti (Velocità, Temperatura, Distanza).</div>", unsafe_allow_html=True)
 
             X_lr = df_base[['Velocità (km/h)', 'Temp (°C)', 'Distanza (km)']].values
             y_lr = df_base['FC Media'].values
@@ -1099,21 +1093,21 @@ elif pagina == "ANALISI PREDITTIVA ML":
 
             fig_lr = px.scatter(df_base, x='FC Media', y='FC_Predetta', color='RPE', color_continuous_scale=[[0,'#00E5FF'],[1,'#FF6A3D']])
             fig_lr.add_shape(type="line", x0=df_base['FC Media'].min(), y0=df_base['FC Media'].min(), x1=df_base['FC Media'].max(), y1=df_base['FC Media'].max(), line=dict(color="#00F5A0", dash="dash"))
-            fig_lr.update_layout(height=400, title="FC Reale vs FC Predetta", xaxis_title="FC Reale", yaxis_title="FC Predetta")
+            fig_lr.update_layout(height=400, title="FC Reale vs FC Predetta (tutti i punti)", xaxis_title="FC Reale", yaxis_title="FC Predetta")
             st.plotly_chart(style_fig(fig_lr), use_container_width=True)
 
             rc1, rc2 = st.columns(2)
-            rc1.metric("R² (test)", f"{r2_test:.2f}")
-            rc2.metric("RMSE (test)", f"{rmse_test:.1f} bpm")
+            rc1.metric("R² (dati di test)", f"{r2_test:.2f}")
+            rc2.metric("RMSE (dati di test)", f"{rmse_test:.1f} bpm")
 
-            st.markdown("<div class='explain-text'><strong>Analisi Risultati:</strong> La linea diagonale verde rappresenta la previsione perfetta. Deviazioni anomale segnalano affaticamento latente.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Analisi Risultati:</strong> La linea diagonale verde rappresenta la previsione perfetta. L'R² sui dati di test misura la quota di variabilità della FC spiegata dal modello; l'RMSE esprime l'errore medio in battiti al minuto. Deviazioni anomale segnalano affaticamento latente non catturato dalle sole variabili ambientali.</div>", unsafe_allow_html=True)
 
         # =====================================================
         # TAB 4 — CLUSTER K-MEANS
         # =====================================================
         with t_ml4:
             st.markdown("### Cluster Analysis (K-Means)")
-            st.markdown("<div class='explain-text'><strong>Spiegazione Algoritmo:</strong> Apprendimento non supervisionato che raggruppa automaticamente il set di dati in cluster omogenei.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Spiegazione Algoritmo:</strong> Algoritmo di apprendimento non supervisionato che raggruppa automaticamente il set di dati in cluster omogenei in base a similarità di distanza percorsa e frequenza cardiaca media. Il numero di cluster ottimale non va scelto a caso: va giustificato con il metodo del gomito (elbow) e lo score di silhouette.</div>", unsafe_allow_html=True)
 
             X_clust = df_base[['Distanza (km)', 'FC Media']].values
             max_k = min(8, max(3, len(df_base) - 1))
@@ -1139,7 +1133,7 @@ elif pagina == "ANALISI PREDITTIVA ML":
                 st.plotly_chart(style_fig(fig_sil), use_container_width=True)
 
             best_k = k_range[int(np.argmax(sil_scores))] if sil_scores else 3
-            st.caption(f"Il valore di k con silhouette score più alto è k={best_k}. Per coerenza si utilizza k=3 nel grafico.")
+            st.caption(f"Il valore di k con silhouette score più alto è k={best_k}. Per coerenza con la lettura sportiva (fondi/recupero/alta intensità) si utilizza k=3 nel grafico sottostante.")
 
             km = KMeans(n_clusters=3, random_state=42, n_init=10)
             df_base['Cluster_ID'] = km.fit_predict(X_clust)
@@ -1149,14 +1143,14 @@ elif pagina == "ANALISI PREDITTIVA ML":
             fig_km.update_layout(height=400, title="Segmentazione Cluster Allenamenti (k=3)")
             st.plotly_chart(style_fig(fig_km), use_container_width=True)
 
-            st.markdown("<div class='explain-text'><strong>Analisi Risultati:</strong> L'algoritmo suddivide autonomamente le sessioni in tipologie distinte (es. fondi lunghi, sedute di recupero).</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Analisi Risultati:</strong> L'algoritmo suddivide autonomamente le sessioni in tipologie distinte (es. fondi lunghi, sedute di recupero, lavori ad alta intensità), consentendo di verificare l'efficacia della polarizzazione del carico. Il grafico del gomito e lo score di silhouette forniscono la giustificazione quantitativa della scelta di k.</div>", unsafe_allow_html=True)
 
         # =====================================================
         # TAB 5 — STRESS / OVERLOAD PREDICTION
         # =====================================================
         with t_ml5:
             st.markdown("### Stress / Overload Prediction (Time Series)")
-            st.markdown("<div class='explain-text'><strong>Spiegazione Algoritmo:</strong> Analisi delle serie temporali basata sulla media mobile dello stress sistemico.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Spiegazione Algoritmo:</strong> Analisi delle serie temporali basata sul calcolo della media mobile dello stress sistemico (SMA = Stress * RPE / Sonno), finalizzata a intercettare trend di accumulo di fatica cronica. Un modello di trend lineare proietta l'andamento sui giorni successivi.</div>", unsafe_allow_html=True)
 
             df_stress = df_base[['Giorno', 'SMA']].sort_values('Giorno').reset_index(drop=True).copy()
             df_stress['SMA_Rolling'] = df_stress['SMA'].rolling(7, min_periods=1).mean()
@@ -1179,21 +1173,22 @@ elif pagina == "ANALISI PREDITTIVA ML":
 
                 fig_forecast = go.Figure()
                 fig_forecast.add_trace(go.Scatter(x=list(range(len(df_stress))), y=df_stress['SMA_Rolling'], mode='lines', line=dict(color='#00E5FF'), name="Storico"))
-                fig_forecast.add_trace(go.Scatter(x=list(future_idx), y=future_vals, mode='lines', line=dict(color='#FF6A3D', dash='dash'), name="Proiezione"))
+                fig_forecast.add_trace(go.Scatter(x=list(future_idx), y=future_vals, mode='lines', line=dict(color='#FF6A3D', dash='dash'), name="Proiezione (trend lineare)"))
                 fig_forecast.add_trace(go.Scatter(x=list(future_idx) + list(future_idx)[::-1], y=list(future_vals + residual_std) + list(future_vals - residual_std)[::-1], fill='toself', fillcolor='rgba(255,106,61,0.15)', line=dict(color='rgba(0,0,0,0)'), name="Banda di incertezza"))
-                fig_forecast.update_layout(height=380, title=f"Proiezione Stress — Prossimi {n_forecast} giorni", xaxis_title="Indice giorno", yaxis_title="SMA")
+                fig_forecast.update_layout(height=380, title=f"Proiezione Stress Sistemico — Prossimi {n_forecast} giorni", xaxis_title="Indice giorno", yaxis_title="SMA")
                 st.plotly_chart(style_fig(fig_forecast), use_container_width=True)
+                st.caption("Nota metodologica: la proiezione utilizza un semplice trend lineare a fini illustrativi. Per una tesi più approfondita si può sostituire con modelli ARIMA o Holt-Winters (statsmodels), che catturano meglio stagionalità e autocorrelazione.")
             else:
                 st.info("Servono almeno 3 punti validi di SMA per calcolare una proiezione.")
 
-            st.markdown("<div class='explain-text'><strong>Analisi Risultati:</strong> Superamenti ripetuti della soglia critica indicano finestre temporali ad alto rischio.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Analisi Risultati:</strong> L'area evidenzia l'andamento della fatica accumulata nel tempo. Superamenti ripetuti della soglia critica indicano finestre temporali ad alto rischio di sovrallenamento e calo prestazionale; la proiezione aiuta a intervenire preventivamente.</div>", unsafe_allow_html=True)
 
         # =====================================================
         # TAB 6 — SIMULATORE WHAT-IF
         # =====================================================
         with t_ml6:
             st.markdown("### Simulatore What-If (Random Forest Live)")
-            st.markdown("""<div class='info-box'><strong>Modifica i parametri interattivi e osserva l'impatto sul rischio stimato.</strong></div>""", unsafe_allow_html=True)
+            st.markdown("""<div class='info-box'><strong>Modifica i parametri interattivi e osserva in tempo reale l'impatto sul rischio stimato dal modello Random Forest.</strong></div>""", unsafe_allow_html=True)
 
             base = st.session_state.risultati_analisi if st.session_state.get('analisi_fatta', False) else {'distanza_oggi': 10.0, 'ore_sonno': 7.5, 'stress_lavoro': 5, 'rpe_previsto': 6}
 
@@ -1224,12 +1219,12 @@ elif pagina == "ANALISI PREDITTIVA ML":
                 fig_sens.update_layout(height=320)
                 st.plotly_chart(style_fig(fig_sens), use_container_width=True)
 
-       # =====================================================
+        # =====================================================
         # TAB 7 — CONFRONTO MODELLI
         # =====================================================
         with t_ml7:
             st.markdown("### Confronto tra Modelli di Classificazione")
-            st.markdown("<div class='explain-text'><strong>Perché confrontare più modelli:</strong> nessun algoritmo è ottimale a priori.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Perché confrontare più modelli:</strong> nessun algoritmo è ottimale a priori. Il confronto sistematico su accuracy, F1 e ROC-AUC calcolati sugli stessi dati di test permette di scegliere il modello più adatto al problema, motivando la scelta finale nella tesi.</div>", unsafe_allow_html=True)
 
             models_to_compare = {
                 "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42, max_depth=8, min_samples_split=5),
@@ -1254,9 +1249,10 @@ elif pagina == "ANALISI PREDITTIVA ML":
                     "F1-Score": f1_score(y_test, y_pred_m, zero_division=0),
                 }
                 try:
-                    row["ROC-AUC"] = roc_auc_score(y_test, y_proba_m)
-                    fpr_m, tpr_m, _ = roc_curve(y_test, y_proba_m)
-                    fig_roc_all.add_trace(go.Scatter(x=fpr_m, y=tpr_m, mode='lines', line=dict(color=color, width=3), name=f"{name} (AUC={row['ROC-AUC']:.2f})"))
+                    row["ROC-AUC"] = roc_auc_score(y_test, y_proba_m) if len(np.unique(y_test)) > 1 else float('nan')
+                    if not np.isnan(row["ROC-AUC"]):
+                        fpr_m, tpr_m, _ = roc_curve(y_test, y_proba_m)
+                        fig_roc_all.add_trace(go.Scatter(x=fpr_m, y=tpr_m, mode='lines', line=dict(color=color, width=3), name=f"{name} (AUC={row['ROC-AUC']:.2f})"))
                 except ValueError:
                     row["ROC-AUC"] = float('nan')
 
@@ -1269,28 +1265,30 @@ elif pagina == "ANALISI PREDITTIVA ML":
             fig_roc_all.update_layout(height=400, title="Curve ROC a Confronto (dati di TEST)", xaxis_title="Falsi Positivi", yaxis_title="Veri Positivi")
             st.plotly_chart(style_fig(fig_roc_all), use_container_width=True)
 
-            # CORRETTO QUI SOTTO: uso .dropna().index per evitare l'errore dell'array booleano
             valid_auc = df_compare["ROC-AUC"].dropna()
             best_model_name = valid_auc.idxmax() if len(valid_auc) > 0 else df_compare["F1-Score"].idxmax()
-            st.markdown(f"<div class='explain-text'><strong>Analisi Risultati:</strong> Sul set di test, il modello con la performance più solida è <strong>{best_model_name}</strong>.</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='explain-text'><strong>Analisi Risultati:</strong> Sul set di test, il modello con la performance più solida è <strong>{best_model_name}</strong>. Questo confronto quantitativo è la base per giustificare, nel capitolo metodologico della tesi, la scelta del modello adottato in produzione.</div>", unsafe_allow_html=True)
+
         # =====================================================
         # TAB 8 — EXPLAINABILITY (SHAP)
         # =====================================================
         with t_ml8:
             st.markdown("### Explainability Avanzata (SHAP Values)")
-            st.markdown("<div class='explain-text'><strong>Perché SHAP:</strong> i valori SHAP spiegano ogni singola predizione quantificando l'impatto delle singole variabili.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Perché SHAP:</strong> a differenza della feature importance globale del Random Forest, i valori SHAP (SHapley Additive exPlanations) spiegano <em>ogni singola predizione</em>, quantificando quanto ciascuna variabile abbia spinto il rischio stimato verso l'alto o verso il basso per quello specifico allenamento.</div>", unsafe_allow_html=True)
 
             if SHAP_AVAILABLE:
                 explainer = shap.TreeExplainer(rf_model)
                 shap_values = explainer.shap_values(X_test)
                 shap_vals_risk = shap_values[1] if isinstance(shap_values, list) else shap_values
 
+                # --- Importanza media assoluta (globale) ---
                 mean_abs_shap = np.abs(shap_vals_risk).mean(axis=0)
                 shap_imp = sorted(list(zip(feature_names, mean_abs_shap)), key=lambda x: x[1], reverse=True)
                 fig_shap_global = go.Figure(go.Bar(y=[x[0] for x in shap_imp], x=[x[1] for x in shap_imp], orientation='h', marker_color='#00E5FF', text=[f'{x[1]:.3f}' for x in shap_imp], textposition='auto'))
-                fig_shap_global.update_layout(height=350, yaxis=dict(autorange="reversed"), title="Importanza Media |SHAP|")
+                fig_shap_global.update_layout(height=350, yaxis=dict(autorange="reversed"), title="Importanza Media |SHAP| (impatto medio sulla predizione)")
                 st.plotly_chart(style_fig(fig_shap_global), use_container_width=True)
 
+                # --- Spiegazione di una singola predizione (waterfall semplificato) ---
                 st.markdown("#### Spiegazione di una singola sessione")
                 idx_choice = st.slider("Seleziona la sessione di test da spiegare", 0, len(X_test) - 1, 0, key="shap_idx")
                 instance_shap = shap_vals_risk[idx_choice]
@@ -1302,13 +1300,16 @@ elif pagina == "ANALISI PREDITTIVA ML":
                 fig_wf.update_layout(height=320, title=f"Contributo di ogni variabile — sessione #{idx_choice} (base={base_value:.2f})", xaxis_title="Impatto SHAP sulla probabilità di rischio")
                 fig_wf.add_vline(x=0, line_color="#E8ECF2", line_width=1)
                 st.plotly_chart(style_fig(fig_wf), use_container_width=True)
+
+                st.markdown("<div class='explain-text'><strong>Analisi Risultati:</strong> le barre arancioni spingono la predizione verso un rischio più alto per quella specifica sessione, quelle verdi verso un rischio più basso. Questo livello di dettaglio, assente nella semplice feature importance, è ciò che rende un modello realmente 'explainable' nel senso richiesto dalla letteratura di Explainable AI (XAI).</div>", unsafe_allow_html=True)
             else:
-                st.info("Libreria shap non rilevata. Vengono utilizzate metriche di fallback (Permutation Importance).")
+                st.warning("La libreria 'shap' non è installata nell'ambiente. Aggiungi `shap` a requirements.txt e reinstalla le dipendenze per abilitare questa sezione.")
+                st.markdown("<div class='explain-text'>In alternativa, viene mostrata la <strong>permutation importance</strong>: mescola casualmente ogni variabile e misura di quanto peggiora la performance del modello, un'approssimazione più robusta della semplice feature importance del Random Forest.</div>", unsafe_allow_html=True)
                 from sklearn.inspection import permutation_importance
                 perm = permutation_importance(rf_model, X_test, y_test, n_repeats=20, random_state=42)
                 perm_data = sorted(list(zip(feature_names, perm.importances_mean)), key=lambda x: x[1], reverse=True)
                 fig_perm = go.Figure(go.Bar(y=[x[0] for x in perm_data], x=[x[1] for x in perm_data], orientation='h', marker_color='#FFB020'))
-                fig_perm.update_layout(height=350, yaxis=dict(autorange="reversed"), title="Permutation Importance")
+                fig_perm.update_layout(height=350, yaxis=dict(autorange="reversed"), title="Permutation Importance (fallback senza SHAP)")
                 st.plotly_chart(style_fig(fig_perm), use_container_width=True)
 
         # =====================================================
@@ -1316,7 +1317,7 @@ elif pagina == "ANALISI PREDITTIVA ML":
         # =====================================================
         with t_ml9:
             st.markdown("### Anomaly Detection (Isolation Forest)")
-            st.markdown("<div class='explain-text'><strong>Spiegazione Algoritmo:</strong> Isola le osservazioni anomale per intercettare allenamenti atipici.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Spiegazione Algoritmo:</strong> l'Isolation Forest isola le osservazioni costruendo alberi casuali: le sessioni anomale richiedono in media meno divisioni per essere isolate rispetto a quelle 'normali'. Utile per individuare allenamenti atipici che potrebbero anticipare un infortunio o un errore di registrazione dati.</div>", unsafe_allow_html=True)
 
             contamination = st.slider("Percentuale attesa di sessioni anomale", 0.02, 0.25, 0.08, step=0.01, key="iso_contam")
             iso_model = IsolationForest(contamination=contamination, random_state=42, n_estimators=200)
@@ -1333,12 +1334,14 @@ elif pagina == "ANALISI PREDITTIVA ML":
             if n_anomalie > 0:
                 st.dataframe(df_base[df_base['Anomalia'] == 'Anomala'][['Giorno'] + feature_cols], use_container_width=True)
 
+            st.markdown("<div class='explain-text'><strong>Analisi Risultati:</strong> le sessioni segnalate come anomale meritano un controllo manuale — potrebbero indicare un allenamento sopra soglia, un errore nei sensori, oppure un evento fisiologico rilevante da annotare nel diario di allenamento.</div>", unsafe_allow_html=True)
+
         # =====================================================
         # TAB 10 — PCA
         # =====================================================
         with t_ml10:
             st.markdown("### Analisi delle Componenti Principali (PCA)")
-            st.markdown("<div class='explain-text'><strong>Spiegazione Algoritmo:</strong> Riduce le variabili biometriche a 2 componenti principali.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Spiegazione Algoritmo:</strong> la PCA riduce le 5 variabili biometriche a 2 componenti principali che ne riassumono la varianza, permettendo di visualizzare in un unico piano 2D la struttura complessiva dei dati e la separabilità tra sessioni a rischio e sessioni sicure.</div>", unsafe_allow_html=True)
 
             pca = PCA(n_components=2, random_state=42)
             X_pca = pca.fit_transform(X_scaled_class)
@@ -1356,7 +1359,8 @@ elif pagina == "ANALISI PREDITTIVA ML":
                 fig_var.update_layout(height=380, title="Varianza Spiegata per Componente", yaxis_title="% Varianza Spiegata")
                 st.plotly_chart(style_fig(fig_var), use_container_width=True)
 
-            st.caption(f"Le prime 2 componenti spiegano insieme il {var_ratio.sum():.1f}% della varianza totale.")
+            st.caption(f"Le prime 2 componenti spiegano insieme il {var_ratio.sum():.1f}% della varianza totale delle 5 variabili originali.")
+            st.markdown("<div class='explain-text'><strong>Analisi Risultati:</strong> se i punti rossi (rischio) e verdi (sicuro) formano regioni distinte nel piano PC1-PC2, significa che le variabili biometriche raccolte contengono già un segnale forte e strutturato di separabilità del rischio, a supporto della bontà del dataset usato per l'addestramento.</div>", unsafe_allow_html=True)
 
     except Exception as e:
         st.error(f"Errore caricamento modelli ML: {str(e)}")
