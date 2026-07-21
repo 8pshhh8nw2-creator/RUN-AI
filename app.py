@@ -981,6 +981,12 @@ elif pagina == "ANALISI PREDITTIVA ML":
         X_train, X_test, y_train, y_test = train_test_split(
             X_scaled_class, y_class, test_size=0.25, random_state=42, stratify=stratify_arg
         )
+        # Definizione dei tab (deve essere presente prima dei blocchi 'with t_ml1:')
+        t_ml1, t_ml2, t_ml3, t_ml4, t_ml5, t_ml6, t_ml7, t_ml8, t_ml9, t_ml10 = st.tabs([
+            "Random Forest", "Logistic Regression", "Linear Regression", "Cluster K-Means",
+            "Stress Prediction", "Simulatore What-If", "Confronto Modelli",
+            "Explainability (SHAP)", "Anomaly Detection", "PCA"
+        ])
 
         # =====================================================
         # TAB 1 — RANDOM FOREST
