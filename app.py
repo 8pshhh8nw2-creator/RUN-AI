@@ -1224,8 +1224,8 @@ elif pagina == "ANALISI PREDITTIVA ML":
                 fig_sens.update_layout(height=320)
                 st.plotly_chart(style_fig(fig_sens), use_container_width=True)
 
-        # =====================================================
-        # TAB 7 — CONfronto MODELLI
+       # =====================================================
+        # TAB 7 — CONFRONTO MODELLI
         # =====================================================
         with t_ml7:
             st.markdown("### Confronto tra Modelli di Classificazione")
@@ -1269,9 +1269,10 @@ elif pagina == "ANALISI PREDITTIVA ML":
             fig_roc_all.update_layout(height=400, title="Curve ROC a Confronto (dati di TEST)", xaxis_title="Falsi Positivi", yaxis_title="Veri Positivi")
             st.plotly_chart(style_fig(fig_roc_all), use_container_width=True)
 
-            best_model_name = df_compare["ROC-AUC"].idxmax() if df_compare["ROC-AUC"].notna().any() else df_compare["F1-Score"].idxmax()
+            # CORRETTO QUI SOTTO: uso .dropna().index per evitare l'errore dell'array booleano
+            valid_auc = df_compare["ROC-AUC"].dropna()
+            best_model_name = valid_auc.idxmax() if len(valid_auc) > 0 else df_compare["F1-Score"].idxmax()
             st.markdown(f"<div class='explain-text'><strong>Analisi Risultati:</strong> Sul set di test, il modello con la performance più solida è <strong>{best_model_name}</strong>.</div>", unsafe_allow_html=True)
-
         # =====================================================
         # TAB 8 — EXPLAINABILITY (SHAP)
         # =====================================================
