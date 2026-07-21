@@ -1064,11 +1064,13 @@ elif pagina == "ANALISI PREDITTIVA ML":
 # - Si assume che df_base (st.session_state.dati) abbia una colonna
 #   data chiamata 'Data'. Se si chiama diversamente (es. 'Date'),
 #   sostituisci il nome nella sezione "GRAFICI ANALITICI".
-# - Coach: solo consigli di allenamento (mobilità, drills, pacing,
-#   stretching, recupero), nessun riferimento nutrizionale.
-# - Nessuna emoji nel testo, tono professionale/tecnico.
-# - Grafici più piccoli (altezza ridotta) e suddivisi in più unità
-#   invece di pochi grafici grandi.
+# - Si usa st.container(border=True) per le card dei grafici:
+#   richiede Streamlit >= 1.29. Se la versione è precedente,
+#   aggiorna Streamlit oppure sostituisci con un div HTML custom.
+# - Coach: solo consigli di allenamento, nessun riferimento
+#   nutrizionale. Nessuna emoji, tono professionale.
+# - Ogni grafico è più contenuto in dimensione, con una card
+#   uniforme (titolo, grafico, spiegazione sotto).
 # ---------------------------------------------------------
 
 elif pagina == "CONSIGLIO FINALE":
@@ -1123,6 +1125,8 @@ elif pagina == "CONSIGLIO FINALE":
         .kpi-card-equal .kpi-equal-body { overflow-y: auto; flex-grow: 1; }
         .kpi-card-equal .kpi-equal-body::-webkit-scrollbar { width: 6px; }
         .kpi-card-equal .kpi-equal-body::-webkit-scrollbar-thumb { background: #1c2333; border-radius: 4px; }
+        .chart-title { color:#B8C2D0; font-family:"Inter",sans-serif; font-size:0.95em; font-weight:600; margin-bottom:4px; }
+        .chart-caption { color:#8792A3; font-family:"Inter",sans-serif; font-size:0.82em; line-height:1.4; margin-top:2px; }
         </style>
         """, unsafe_allow_html=True)
 
@@ -1267,20 +1271,25 @@ elif pagina == "CONSIGLIO FINALE":
         st.markdown("<br><hr><br>", unsafe_allow_html=True)
 
         # =========================================================
-        # GRAFICI ANALITICI — piccoli e numerosi
+        # GRAFICI ANALITICI — card uniformi, dimensione bilanciata,
+        # spiegazione sotto ogni grafico
         # =========================================================
         st.subheader("Grafici Analitici")
 
-        CHART_HEIGHT = 230
-        colore_sfondo = "#0E1420"
-        layout_dark_small = dict(
-            paper_bgcolor=colore_sfondo, plot_bgcolor=colore_sfondo,
-            font=dict(color="#B8C2D0", family="Inter, sans-serif", size=10),
-            margin=dict(l=25, r=15, t=35, b=25),
+        CHART_HEIGHT = 300
+        SFONDO = "#0E1420"
+        GRIGLIA = "#1c2333"
+
+        layout_base = dict(
+            paper_bgcolor=SFONDO, plot_bgcolor=SFONDO,
+            font=dict(color="#B8C2D0", family="Inter, sans-serif", size=11),
+            margin=dict(l=40, r=20, t=15, b=35),
             height=CHART_HEIGHT,
             showlegend=False,
-            title_font=dict(size=13)
+            hoverlabel=dict(bgcolor="#161d2b", font_size=12, font_family="Inter, sans-serif"),
         )
+        axis_style = dict(gridcolor=GRIGLIA, zerolinecolor=GRIGLIA, linecolor=GRIGLIA)
+        config_pulita = {'displayModeBar': False}
 
         media_sonno_90, media_stress_90, media_rpe_90 = df_base['Ore Sonno'].mean(), df_base['Stress Lavoro'].mean(), df_base['RPE'].mean()
         sonno_vs_media = r['ore_sonno'] - media_sonno_90
@@ -1289,71 +1298,116 @@ elif pagina == "CONSIGLIO FINALE":
 
         figs_per_export = []
 
-        # --- Riga 1: trend 90 giorni, un grafico piccolo per parametro ---
+        def chart_card(container, titolo, fig, spiegazione):
+            """Renderizza una card uniforme: titolo, grafico, spiegazione sotto."""
+            fig.update_xaxes(**axis_style)
+            fig.update_yaxes(**axis_style)
+            with container:
+                with st.container(border=True):
+                    st.markdown(f"<div class='chart-title'>{titolo}</div>", unsafe_allow_html=True)
+                    st.plotly_chart(fig, use_container_width=True, config=config_pulita)
+                    st.markdown(f"<div class='chart-caption'>{spiegazione}</div>", unsafe_allow_html=True)
+            figs_per_export.append(fig)
+
+        # --- Riga 1: trend 90 giorni ---
         if 'Data' in df_base.columns:
             df_plot = df_base.sort_values('Data').tail(90)
 
+            def calcola_trend(serie):
+                recente = serie.tail(14).mean()
+                precedente = serie.head(max(len(serie) - 14, 1)).mean()
+                return recente - precedente
+
+            trend_sonno = calcola_trend(df_plot['Ore Sonno'])
+            trend_stress = calcola_trend(df_plot['Stress Lavoro'])
+            trend_rpe = calcola_trend(df_plot['RPE'])
+
             r1c1, r1c2, r1c3 = st.columns(3)
 
-            fig_t1 = go.Figure(go.Scatter(x=df_plot['Data'], y=df_plot['Ore Sonno'], line=dict(color='#00E5FF', width=1.5)))
-            fig_t1.update_layout(**layout_dark_small, title="Trend Ore Sonno (90gg)")
-            r1c1.plotly_chart(fig_t1, use_container_width=True)
-            figs_per_export.append(fig_t1)
+            fig_t1 = go.Figure(go.Scatter(
+                x=df_plot['Data'], y=df_plot['Ore Sonno'], mode='lines',
+                line=dict(color='#00E5FF', width=2), fill='tozeroy', fillcolor='rgba(0,229,255,0.08)'
+            ))
+            fig_t1.update_layout(**layout_base, yaxis_title="ore")
+            spieg_sonno = (
+                "Il sonno medio delle ultime due settimane è in calo rispetto al periodo precedente."
+                if trend_sonno < -0.3 else
+                "Il sonno medio delle ultime due settimane è in miglioramento rispetto al periodo precedente."
+                if trend_sonno > 0.3 else
+                "Il sonno è rimasto stabile nelle ultime settimane, senza variazioni significative."
+            )
+            chart_card(r1c1, "Trend Ore Sonno — 90 giorni", fig_t1, spieg_sonno)
 
-            fig_t2 = go.Figure(go.Scatter(x=df_plot['Data'], y=df_plot['Stress Lavoro'], line=dict(color='#FF6A3D', width=1.5)))
-            fig_t2.update_layout(**layout_dark_small, title="Trend Stress Lavoro (90gg)", yaxis=dict(range=[0, 10]))
-            r1c2.plotly_chart(fig_t2, use_container_width=True)
-            figs_per_export.append(fig_t2)
+            fig_t2 = go.Figure(go.Scatter(
+                x=df_plot['Data'], y=df_plot['Stress Lavoro'], mode='lines',
+                line=dict(color='#FF6A3D', width=2), fill='tozeroy', fillcolor='rgba(255,106,61,0.08)'
+            ))
+            fig_t2.update_layout(**layout_base, yaxis=dict(range=[0, 10], **axis_style), yaxis_title="punti")
+            spieg_stress = (
+                "Lo stress lavorativo medio è aumentato nelle ultime due settimane rispetto al periodo precedente."
+                if trend_stress > 0.5 else
+                "Lo stress lavorativo medio è diminuito nelle ultime due settimane rispetto al periodo precedente."
+                if trend_stress < -0.5 else
+                "Il livello di stress lavorativo è rimasto stabile nelle ultime settimane."
+            )
+            chart_card(r1c2, "Trend Stress Lavoro — 90 giorni", fig_t2, spieg_stress)
 
-            fig_t3 = go.Figure(go.Scatter(x=df_plot['Data'], y=df_plot['RPE'], line=dict(color='#00F5A0', width=1.5)))
-            fig_t3.update_layout(**layout_dark_small, title="Trend RPE (90gg)", yaxis=dict(range=[0, 10]))
-            r1c3.plotly_chart(fig_t3, use_container_width=True)
-            figs_per_export.append(fig_t3)
-
-            trend_sonno = df_plot['Ore Sonno'].tail(14).mean() - df_plot['Ore Sonno'].head(max(len(df_plot) - 14, 1)).mean()
-            if trend_sonno < -0.3:
-                st.caption("Il sonno medio delle ultime due settimane risulta in calo rispetto al periodo precedente.")
-            elif trend_sonno > 0.3:
-                st.caption("Il sonno medio delle ultime due settimane risulta in miglioramento rispetto al periodo precedente.")
-            else:
-                st.caption("Il sonno risulta stabile nelle ultime settimane.")
+            fig_t3 = go.Figure(go.Scatter(
+                x=df_plot['Data'], y=df_plot['RPE'], mode='lines',
+                line=dict(color='#00F5A0', width=2), fill='tozeroy', fillcolor='rgba(0,245,160,0.08)'
+            ))
+            fig_t3.update_layout(**layout_base, yaxis=dict(range=[0, 10], **axis_style), yaxis_title="punti")
+            spieg_rpe = (
+                "Il carico percepito (RPE) medio è in aumento nelle ultime due settimane, segnale di accumulo di fatica."
+                if trend_rpe > 0.5 else
+                "Il carico percepito (RPE) medio è in calo nelle ultime due settimane."
+                if trend_rpe < -0.5 else
+                "Il carico percepito (RPE) è rimasto stabile nelle ultime settimane."
+            )
+            chart_card(r1c3, "Trend RPE — 90 giorni", fig_t3, spieg_rpe)
         else:
             st.caption("Colonna data non trovata nel dataset — grafici di trend non disponibili (verificare il nome colonna 'Data').")
 
-        # --- Riga 2: oggi vs media, un grafico piccolo per parametro ---
+        # --- Riga 2: oggi vs media ---
         r2c1, r2c2, r2c3 = st.columns(3)
 
-        fig_b1 = go.Figure()
-        fig_b1.add_trace(go.Bar(x=['Oggi', 'Media'], y=[r['ore_sonno'], media_sonno_90], marker_color=['#00E5FF', '#566178']))
-        fig_b1.update_layout(**layout_dark_small, title="Ore Sonno: Oggi vs Media")
-        r2c1.plotly_chart(fig_b1, use_container_width=True)
-        figs_per_export.append(fig_b1)
+        fig_b1 = go.Figure(go.Bar(
+            x=['Oggi', 'Media 90gg'], y=[r['ore_sonno'], media_sonno_90],
+            marker_color=['#00E5FF', '#3A4358'], text=[f"{r['ore_sonno']:.1f}h", f"{media_sonno_90:.1f}h"],
+            textposition='outside', width=0.5
+        ))
+        fig_b1.update_layout(**layout_base, yaxis_title="ore")
+        spieg_b1 = (
+            f"Oggi il sonno è {abs(sonno_vs_media):.1f}h {'sotto' if sonno_vs_media < 0 else 'sopra'} la media storica."
+            if abs(sonno_vs_media) > 0.3 else "Il sonno di oggi è sostanzialmente in linea con la media storica."
+        )
+        chart_card(r2c1, "Ore Sonno: Oggi vs Media", fig_b1, spieg_b1)
 
-        fig_b2 = go.Figure()
-        fig_b2.add_trace(go.Bar(x=['Oggi', 'Media'], y=[r['stress_lavoro'], media_stress_90], marker_color=['#FF6A3D', '#566178']))
-        fig_b2.update_layout(**layout_dark_small, title="Stress Lavoro: Oggi vs Media")
-        r2c2.plotly_chart(fig_b2, use_container_width=True)
-        figs_per_export.append(fig_b2)
+        fig_b2 = go.Figure(go.Bar(
+            x=['Oggi', 'Media 90gg'], y=[r['stress_lavoro'], media_stress_90],
+            marker_color=['#FF6A3D', '#3A4358'], text=[f"{r['stress_lavoro']}/10", f"{media_stress_90:.1f}/10"],
+            textposition='outside', width=0.5
+        ))
+        fig_b2.update_layout(**layout_base, yaxis=dict(range=[0, 10], **axis_style), yaxis_title="punti")
+        spieg_b2 = (
+            f"Lo stress di oggi è {abs(stress_vs_media):.1f} punti {'sotto' if stress_vs_media < 0 else 'sopra'} la media storica."
+            if abs(stress_vs_media) > 0.5 else "Lo stress lavorativo di oggi è in linea con la media storica."
+        )
+        chart_card(r2c2, "Stress Lavoro: Oggi vs Media", fig_b2, spieg_b2)
 
-        fig_b3 = go.Figure()
-        fig_b3.add_trace(go.Bar(x=['Oggi', 'Media'], y=[r['rpe_previsto'], media_rpe_90], marker_color=['#00F5A0', '#566178']))
-        fig_b3.update_layout(**layout_dark_small, title="RPE: Oggi vs Media")
-        r2c3.plotly_chart(fig_b3, use_container_width=True)
-        figs_per_export.append(fig_b3)
+        fig_b3 = go.Figure(go.Bar(
+            x=['Oggi', 'Media 90gg'], y=[r['rpe_previsto'], media_rpe_90],
+            marker_color=['#00F5A0', '#3A4358'], text=[f"{r['rpe_previsto']}/10", f"{media_rpe_90:.1f}/10"],
+            textposition='outside', width=0.5
+        ))
+        fig_b3.update_layout(**layout_base, yaxis=dict(range=[0, 10], **axis_style), yaxis_title="punti")
+        spieg_b3 = (
+            f"Il carico percepito previsto è {abs(rpe_vs_media):.1f} punti {'sotto' if rpe_vs_media < 0 else 'sopra'} la media storica."
+            if abs(rpe_vs_media) > 0.5 else "Il carico percepito previsto è in linea con la media storica."
+        )
+        chart_card(r2c3, "RPE Previsto: Oggi vs Media", fig_b3, spieg_b3)
 
-        note_bar = []
-        if sonno_vs_media < -0.5:
-            note_bar.append("il sonno è inferiore alla media")
-        if stress_vs_media > 1:
-            note_bar.append("lo stress lavorativo è superiore alla media")
-        if rpe_vs_media > 1:
-            note_bar.append("il carico percepito previsto è superiore alla media")
-        if note_bar:
-            st.caption("Fattori principali del rischio calcolato: " + ", ".join(note_bar) + ".")
-        else:
-            st.caption("I parametri odierni risultano in linea con la media storica.")
-
-        # --- Riga 3: scatter e due gauge, tutti piccoli ---
+        # --- Riga 3: relazione storica e indicatori di sintesi ---
         r3c1, r3c2, r3c3 = st.columns(3)
 
         if all(c in df_base.columns for c in ['Stress Lavoro', 'RPE', 'Ore Sonno']):
@@ -1363,29 +1417,37 @@ elif pagina == "CONSIGLIO FINALE":
             )
             fig_scatter.add_trace(go.Scatter(
                 x=[r['stress_lavoro']], y=[r['rpe_previsto']], mode='markers',
-                marker=dict(size=12, color='#00F5A0', symbol='diamond', line=dict(width=1.5, color='white'))
+                marker=dict(size=13, color='#00F5A0', symbol='diamond', line=dict(width=1.5, color='white'))
             ))
-            fig_scatter.update_layout(**layout_dark_small, title="Stress vs RPE (storico)", coloraxis_showscale=False)
-            r3c1.plotly_chart(fig_scatter, use_container_width=True)
-            figs_per_export.append(fig_scatter)
+            fig_scatter.update_layout(**layout_base, coloraxis_showscale=False, xaxis=dict(range=[0, 10], **axis_style), yaxis=dict(range=[0, 10], **axis_style))
+            spieg_scatter = "Il punto evidenziato mostra la posizione della sessione odierna rispetto allo storico: più è in alto a destra, maggiore è il carico combinato di stress e sforzo percepito."
+            chart_card(r3c1, "Relazione Stress vs RPE (storico)", fig_scatter, spieg_scatter)
 
         fig_g1 = go.Figure(go.Indicator(
-            mode="gauge+number", value=risk_score,
-            gauge={'axis': {'range': [0, 100]}, 'bar': {'color': col},
-                   'steps': [{'range': [0, 25], 'color': '#0E1420'}, {'range': [25, 60], 'color': '#1c2333'}, {'range': [60, 100], 'color': '#2a1c1c'}]}
+            mode="gauge+number", value=risk_score, number={'suffix': "%"},
+            gauge={
+                'axis': {'range': [0, 100], 'tickcolor': '#566178'},
+                'bar': {'color': col, 'thickness': 0.3},
+                'bgcolor': SFONDO, 'borderwidth': 0,
+                'steps': [{'range': [0, 25], 'color': '#152018'}, {'range': [25, 60], 'color': '#241d10'}, {'range': [60, 100], 'color': '#2a1414'}]
+            }
         ))
-        fig_g1.update_layout(**layout_dark_small, title="Indice di Rischio")
-        r3c2.plotly_chart(fig_g1, use_container_width=True)
-        figs_per_export.append(fig_g1)
+        fig_g1.update_layout(**layout_base)
+        spieg_g1 = f"Indice di probabilità di infortunio o burnout calcolato sui parametri odierni. Livello attuale: {liv}."
+        chart_card(r3c2, "Indice di Rischio", fig_g1, spieg_g1)
 
         fig_g2 = go.Figure(go.Indicator(
-            mode="gauge+number", value=recovery_score,
-            gauge={'axis': {'range': [0, 100]}, 'bar': {'color': '#00F5A0'},
-                   'steps': [{'range': [0, 40], 'color': '#2a1c1c'}, {'range': [40, 75], 'color': '#1c2333'}, {'range': [75, 100], 'color': '#0E1420'}]}
+            mode="gauge+number", value=recovery_score, number={'suffix': "%"},
+            gauge={
+                'axis': {'range': [0, 100], 'tickcolor': '#566178'},
+                'bar': {'color': '#00F5A0', 'thickness': 0.3},
+                'bgcolor': SFONDO, 'borderwidth': 0,
+                'steps': [{'range': [0, 40], 'color': '#2a1414'}, {'range': [40, 75], 'color': '#241d10'}, {'range': [75, 100], 'color': '#152018'}]
+            }
         ))
-        fig_g2.update_layout(**layout_dark_small, title="Recovery Score")
-        r3c3.plotly_chart(fig_g2, use_container_width=True)
-        figs_per_export.append(fig_g2)
+        fig_g2.update_layout(**layout_base)
+        spieg_g2 = "Stima della qualità del recupero in base alle ore di sonno rispetto al target fisiologico di 7.5h."
+        chart_card(r3c3, "Recovery Score", fig_g2, spieg_g2)
 
         st.markdown("<br><hr><br>", unsafe_allow_html=True)
 
@@ -1480,8 +1542,8 @@ Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
   body {{ background:#0E1420; color:#B8C2D0; font-family: Inter, sans-serif; padding: 30px; }}
   h1 {{ color:{col}; font-weight:600; }}
   pre {{ background:#161d2b; padding:15px; border-radius:8px; white-space:pre-wrap; }}
-  .charts-grid {{ display:flex; flex-wrap:wrap; gap:10px; }}
-  .charts-grid > div {{ flex: 1 1 30%; min-width:260px; }}
+  .charts-grid {{ display:flex; flex-wrap:wrap; gap:16px; }}
+  .charts-grid > div {{ flex: 1 1 30%; min-width:280px; background:#0E1420; border:1px solid #1c2333; border-radius:12px; padding:10px; }}
 </style>
 </head>
 <body>
@@ -1499,7 +1561,7 @@ Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
                 file_name="runai_report_completo.html", mime="text/html",
                 use_container_width=True
             )
-       
+
 # ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
