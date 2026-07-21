@@ -1054,8 +1054,20 @@ elif pagina == "ANALISI PREDITTIVA ML":
         st.error(f"Errore caricamento modelli ML: {str(e)}")
 
 # ---------------------------------------------------------
-# PAGINA 5: CONSIGLIO FINALE
+# PAGINA 5: CONSIGLIO FINALE  (versione corretta ed espansa)
 # ---------------------------------------------------------
+# NOTE SULLE ASSUNZIONI FATTE:
+# - Si assume che in cima al file principale siano già presenti:
+#     import plotly.graph_objects as go
+#     import plotly.express as px
+#   Se non ci sono, aggiungili tra gli import globali dell'app.
+# - Si assume che df_base (st.session_state.dati) abbia una colonna
+#   data chiamata 'Data'. Se si chiama diversamente (es. 'Date'),
+#   sostituisci il nome nella sezione "GRAFICI ANALITICI".
+# - Ho tolto ogni riferimento nutrizionale dal coach: solo consigli
+#   di allenamento (mobilità, drills, pacing, stretching, recupero).
+# ---------------------------------------------------------
+
 elif pagina == "CONSIGLIO FINALE":
     header_block(
         "Modulo 05 — Action Plan",
@@ -1070,6 +1082,7 @@ elif pagina == "CONSIGLIO FINALE":
         r = st.session_state.risultati_analisi
         df_base = st.session_state.dati.copy()
 
+        # ---------------- CALCOLI BASE ----------------
         risk_score = min(100,
             (40 if r['ore_sonno'] < 6 else 25 if r['ore_sonno'] < 6.5 else 10) +
             (35 if r['stress_lavoro'] >= 8 else 20 if r['stress_lavoro'] >= 6 else 5) +
@@ -1080,11 +1093,20 @@ elif pagina == "CONSIGLIO FINALE":
         sma = (r['stress_lavoro'] * r['rpe_previsto']) / r['ore_sonno'] if r['ore_sonno'] > 0 else 0
 
         distanza_target = r.get('distanza_oggi', 10.0)
-        distanza_consigliata = distanza_target if risk_score < 40 else distanza_target * 0.6 if risk_score < 70 else 0.0
+        distanza_consigliata = (
+            distanza_target if risk_score < 40
+            else distanza_target * 0.6 if risk_score < 70
+            else 0.0
+        )
 
-        if risk_score < 25: tit, col = "ALLENAMENTO INTENSO AUTORIZZATO", "#00F5A0"
-        elif risk_score < 60: tit, col = "RECUPERO ATTIVO CONSIGLIATO", "#FFB020"
-        else: tit, col = "RIPOSO OBBLIGATORIO", "#FF6A3D"
+        if risk_score < 25:
+            tit, col = "ALLENAMENTO INTENSO AUTORIZZATO", "#00F5A0"
+        elif risk_score < 60:
+            tit, col = "RECUPERO ATTIVO CONSIGLIATO", "#FFB020"
+        else:
+            tit, col = "RIPOSO OBBLIGATORIO", "#FF6A3D"
+
+        tipo_all = r.get('tipo_allenamento', 'Easy Run')
 
         st.markdown(f"""
         <div class='kpi-card' style='border: 1px solid {col}; background-color: rgba(0,0,0,0.35);'>
@@ -1101,12 +1123,12 @@ elif pagina == "CONSIGLIO FINALE":
         </style>
         """, unsafe_allow_html=True)
 
-        tipo_all = r.get('tipo_allenamento', 'Easy Run')
-        col_new1, col_new2, col_new3 = st.columns(3)
-        
+        # ---------------- KPI PRINCIPALI (2 colonne, il coach ora è full-width sotto) ----------------
+        col_new1, col_new2 = st.columns(2)
+
         with col_new1:
             st.markdown(f"""
-            <div class='kpi-card-equal'>
+            <div class='kpi-card-equal' style='height:220px;'>
                 <h3 style='color:#00E5FF;'>Distanza Consigliata</h3>
                 <div class='kpi-equal-body' style='display:flex; flex-direction:column; justify-content:center; align-items:center;'>
                     <h1 style='color:white; font-size:3em; margin:0; font-family:"JetBrains Mono",monospace;'>{distanza_consigliata:.1f} km</h1>
@@ -1115,9 +1137,10 @@ elif pagina == "CONSIGLIO FINALE":
                 </div>
             </div>
             """, unsafe_allow_html=True)
+
         with col_new2:
             st.markdown(f"""
-            <div class='kpi-card-equal'>
+            <div class='kpi-card-equal' style='height:220px;'>
                 <h3 style='color:{col};'>Rischio Calcolato</h3>
                 <div class='kpi-equal-body' style='display:flex; flex-direction:column; justify-content:center; align-items:center;'>
                     <h1 style='color:white; font-size:3em; margin:0; font-family:"JetBrains Mono",monospace;'>{risk_score:.0f}%</h1>
@@ -1126,94 +1149,334 @@ elif pagina == "CONSIGLIO FINALE":
                 </div>
             </div>
             """, unsafe_allow_html=True)
-        with col_new3:
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # =========================================================
+        # COACH PERSONALIZZATO — GRANDE, SOLO ALLENAMENTO (no nutrizione)
+        # =========================================================
+        st.subheader("🎯 Coach Personalizzato — Protocollo Dettagliato")
+
+        # Livello di cautela in base al rischio
+        if risk_score < 25:
+            liv = "basso"
+        elif risk_score < 60:
+            liv = "medio"
+        else:
+            liv = "alto"
+
+        cadenza_target = "170-180 spm" if liv != "alto" else "165-172 spm (passo più corto, cadenza rilassata)"
+        zona_consigliata = "Zona 2-3 (aerobico controllato)" if liv == "basso" else (
+            "Zona 1-2 (recupero attivo)" if liv == "medio" else "Cammino / Zona 1 (nessuno sforzo cardio)"
+        )
+
+        tab_pre, tab_durante, tab_post, tab_serale = st.tabs(
+            ["🏃 Pre-Allenamento", "⚡ Durante", "🧊 Post-Allenamento", "🌙 Recupero Serale"]
+        )
+
+        with tab_pre:
             st.markdown(f"""
-            <div class='kpi-card-equal'>
-                <h3 style='color:#00F5A0;'>Protocollo Coach Dettagliato</h3>
-                <div class='kpi-equal-body' style='color:#B8C2D0; font-size:0.85em; text-align:left;'>
-                    <strong style='color:#00E5FF;'>PRE-ALLENAMENTO (T-90/-15 min)</strong>
-                    <ul style='margin-top:5px; padding-left:18px;'>
-                        <li>T-90': pasto leggero, ~{round(distanza_target * 3)}g carboidrati.</li>
-                        <li>T-30': {round(distanza_target * 20)}ml di liquidi.</li>
-                        <li>T-15': mobilità dinamica anche/caviglie, skip (5').</li>
-                    </ul>
-                    <strong style='color:#FFB020;'>DURANTE</strong>
-                    <ul style='margin-top:5px; padding-left:18px;'>
-                        <li>Sorso d'acqua ogni 20' se superi i 60'.</li>
-                        <li>Cadenza target 170-180 spm, respiro controllato.</li>
-                    </ul>
-                    <strong style='color:#00F5A0;'>POST (0-30 min)</strong>
-                    <ul style='margin-top:5px; padding-left:18px;'>
-                        <li>Entro 30': ~{round(distanza_target * 1.2) + 15}g proteine + ~{round(distanza_target * 4) + 20}g carboidrati.</li>
-                        <li>Stretching statico gentile 8-10'.</li>
-                        <li>Rullo miofasciale 5' su quadricipiti.</li>
-                    </ul>
-                    <strong style='color:#8b5cf6;'>SERALE</strong>
-                    <ul style='margin-top:5px; padding-left:18px; margin-bottom:0;'>
-                        <li>Punta a {max(r['ore_sonno'],7.5):.1f}h di sonno per recupero cellulare.</li>
-                    </ul>
-                </div>
+            <div class='kpi-card' style='text-align:left;'>
+            <strong style='color:#00E5FF;'>T-15/-20 min — Attivazione</strong>
+            <ul style='padding-left:18px;'>
+                <li>5' di mobilità dinamica: cerchi anca, affondi in movimento, leg swing avanti/indietro.</li>
+                <li>2 x 10 skip bassi + 2 x 10 calciata dietro, per attivare la catena posteriore.</li>
+                <li>10-15 squat a corpo libero e 10 calf raise per attivare quadricipiti/polpacci.</li>
+                <li>Controllo scarpe/terreno: verifica suola e scegli fondo in base a {tipo_all.lower()} previsto.</li>
+            </ul>
+            <strong style='color:#FFB020;'>T-5 min — Progressione d'ingresso</strong>
+            <ul style='padding-left:18px; margin-bottom:0;'>
+                <li>Parti sempre 3-5' a ritmo molto blando prima di raggiungere il ritmo target ({zona_consigliata}).</li>
+                <li>Livello di cautela oggi: <strong style='color:#B8C2D0;'>{liv.upper()}</strong> — {"puoi spingere con la solita progressione." if liv=="basso" else ("mantieni un'andatura più conservativa del solito." if liv=="medio" else "limita a mobilità/cammino, evita qualsiasi accelerazione.")}</li>
+            </ul>
             </div>
             """, unsafe_allow_html=True)
 
-        st.markdown("<br>---<br>", unsafe_allow_html=True)
+        with tab_durante:
+            st.markdown(f"""
+            <div class='kpi-card' style='text-align:left;'>
+            <strong style='color:#00E5FF;'>Gestione del ritmo</strong>
+            <ul style='padding-left:18px;'>
+                <li>Zona cardiaca target di oggi: <strong style='color:#B8C2D0;'>{zona_consigliata}</strong>.</li>
+                <li>Cadenza target: <strong style='color:#B8C2D0;'>{cadenza_target}</strong>, passi corti e rapidi riducono l'impatto articolare.</li>
+                <li>Respiro controllato: inspira 3 passi, espira 2 passi (adatta se il ritmo cambia).</li>
+            </ul>
+            <strong style='color:#FFB020;'>Postura e tecnica</strong>
+            <ul style='padding-left:18px;'>
+                <li>Busto leggero in avanti, spalle rilassate, sguardo a 15-20m avanti.</li>
+                <li>Appoggio medio piede, evita l'atterraggio di tallone troppo avanzato al corpo.</li>
+            </ul>
+            <strong style='color:#8b5cf6;'>Segnali di stop</strong>
+            <ul style='padding-left:18px; margin-bottom:0;'>
+                <li>{"Nessuna limitazione particolare oggi, resta comunque attento a dolori articolari acuti." if liv=="basso" else "Se percepisci fatica anomala rispetto al ritmo, rallenta o inserisci camminata."}</li>
+                <li>In caso di dolore acuto (non solo fatica muscolare) interrompi e valuta con uno specialista.</li>
+            </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with tab_post:
+            st.markdown(f"""
+            <div class='kpi-card' style='text-align:left;'>
+            <strong style='color:#00E5FF;'>0-10 min — Defaticamento</strong>
+            <ul style='padding-left:18px;'>
+                <li>3-5' di camminata o corsa molto blanda per riportare gradualmente la frequenza cardiaca a riposo.</li>
+            </ul>
+            <strong style='color:#FFB020;'>10-20 min — Mobilità e stretching</strong>
+            <ul style='padding-left:18px;'>
+                <li>Stretching statico gentile 8-10': polpacci, quadricipiti, ischiocrurali, ileopsoas (30-40'' per gruppo).</li>
+                <li>Rullo miofasciale 5' su quadricipiti e fascia ileotibiale.</li>
+            </ul>
+            <strong style='color:#00F5A0;'>Prevenzione infortuni</strong>
+            <ul style='padding-left:18px; margin-bottom:0;'>
+                <li>{"Nessuna precauzione aggiuntiva oggi." if liv=="basso" else "Presta attenzione a eventuali fastidi articolari comparsi durante la seduta e monitora nelle prossime 24h."}</li>
+                <li>Se dolore persistente oltre 48h, consulta un professionista prima della prossima uscita.</li>
+            </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with tab_serale:
+            st.markdown(f"""
+            <div class='kpi-card' style='text-align:left;'>
+            <strong style='color:#8b5cf6;'>Recupero cellulare</strong>
+            <ul style='padding-left:18px;'>
+                <li>Punta a <strong style='color:#B8C2D0;'>{max(r['ore_sonno'],7.5):.1f}h</strong> di sonno stanotte per favorire il recupero muscolare.</li>
+                <li>10' di mobilità leggera/yoga serale se percepisci ancora tensione muscolare.</li>
+                <li>Riduci schermi/luce blu almeno 30' prima di dormire per migliorare la qualità del sonno.</li>
+            </ul>
+            <strong style='color:#00E5FF;'>Respirazione per abbassare lo stress</strong>
+            <ul style='padding-left:18px; margin-bottom:0;'>
+                <li>5' di respirazione diaframmatica lenta (4'' inspiro, 6'' espiro) per abbassare il carico nervoso accumulato oggi.</li>
+            </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # =========================================================
+        # ZONE CARDIACHE
+        # =========================================================
         st.markdown("#### 🎯 Zone Cardiache Consigliate per Oggi")
         st.markdown("""
         * **Zona 1-2 (Recupero / Base):** Sforzo confortevole (Test del parlato OK). Ideale per Easy Run o recuperi.
         * **Zona 3 (Aerobico / Tempo):** Ritmo sostenuto ma controllato.
         * **Zona 4-5 (Soglia / Anaerobico):** Da evitare se il rischio infortunio è alto (>40%).
-        """
-                   )
-        # NUOVA IDEA 4: EXPORT REPORT RAPIDO
-        st.subheader("Generazione Report per Coach / Export")
-        report_testo = f"""--- RUNAI PERFORMANCE REPORT ---
-Status: {tit}
-Distanza Consigliata: {distanza_consigliata:.1f} km (Target: {distanza_target} km)
-Indice Rischio: {risk_score:.0f}%
-Recovery Score: {recovery_score:.0f}%
-Stress Mentale (SMA): {sma:.1f}
-Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
---------------------------------"""
-        st.text_area("Testo Report Formattato:", value=report_testo, height=120)
-        st.download_button("SCARICA REPORT TXT", data=report_testo, file_name="runai_report_allenamento.txt", mime="text/plain", use_container_width=True)
+        """)
 
         st.markdown("<br><hr><br>", unsafe_allow_html=True)
-        st.subheader("Analisi Parametri vs Media (90 giorni)")
+
+        # =========================================================
+        # GRAFICI ANALITICI
+        # =========================================================
+        st.subheader("📊 Grafici Analitici")
+
+        colore_sfondo = "#0E1420"
+        layout_dark = dict(
+            paper_bgcolor=colore_sfondo, plot_bgcolor=colore_sfondo,
+            font=dict(color="#B8C2D0", family="Inter, sans-serif"),
+            margin=dict(l=30, r=30, t=40, b=30)
+        )
+
+        figs_per_export = []  # raccogliamo le figure per l'export HTML
+
+        # --- Grafico 1: trend 90 giorni sonno/stress/rpe ---
+        if 'Data' in df_base.columns:
+            df_plot = df_base.sort_values('Data').tail(90)
+            fig_trend = go.Figure()
+            fig_trend.add_trace(go.Scatter(x=df_plot['Data'], y=df_plot['Ore Sonno'], name='Ore Sonno', line=dict(color='#00E5FF')))
+            fig_trend.add_trace(go.Scatter(x=df_plot['Data'], y=df_plot['Stress Lavoro'], name='Stress Lavoro', line=dict(color='#FF6A3D'), yaxis='y2'))
+            fig_trend.add_trace(go.Scatter(x=df_plot['Data'], y=df_plot['RPE'], name='RPE', line=dict(color='#00F5A0'), yaxis='y2'))
+            fig_trend.update_layout(
+                **layout_dark, title="Trend ultimi 90 giorni",
+                yaxis=dict(title="Ore Sonno"),
+                yaxis2=dict(title="Stress / RPE (0-10)", overlaying='y', side='right', range=[0, 10]),
+                legend=dict(orientation="h", y=-0.2)
+            )
+            st.plotly_chart(fig_trend, use_container_width=True)
+            figs_per_export.append(fig_trend)
+
+            trend_sonno = df_plot['Ore Sonno'].tail(14).mean() - df_plot['Ore Sonno'].head(max(len(df_plot) - 14, 1)).mean()
+            if trend_sonno < -0.3:
+                st.info("📉 Il tuo sonno medio nelle ultime 2 settimane è in calo rispetto al periodo precedente: valuta di anticipare l'orario di andare a letto.")
+            elif trend_sonno > 0.3:
+                st.info("📈 Il tuo sonno medio è migliorato nelle ultime 2 settimane: ottimo per il recupero.")
+            else:
+                st.info("➡️ Il tuo sonno è stabile nelle ultime settimane.")
+        else:
+            st.caption("Colonna data non trovata nel dataset — grafico di trend non disponibile (verifica il nome colonna 'Data').")
+
+        # --- Grafico 2: oggi vs media (barre) ---
         media_sonno_90, media_stress_90, media_rpe_90 = df_base['Ore Sonno'].mean(), df_base['Stress Lavoro'].mean(), df_base['RPE'].mean()
-        sonno_vs_media, stress_vs_media, rpe_vs_media = r['ore_sonno'] - media_sonno_90, r['stress_lavoro'] - media_stress_90, r['rpe_previsto'] - media_rpe_90
+        sonno_vs_media = r['ore_sonno'] - media_sonno_90
+        stress_vs_media = r['stress_lavoro'] - media_stress_90
+        rpe_vs_media = r['rpe_previsto'] - media_rpe_90
+
+        fig_bar = go.Figure()
+        metriche = ['Ore Sonno', 'Stress Lavoro', 'RPE']
+        valori_oggi = [r['ore_sonno'], r['stress_lavoro'], r['rpe_previsto']]
+        valori_media = [media_sonno_90, media_stress_90, media_rpe_90]
+        fig_bar.add_trace(go.Bar(name='Oggi', x=metriche, y=valori_oggi, marker_color='#00E5FF'))
+        fig_bar.add_trace(go.Bar(name='Media 90gg', x=metriche, y=valori_media, marker_color='#566178'))
+        fig_bar.update_layout(**layout_dark, title="Oggi vs Media 90 giorni", barmode='group')
+        st.plotly_chart(fig_bar, use_container_width=True)
+        figs_per_export.append(fig_bar)
+
+        note_bar = []
+        if sonno_vs_media < -0.5:
+            note_bar.append("hai dormito meno del solito")
+        if stress_vs_media > 1:
+            note_bar.append("lo stress lavorativo è sopra la media")
+        if rpe_vs_media > 1:
+            note_bar.append("il carico percepito previsto è più alto del solito")
+        if note_bar:
+            st.info("⚠️ Oggi: " + ", ".join(note_bar) + " — motivo principale del livello di rischio calcolato.")
+        else:
+            st.info("✅ I tuoi parametri di oggi sono in linea con la tua media storica.")
+
+        # --- Grafico 3: scatter stress vs rpe colorato per rischio storico (se disponibile) ---
+        if all(c in df_base.columns for c in ['Stress Lavoro', 'RPE', 'Ore Sonno']):
+            df_scatter = df_base.copy()
+            fig_scatter = px.scatter(
+                df_scatter, x='Stress Lavoro', y='RPE', color='Ore Sonno',
+                color_continuous_scale='Turbo', title="Relazione Stress vs RPE (storico, colore = Ore Sonno)"
+            )
+            fig_scatter.add_trace(go.Scatter(
+                x=[r['stress_lavoro']], y=[r['rpe_previsto']], mode='markers',
+                marker=dict(size=16, color='#00F5A0', symbol='star', line=dict(width=2, color='white')),
+                name='Oggi'
+            ))
+            fig_scatter.update_layout(**layout_dark)
+            st.plotly_chart(fig_scatter, use_container_width=True)
+            figs_per_export.append(fig_scatter)
+            st.info("La stella verde indica dove si posiziona la sessione di oggi rispetto allo storico: più è in alto a destra, più il carico combinato stress+RPE è elevato.")
+
+        # --- Grafico 4: gauge rischio e recovery ---
+        fig_gauge = go.Figure()
+        fig_gauge.add_trace(go.Indicator(
+            mode="gauge+number", value=risk_score, title={'text': "Rischio %"},
+            domain={'x': [0, 0.48], 'y': [0, 1]},
+            gauge={'axis': {'range': [0, 100]}, 'bar': {'color': col},
+                   'steps': [{'range': [0, 25], 'color': '#0E1420'}, {'range': [25, 60], 'color': '#1c2333'}, {'range': [60, 100], 'color': '#2a1c1c'}]}
+        ))
+        fig_gauge.add_trace(go.Indicator(
+            mode="gauge+number", value=recovery_score, title={'text': "Recovery %"},
+            domain={'x': [0.52, 1], 'y': [0, 1]},
+            gauge={'axis': {'range': [0, 100]}, 'bar': {'color': '#00F5A0'},
+                   'steps': [{'range': [0, 40], 'color': '#2a1c1c'}, {'range': [40, 75], 'color': '#1c2333'}, {'range': [75, 100], 'color': '#0E1420'}]}
+        ))
+        fig_gauge.update_layout(**layout_dark, title="Indicatori di Sintesi")
+        st.plotly_chart(fig_gauge, use_container_width=True)
+        figs_per_export.append(fig_gauge)
+
+        st.markdown("<br><hr><br>", unsafe_allow_html=True)
+
+        # =========================================================
+        # ANALISI PARAMETRI VS MEDIA (90 GIORNI) — card con delta esplicito
+        # =========================================================
+        st.subheader("Analisi Parametri vs Media (90 giorni)")
+        st.caption("Il valore \"Δ vs media\" indica di quanto il parametro di oggi si discosta dalla tua media storica (segno + = sopra media, − = sotto media).")
 
         col_a1, col_a2, col_a3 = st.columns(3)
+
         with col_a1:
             sb, sc = ("SOTTO MEDIA", "#FF6A3D") if sonno_vs_media < -0.5 else ("SOPRA MEDIA", "#00F5A0") if sonno_vs_media > 0.5 else ("NELLA MEDIA", "#8792A3")
             st.markdown(f"""
             <div class='kpi-card'>
                 <p style='color:{sc}; font-weight:bold; font-family:"JetBrains Mono",monospace; font-size:0.78em; letter-spacing:0.08em;'>{sb}</p>
                 <h1 style='font-family:"JetBrains Mono",monospace;'>{r['ore_sonno']:.1f}h</h1>
-                <p style='font-family:"Inter",sans-serif; color:#8792A3;'>vs media {media_sonno_90:.1f}h</p>
+                <p style='font-family:"Inter",sans-serif; color:#8792A3;'>Media storica: {media_sonno_90:.1f}h</p>
+                <p style='font-family:"JetBrains Mono",monospace; color:{sc}; font-size:0.9em;'>Δ vs media: {'+' if sonno_vs_media>=0 else ''}{sonno_vs_media:.1f}h</p>
                 <p style='font-family:"Inter",sans-serif; color:#566178; font-size:0.85em; margin-top:8px;'>Tempo di rigenerazione cellulare. Un deficit prolungato rallenta il recupero muscolare.</p>
             </div>
             """, unsafe_allow_html=True)
+
         with col_a2:
             stb, stc = ("SOTTO MEDIA", "#00F5A0") if stress_vs_media < -1 else ("SOPRA MEDIA", "#FF6A3D") if stress_vs_media > 1 else ("NELLA MEDIA", "#8792A3")
             st.markdown(f"""
             <div class='kpi-card'>
                 <p style='color:{stc}; font-weight:bold; font-family:"JetBrains Mono",monospace; font-size:0.78em; letter-spacing:0.08em;'>{stb}</p>
                 <h1 style='font-family:"JetBrains Mono",monospace;'>{r['stress_lavoro']}/10</h1>
-                <p style='font-family:"Inter",sans-serif; color:#8792A3;'>vs media {media_stress_90:.1f}/10</p>
+                <p style='font-family:"Inter",sans-serif; color:#8792A3;'>Media storica: {media_stress_90:.1f}/10</p>
+                <p style='font-family:"JetBrains Mono",monospace; color:{stc}; font-size:0.9em;'>Δ vs media: {'+' if stress_vs_media>=0 else ''}{stress_vs_media:.1f} punti</p>
                 <p style='font-family:"Inter",sans-serif; color:#566178; font-size:0.85em; margin-top:8px;'>Carico cognitivo e nervoso accumulato. Uno stress elevato innalza i livelli di cortisolo.</p>
             </div>
             """, unsafe_allow_html=True)
+
         with col_a3:
             rpb, rpc = ("SOTTO MEDIA", "#00F5A0") if rpe_vs_media < -1 else ("SOPRA MEDIA", "#FF6A3D") if rpe_vs_media > 1 else ("NELLA MEDIA", "#8792A3")
             st.markdown(f"""
             <div class='kpi-card'>
                 <p style='color:{rpc}; font-weight:bold; font-family:"JetBrains Mono",monospace; font-size:0.78em; letter-spacing:0.08em;'>{rpb}</p>
                 <h1 style='font-family:"JetBrains Mono",monospace;'>{r['rpe_previsto']}/10</h1>
-                <p style='font-family:"Inter",sans-serif; color:#8792A3;'>vs media {media_rpe_90:.1f}/10</p>
+                <p style='font-family:"Inter",sans-serif; color:#8792A3;'>Media storica: {media_rpe_90:.1f}/10</p>
+                <p style='font-family:"JetBrains Mono",monospace; color:{rpc}; font-size:0.9em;'>Δ vs media: {'+' if rpe_vs_media>=0 else ''}{rpe_vs_media:.1f} punti</p>
                 <p style='font-family:"Inter",sans-serif; color:#566178; font-size:0.85em; margin-top:8px;'>Sforzo pianificato per la sessione odierna rispetto alla media storica registrata.</p>
             </div>
             """, unsafe_allow_html=True)
 
+        st.markdown("<br><hr><br>", unsafe_allow_html=True)
+
+        # =========================================================
+        # EXPORT REPORT
+        # =========================================================
+        st.subheader("Generazione Report per Coach / Export")
+
+        report_testo = f"""--- RUNAI PERFORMANCE REPORT ---
+Status: {tit}
+Distanza Consigliata: {distanza_consigliata:.1f} km (Target: {distanza_target} km)
+Indice Rischio: {risk_score:.0f}%
+Recovery Score: {recovery_score:.0f}%
+Stress Mentale (SMA): {sma:.1f}
+
+Analisi vs media 90 giorni:
+- Ore Sonno: {r['ore_sonno']:.1f}h (media {media_sonno_90:.1f}h, Δ {'+' if sonno_vs_media>=0 else ''}{sonno_vs_media:.1f}h)
+- Stress Lavoro: {r['stress_lavoro']}/10 (media {media_stress_90:.1f}/10, Δ {'+' if stress_vs_media>=0 else ''}{stress_vs_media:.1f})
+- RPE Previsto: {r['rpe_previsto']}/10 (media {media_rpe_90:.1f}/10, Δ {'+' if rpe_vs_media>=0 else ''}{rpe_vs_media:.1f})
+
+Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
+--------------------------------"""
+
+        st.text_area("Testo Report Formattato:", value=report_testo, height=140)
+
+        colb1, colb2 = st.columns(2)
+        with colb1:
+            st.download_button(
+                "SCARICA REPORT TXT (rapido)", data=report_testo,
+                file_name="runai_report_allenamento.txt", mime="text/plain",
+                use_container_width=True
+            )
+
+        with colb2:
+            # Costruzione report HTML completo con grafici incorporati
+            charts_html = ""
+            for i, f in enumerate(figs_per_export):
+                include_js = 'cdn' if i == 0 else False
+                charts_html += f.to_html(full_html=False, include_plotlyjs=include_js)
+
+            report_html_completo = f"""<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>RunAI Performance Report</title>
+<style>
+  body {{ background:#0E1420; color:#B8C2D0; font-family: Inter, sans-serif; padding: 30px; }}
+  h1 {{ color:{col}; }}
+  pre {{ background:#161d2b; padding:15px; border-radius:8px; white-space:pre-wrap; }}
+</style>
+</head>
+<body>
+  <h1>{tit}</h1>
+  <pre>{report_testo}</pre>
+  <h2>Grafici Analitici</h2>
+  {charts_html}
+</body>
+</html>"""
+
+            st.download_button(
+                "SCARICA REPORT COMPLETO (HTML + grafici)", data=report_html_completo,
+                file_name="runai_report_completo.html", mime="text/html",
+                use_container_width=True
+            )
+       
 # ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
