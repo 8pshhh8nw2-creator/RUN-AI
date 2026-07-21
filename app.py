@@ -20,6 +20,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.metrics import roc_curve
 from sklearn.metrics import r2_score
 from sklearn.metrics import mean_squared_error
+from sklearn.metrics import silhouette_score
 warnings.filterwarnings('ignore')
 
 st.set_page_config(page_title="RUN AI | Performance Intelligence", layout="wide", initial_sidebar_state="expanded")
