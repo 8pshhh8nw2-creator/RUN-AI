@@ -2,3 +2,5 @@ streamlit
 plotly
 pandas
 numpy
+mediapipe
+opencv-python
