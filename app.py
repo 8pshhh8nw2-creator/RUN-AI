@@ -1165,9 +1165,8 @@ elif pagina == "ANALISI PREDITTIVA ML":
             valid_mask = df_stress['SMA_Rolling'].notna().to_numpy()
             
             # Sostituisci il controllo della valid_mask nel Tab 5 con questo:
-valid_mask = ~df_stress['SMA_Rolling'].isna().to_numpy()
-
-if np.any(valid_mask) and valid_mask.sum() >= 3:
+            valid_mask = ~df_stress['SMA_Rolling'].isna().to_numpy()
+            if np.any(valid_mask) and valid_mask.sum() >= 3:
                 coeffs = np.polyfit(x_idx[valid_mask], df_stress['SMA_Rolling'][valid_mask], deg=1)
                 trend_fn = np.poly1d(coeffs)
                 future_idx = np.arange(len(df_stress), len(df_stress) + n_forecast)
