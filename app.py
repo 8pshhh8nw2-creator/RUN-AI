@@ -461,40 +461,71 @@ if pagina == "HOME":
     st.markdown("---")
     st.subheader("Panoramica Moduli Principali")
 
+    def icona_svg(tipo, colore, colore_id):
+        """Genera un'icona vettoriale astratta sfumata in stile sport-tech (no emoji, no foto)."""
+        base = f"""
+        <svg viewBox="0 0 64 64" width="52" height="52" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="glow{colore_id}" cx="50%" cy="45%" r="65%">
+              <stop offset="0%" stop-color="{colore}" stop-opacity="0.55"/>
+              <stop offset="100%" stop-color="{colore}" stop-opacity="0"/>
+            </radialGradient>
+            <filter id="blur{colore_id}" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="1.4"/>
+            </filter>
+          </defs>
+          <circle cx="32" cy="32" r="30" fill="url(#glow{colore_id})"/>
+          <circle cx="32" cy="32" r="29" fill="none" stroke="{colore}" stroke-width="1" opacity="0.25"/>
+          <g stroke="{colore}" fill="{colore}">
+            {tipo}
+          </g>
+        </svg>
+        """
+        return base
+
+    forme = {
+        "pulse": f'<polyline points="12,34 22,34 26,20 32,46 37,28 41,34 52,34" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" filter="url(#blur1)" />',
+        "bars": '<g stroke-linecap="round"><rect x="16" y="30" width="7" height="18" rx="2" opacity="0.55"/><rect x="28" y="20" width="7" height="28" rx="2" opacity="0.8"/><rect x="40" y="12" width="7" height="36" rx="2"/></g>',
+        "radar": '<g fill="none" stroke-width="1.6"><circle cx="32" cy="32" r="18" opacity="0.35"/><circle cx="32" cy="32" r="11" opacity="0.55"/><circle cx="32" cy="32" r="3.5" opacity="1" fill-opacity="1"/><line x1="32" y1="6" x2="32" y2="14" stroke-width="2.2"/><line x1="32" y1="50" x2="32" y2="58" stroke-width="2.2" opacity="0.4"/><line x1="6" y1="32" x2="14" y2="32" stroke-width="2.2" opacity="0.4"/><line x1="50" y1="32" x2="58" y2="32" stroke-width="2.2" opacity="0.4"/></g>',
+        "network": '<g stroke-width="1.4"><line x1="18" y1="22" x2="32" y2="14" opacity="0.5"/><line x1="18" y1="22" x2="18" y2="42" opacity="0.5"/><line x1="18" y1="42" x2="32" y2="50" opacity="0.5"/><line x1="32" y1="14" x2="46" y2="22" opacity="0.5"/><line x1="46" y1="22" x2="46" y2="42" opacity="0.5"/><line x1="46" y1="42" x2="32" y2="50" opacity="0.5"/><line x1="32" y1="14" x2="32" y2="50" opacity="0.3"/><circle cx="18" cy="22" r="3.4"/><circle cx="32" cy="14" r="3.4"/><circle cx="46" cy="22" r="3.4"/><circle cx="18" cy="42" r="3.4"/><circle cx="46" cy="42" r="3.4"/><circle cx="32" cy="50" r="3.4"/></g>',
+        "check": '<g fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="16" opacity="0.3"/><polyline points="23,32 29,39 42,24"/></g>',
+        "skeleton": '<g stroke-width="1.6" stroke-linecap="round"><line x1="32" y1="14" x2="32" y2="30" opacity="0.6"/><line x1="32" y1="18" x2="20" y2="26" opacity="0.6"/><line x1="32" y1="18" x2="44" y2="26" opacity="0.6"/><line x1="32" y1="30" x2="22" y2="42" opacity="0.6"/><line x1="32" y1="30" x2="42" y2="42" opacity="0.6"/><line x1="22" y1="42" x2="19" y2="54" opacity="0.6"/><line x1="42" y1="42" x2="45" y2="54" opacity="0.6"/><circle cx="32" cy="10" r="4"/><circle cx="32" cy="18" r="2"/><circle cx="20" cy="26" r="2"/><circle cx="44" cy="26" r="2"/><circle cx="32" cy="30" r="2"/><circle cx="22" cy="42" r="2"/><circle cx="42" cy="42" r="2"/></g>',
+    }
+
     moduli = [
         {
-            "num": "01", "titolo": "Stato di Forma", "colore": "#00E5FF",
-            "icona": "⚡",
+            "num": "01", "titolo": "Stato di Forma", "colore": "#00E5FF", "id": 1,
+            "icona": forme["pulse"],
             "desc": "Configura i parametri biologici giornalieri, sonno e stress per avviare il calcolo predittivo dell'allenamento.",
             "tag": "Input Giornaliero"
         },
         {
-            "num": "02", "titolo": "Statistiche & Analisi", "colore": "#00F5A0",
-            "icona": "📈",
+            "num": "02", "titolo": "Statistiche & Analisi", "colore": "#00F5A0", "id": 2,
+            "icona": forme["bars"],
             "desc": "Esplora lo storico delle sessioni con grafici e statistiche descrittive su volumi, ritmi e andamento nel tempo.",
             "tag": "Storico Sessioni"
         },
         {
-            "num": "03", "titolo": "KPI Dashboard", "colore": "#FFB020",
-            "icona": "🧭",
+            "num": "03", "titolo": "KPI Dashboard", "colore": "#FFB020", "id": 3,
+            "icona": forme["radar"],
             "desc": "Colpo d'occhio sugli indicatori chiave di performance: carico, recupero e stato generale dell'atleta.",
             "tag": "Metriche Chiave"
         },
         {
-            "num": "04", "titolo": "Analisi Predittiva ML", "colore": "#FF6A3D",
-            "icona": "🤖",
+            "num": "04", "titolo": "Analisi Predittiva ML", "colore": "#FF6A3D", "id": 4,
+            "icona": forme["network"],
             "desc": "Random Forest, Regressioni e Cluster K-Means per comprendere i pattern nascosti nel tuo storico e prevedere il rischio.",
             "tag": "5 Modelli Attivi"
         },
         {
-            "num": "05", "titolo": "Consiglio Finale", "colore": "#00E5FF",
-            "icona": "✅",
+            "num": "05", "titolo": "Consiglio Finale", "colore": "#00E5FF", "id": 5,
+            "icona": forme["check"],
             "desc": "Sintesi operativa: distanza consigliata, zone cardiache e raccomandazioni per la sessione odierna.",
             "tag": "Report Giornaliero"
         },
         {
-            "num": "06", "titolo": "Computer Vision", "colore": "#00F5A0",
-            "icona": "🎯",
+            "num": "06", "titolo": "Computer Vision", "colore": "#00F5A0", "id": 6,
+            "icona": forme["skeleton"],
             "desc": "Analisi biomeccanica della falcata tramite video e stima del rischio associato ai sovraccarichi articolari.",
             "tag": "Pose Estimation"
         },
@@ -506,6 +537,9 @@ if pagina == "HOME":
 
     for col, m in zip(colonne_moduli, moduli):
         with col:
+            svg_icona = icona_svg(m["icona"], m["colore"], m["id"])
+            # Lo stroke delle forme dentro l'SVG eredita il colore del modulo
+            svg_icona = svg_icona.replace('<g ', f'<g stroke="{m["colore"]}" fill="{m["colore"]}" ', 1) if '<g ' in svg_icona else svg_icona
             st.markdown(f"""
             <div class='kpi-card' style='text-align:left; height: 240px; position:relative;
                         border-left: 3px solid {m['colore']};
@@ -513,7 +547,7 @@ if pagina == "HOME":
                         box-shadow: 0 4px 20px rgba(0,0,0,0.25);
                         margin-bottom: 16px;'>
                 <div style='display:flex; justify-content:space-between; align-items:flex-start;'>
-                    <span style='font-family:"JetBrains Mono",monospace; font-size:1.6em;'>{m['icona']}</span>
+                    <div style='width:52px; height:52px;'>{svg_icona}</div>
                     <span style='font-family:"JetBrains Mono",monospace; font-size:0.7em; color:#566178;
                                  letter-spacing:0.1em;'>{m['num']}</span>
                 </div>
@@ -537,10 +571,6 @@ if pagina == "HOME":
         </p>
     </div>
     """, unsafe_allow_html=True)
-
-
-   
-
    
 
 # ---------------------------------------------------------
