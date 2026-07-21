@@ -1053,438 +1053,297 @@ elif pagina == "ANALISI PREDITTIVA ML":
     except Exception as e:
         st.error(f"Errore caricamento modelli ML: {str(e)}")  
 # ---------------------------------------------------------
-# PAGINA 5: CONSIGLIO FINALE (THE ULTIMATE BIO-COMMAND CENTER)
+# PAGINA 5: CONSIGLIO FINALE (ULTRA-DENSE METRICS & TACTICS)
 # ---------------------------------------------------------
 elif pagina == "CONSIGLIO FINALE":
     st.markdown("""
-        <div style='text-align: center; margin-bottom: 30px;'>
-            <p style='font-family:"JetBrains Mono",monospace; color:#00F2FE; letter-spacing:4px; font-size:0.8rem; text-transform:uppercase; margin-bottom:0;'>RunAI Advanced Telemetry // Modulo 05</p>
-            <h1 style='font-family:"Inter",sans-serif; font-weight:900; font-size:3rem; color:#FFFFFF; margin-top:5px; text-shadow: 0 0 20px rgba(0,242,254,0.3);'>BIO-COMMAND CENTER</h1>
+        <div style='border-bottom: 2px solid #00F2FE; padding-bottom: 10px; margin-bottom: 20px;'>
+            <h1 style='font-family:"Inter", sans-serif; font-weight:900; font-size:2.5rem; color:#FFFFFF; margin:0;'>TACTICAL DASHBOARD</h1>
+            <p style='font-family:"JetBrains Mono", monospace; color:#00F2FE; letter-spacing:2px; font-size:0.9rem; margin:0;'>// DIAGNOSTICA COMPLETA, PREDITTIVA E PROTOCOLLI DI INGAGGIO //</p>
         </div>
     """, unsafe_allow_html=True)
 
     if not st.session_state.get('analisi_fatta', False):
-        st.error("⚠️ Inizializzazione fallita. Nessun flusso dati rilevato dal modulo 'ANALISI STATO DI FORMA'.")
+        st.error("⚠️ Nessun dato rilevato. Completa l'Analisi Stato di Forma.")
     else:
         r = st.session_state.risultati_analisi
         df_base = st.session_state.dati.copy()
 
-        # =========================================================
-        # EXTREME DESIGN SYSTEM (Cyberpunk / F1 Telemetry)
-        # =========================================================
-        BG = "#050914"
-        PANEL = "rgba(13, 19, 33, 0.85)"
-        BORDER = "#1E2A44"
-        CYAN = "#00F2FE"       # Ottimale / Recupero
-        NEON_GREEN = "#00FF66" # Go / Readiness
-        WARNING = "#FFB020"    # Attenzione
-        DANGER = "#FF0055"     # Rischio Critico
-        PURPLE = "#9D00FF"     # AI / Predittivo
-
-        st.markdown(f"""
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
-        
-        .hud-panel {{
-            background: {PANEL}; backdrop-filter: blur(10px);
-            border: 1px solid {BORDER}; border-radius: 12px;
-            padding: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-            position: relative; overflow: hidden; margin-bottom: 24px;
-        }}
-        .hud-panel::before {{
-            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
-            background: linear-gradient(90deg, transparent, var(--theme-color, {CYAN}), transparent);
-        }}
-        .hud-title {{
-            font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #7382A6;
-            letter-spacing: 0.2em; text-transform: uppercase; border-bottom: 1px solid {BORDER};
-            padding-bottom: 12px; margin-bottom: 20px; font-weight: 800;
-        }}
-        .metric-value {{ font-family: 'Inter', sans-serif; font-size: 3rem; font-weight: 900; color: #FFF; line-height: 1; }}
-        .metric-unit {{ font-family: 'JetBrains Mono', monospace; font-size: 1rem; color: #7382A6; }}
-        
-        .ai-terminal {{
-            background: #02040A; border: 1px solid {PURPLE}; border-left: 4px solid {PURPLE};
-            padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
-            color: #E2E8F0; border-radius: 4px; box-shadow: inset 0 0 20px rgba(157,0,255,0.05);
-        }}
-        .ai-terminal span.blink {{ animation: blinker 1s linear infinite; color: {PURPLE}; font-weight: 900; }}
-        @keyframes blinker {{ 50% {{ opacity: 0; }} }}
-        
-        .tactic-box {{ border-left: 3px solid var(--t-color); background: rgba(255,255,255,0.02); padding: 15px 20px; margin-bottom: 10px; }}
-        .tactic-box h4 {{ margin:0 0 10px 0; font-family: 'Inter'; font-weight: 800; color: var(--t-color); text-transform: uppercase; letter-spacing: 1px; }}
-        .tactic-box ul {{ padding-left: 20px; margin: 0; color: #CBD5E1; font-family: 'Inter'; font-size: 0.95rem; }}
-        .tactic-box li {{ margin-bottom: 6px; }}
-        </style>
-        """, unsafe_allow_html=True)
-
-        # =========================================================
-        # CALCOLI BIOMETRICI AVANZATI
-        # =========================================================
-        ore_sonno = r.get('ore_sonno', 7.5)
-        stress = r.get('stress_lavoro', 5)
-        rpe = r.get('rpe_previsto', 5)
+        # --- VARIABILI BASE ---
+        ore_sonno = r.get('ore_sonno', 7.0)
+        stress = r.get('stress_lavoro', 5.0)
+        rpe = r.get('rpe_previsto', 5.0)
         target_km = r.get('distanza_oggi', 10.0)
-        tipo_all = r.get('tipo_allenamento', 'Allenamento Base')
+        tipo_all = r.get('tipo_allenamento', 'Corsa')
 
         media_sonno = df_base.get('Ore Sonno', pd.Series([7.0])).mean()
         media_stress = df_base.get('Stress Lavoro', pd.Series([5.0])).mean()
         media_rpe = df_base.get('RPE', pd.Series([5.0])).mean()
 
-        # Algoritmo Readiness Estremo
-        snc_load = (stress * 1.5) + (rpe * 1.2) - (ore_sonno * 0.8)
-        recovery_capacity = (ore_sonno * 13.3) - (stress * 2)
-        readiness_score = max(0, min(100, recovery_capacity - (rpe * 1.5)))
+        # --- CALCOLI PREDITTIVI ---
+        readiness = max(0, min(100, 100 - ((7.5 - ore_sonno)*10) - ((stress - 4)*5) - ((rpe - 4)*4)))
+        status_col = "#00FF66" if readiness >= 70 else "#FFB020" if readiness >= 40 else "#FF0055"
+        dist_cons = target_km if readiness >= 60 else target_km * (readiness/100)
+        fatica_accumulata = (stress * 1.5) + (rpe * 1.2) - (ore_sonno * 0.8)
+        tempo_recupero_stimato = max(12, int((rpe * 4) + (stress * 2) - (ore_sonno * 1.5)))
 
-        if readiness_score >= 75:
-            status, status_col, dist_cons, alert_msg = "SISTEMA OTTIMALE", NEON_GREEN, target_km, "Nessuna restrizione. Output massimo autorizzato."
-        elif readiness_score >= 45:
-            status, status_col, dist_cons, alert_msg = "SISTEMA IN SOVRACCARICO", WARNING, target_km * 0.65, "Attenzione: Clearance metabolica ridotta. Tagliare volume del 35%."
-        else:
-            status, status_col, dist_cons, alert_msg = "RISCHIO INFORTUNIO CRITICO", DANGER, 0.0, "OVERRIDE DI SICUREZZA: Attività ad impatto sospesa."
-
-        impact_gforce = "Alto (2.5 - 3.0 G)" if rpe > 7 else "Medio (1.8 - 2.4 G)" if rpe > 4 else "Basso (< 1.8 G)"
-        est_recovery_time = max(12, int((rpe * 4) + (stress * 2) - (ore_sonno * 1.5)))
-
-        # Plotly Master Config
-        layout_master = dict(
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="#7382A6", family="JetBrains Mono"),
-            margin=dict(l=30, r=20, t=40, b=30), hovermode="x unified",
-            xaxis=dict(gridcolor="rgba(255,255,255,0.05)", zerolinecolor="rgba(255,255,255,0.1)"),
-            yaxis=dict(gridcolor="rgba(255,255,255,0.05)", zerolinecolor="rgba(255,255,255,0.1)")
+        # --- CONFIGURAZIONI PLOTLY ---
+        layout_dark = dict(
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
+            font=dict(color="#94A3B8", family="JetBrains Mono, monospace", size=10),
+            margin=dict(l=20, r=20, t=35, b=20), hovermode="x unified",
+            xaxis=dict(gridcolor="#1E293B", zerolinecolor="#1E293B"),
+            yaxis=dict(gridcolor="#1E293B", zerolinecolor="#1E293B")
         )
+        config_no_menu = {'displayModeBar': False}
+        figs_export = {}
+
+        st.markdown("<h3 style='color:#F8FAFC;'>1. TELEMETRIA PRINCIPALE</h3>", unsafe_allow_html=True)
         
-        figs_for_export = {}
+        # =========================================================
+        # GRIGLIA GRAFICI 1: STATUS E BILANCIAMENTO
+        # =========================================================
+        col_g1, col_g2, col_g3 = st.columns(3)
+
+        with col_g1:
+            # 1. GAUGE READINESS
+            fig_1 = go.Figure(go.Indicator(
+                mode="gauge+number", value=readiness, title={'text': "SYSTEM READINESS %", 'font': {'color': '#94A3B8'}},
+                gauge={'axis': {'range': [0, 100]}, 'bar': {'color': status_col}, 'bgcolor': "rgba(255,255,255,0.05)"}
+            ))
+            fig_1.update_layout(**layout_dark, height=220)
+            st.plotly_chart(fig_1, use_container_width=True, config=config_no_menu)
+            figs_export['Readiness'] = fig_1
+
+        with col_g2:
+            # 2. RADAR CHART VETTORIALE
+            fig_2 = go.Figure()
+            cat = ['Sonno', 'RPE Inverso', 'Stress Inv.', 'Readiness']
+            fig_2.add_trace(go.Scatterpolar(r=[min(10, media_sonno), max(0,10-media_rpe), max(0,10-media_stress), 6], theta=cat, fill='toself', name='Media', line_color='#475569'))
+            fig_2.add_trace(go.Scatterpolar(r=[min(10, ore_sonno), max(0,10-rpe), max(0,10-stress), readiness/10], theta=cat, fill='toself', name='Oggi', line_color='#00F2FE'))
+            fig_2.update_layout(**layout_dark, height=220, polar=dict(radialaxis=dict(visible=False)), showlegend=False, title="Bilanciamento Vettoriale")
+            st.plotly_chart(fig_2, use_container_width=True, config=config_no_menu)
+            figs_export['Radar Vettoriale'] = fig_2
+
+        with col_g3:
+            # 3. DONUT CHART SPLIT VOLUME
+            fig_3 = go.Figure(data=[go.Pie(labels=['Warm-up', 'Target Zone', 'Cool-down'], values=[15, 70, 15], hole=.6, marker_colors=['#FFB020', status_col, '#00F2FE'])])
+            fig_3.update_layout(**layout_dark, height=220, showlegend=False, title=f"Allocazione su {dist_cons:.1f} km")
+            fig_3.add_annotation(text="STRUTTURA", showarrow=False, font=dict(size=14, color="#FFF"))
+            st.plotly_chart(fig_3, use_container_width=True, config=config_no_menu)
+            figs_export['Volume Split'] = fig_3
 
         # =========================================================
-        # TIER 1: HUD SYSTEM (HEADS UP DISPLAY)
+        # GRIGLIA GRAFICI 2: PREDITTIVI E STORICI
         # =========================================================
-        st.markdown(f"<div class='hud-panel' style='--theme-color: {status_col};'>", unsafe_allow_html=True)
-        h1, h2, h3, h4 = st.columns(4)
-        with h1:
-            st.markdown(f"<p class='hud-title'>Global Readiness</p><div class='metric-value' style='color:{status_col};'>{readiness_score:.0f}<span class='metric-unit'>%</span></div><p style='color:{status_col}; font-family:JetBrains Mono; font-size:0.8rem; font-weight:bold; margin-top:5px;'>[{status}]</p>", unsafe_allow_html=True)
-        with h2:
-            st.markdown(f"<p class='hud-title'>Volume Autorizzato</p><div class='metric-value'>{dist_cons:.1f}<span class='metric-unit'> / {target_km} km</span></div><p style='color:#7382A6; font-family:JetBrains Mono; font-size:0.8rem; margin-top:5px;'>Target: {tipo_all}</p>", unsafe_allow_html=True)
-        with h3:
-            st.markdown(f"<p class='hud-title'>Carico SNC Stimato</p><div class='metric-value'>{snc_load:.1f}<span class='metric-unit'> pt</span></div><p style='color:#7382A6; font-family:JetBrains Mono; font-size:0.8rem; margin-top:5px;'>Stress Nervoso Centrale</p>", unsafe_allow_html=True)
-        with h4:
-            st.markdown(f"<p class='hud-title'>Recupero Previsto</p><div class='metric-value'>{est_recovery_time}<span class='metric-unit'> H</span></div><p style='color:#7382A6; font-family:JetBrains Mono; font-size:0.8rem; margin-top:5px;'>Clearance completa post-WO</p>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color:#F8FAFC; margin-top:30px;'>2. MODELLISTICA PREDITTIVA & TREND</h3>", unsafe_allow_html=True)
+        col_g4, col_g5, col_g6 = st.columns(3)
+
+        with col_g4:
+            # 4. CURVA DECADIMENTO PERFORMANCE (PREDITTIVA)
+            km_points = list(range(0, int(dist_cons)+2))
+            fatigue_curve = [min(100, (k/max(1, dist_cons))*100 * (1 + (stress/20))) for k in km_points]
+            fig_4 = go.Figure(go.Scatter(x=km_points, y=fatigue_curve, mode='lines', line=dict(color='#FF0055', width=3), fill='tozeroy', fillcolor='rgba(255,0,85,0.2)'))
+            fig_4.update_layout(**layout_dark, height=220, title="Curva Affaticamento Stimata", xaxis_title="Km", yaxis_title="% Fatica")
+            st.plotly_chart(fig_4, use_container_width=True, config=config_no_menu)
+            figs_export['Fatigue Curve'] = fig_4
+
+        with col_g5:
+            # 5. ZONE CARDIACHE (WATERFALL)
+            fig_5 = go.Figure(go.Bar(
+                x=['Z1 (Recupero)', 'Z2 (Base)', 'Z3 (Tempo)', 'Z4/5 (Soglia)'],
+                y=[20, 60 if readiness > 50 else 30, 15 if readiness > 70 else 5, 5 if readiness > 80 else 0],
+                marker_color=['#00F2FE', '#00FF66', '#FFB020', '#FF0055']
+            ))
+            fig_5.update_layout(**layout_dark, height=220, title="% Tempo in Zona Consigliata", yaxis_title="%")
+            st.plotly_chart(fig_5, use_container_width=True, config=config_no_menu)
+            figs_export['HR Zones'] = fig_5
+
+        with col_g6:
+            # 6. TIMELINE RECUPERO ETA
+            fig_6 = go.Figure(go.Bar(
+                y=['Clearance Lattato', 'SNC Reset', 'Ripristino Glicogeno', 'Tessuti'],
+                x=[1, 6, max(12, tempo_recupero_stimato-8), tempo_recupero_stimato],
+                orientation='h', marker_color='#9D00FF'
+            ))
+            fig_6.update_layout(**layout_dark, height=220, title="Timeline Recupero (Ore)", xaxis_title="Ore Post-WO")
+            st.plotly_chart(fig_6, use_container_width=True, config=config_no_menu)
+            figs_export['Recovery ETA'] = fig_6
+
+        # =========================================================
+        # GRIGLIA GRAFICI 3: CONFRONTO DIRETTO
+        # =========================================================
+        col_g7, col_g8 = st.columns(2)
         
-        st.markdown(f"<div class='ai-terminal'><span class='blink'>></span> <b>SYS.ANALYSIS:</b> {alert_msg} Impatto Biomeccanico stimato: {impact_gforce}.</div></div>", unsafe_allow_html=True)
-
-        # =========================================================
-        # TIER 2: ADVANCED TELEMETRY CHARTS
-        # =========================================================
-        c_chart1, c_chart2 = st.columns([1.2, 1])
-
-        with c_chart1:
-            st.markdown("<div class='hud-panel' style='--theme-color: #00F2FE;'>", unsafe_allow_html=True)
-            st.markdown("<div class='hud-title'>STORICO: DENSITY CLUSTER (STRESS VS RPE)</div>", unsafe_allow_html=True)
-            
-            if 'Data' in df_base.columns and len(df_base) > 5:
-                # Simulazione di Density Heatmap Plotly
-                fig_dens = px.density_contour(
-                    df_base, x="Stress Lavoro", y="RPE", 
-                    color_discrete_sequence=[CYAN], 
-                )
-                fig_dens.update_traces(contours_coloring="fill", contours_showlabels=True, fillcolor="rgba(0, 242, 254, 0.1)")
-                fig_dens.add_trace(go.Scatter(
-                    x=df_base['Stress Lavoro'], y=df_base['RPE'], mode='markers',
-                    marker=dict(size=4, color='rgba(255,255,255,0.2)'), name='Storico'
-                ))
-                # Punto Odierno Enorme
-                fig_dens.add_trace(go.Scatter(
-                    x=[stress], y=[rpe], mode='markers+text', text=["TARGET ODIERNO"], textposition="top center",
-                    marker=dict(size=18, color=DANGER, symbol='cross', line=dict(width=2, color='white')),
-                    textfont=dict(color=DANGER, family="JetBrains Mono", size=12), name='Oggi'
-                ))
-                fig_dens.update_layout(**layout_master, height=350, xaxis_title="Indice Stress (SNC)", yaxis_title="Indice Fatica (RPE)")
-                st.plotly_chart(fig_dens, use_container_width=True, config={'displayModeBar': False})
-                figs_for_export['Cluster Storico'] = fig_dens
-                st.markdown("<div class='ai-terminal'><span class='blink'>></span> <b>AI_INSIGHT:</b> Il grafico mostra le tue 'isobare' di fatica storica. La croce rossa indica dove si posiziona il carico richiesto oggi rispetto alla tua tolleranza abituale.</div>", unsafe_allow_html=True)
+        with col_g7:
+            # 7. TREND STORICO (MULTI-LINE)
+            if 'Data' in df_base.columns and len(df_base) > 2:
+                df_plot = df_base.sort_values('Data').tail(14) # Ultimi 14 allenamenti
+                fig_7 = go.Figure()
+                fig_7.add_trace(go.Scatter(x=df_plot['Data'], y=df_plot['Stress Lavoro'], name='Stress', line=dict(color='#FF0055')))
+                fig_7.add_trace(go.Scatter(x=df_plot['Data'], y=df_plot['Ore Sonno'], name='Sonno', line=dict(color='#00F2FE')))
+                fig_7.update_layout(**layout_dark, height=250, title="Trend Stress vs Sonno (14 Sessioni)", legend=dict(orientation="h", y=-0.2))
+                st.plotly_chart(fig_7, use_container_width=True, config=config_no_menu)
+                figs_export['Trend Storico'] = fig_7
             else:
-                st.info("Dati storici insufficienti per generare il cluster di densità.")
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.info("Dati storici insufficienti per il grafico di trend.")
 
-        with c_chart2:
-            st.markdown("<div class='hud-panel' style='--theme-color: #9D00FF;'>", unsafe_allow_html=True)
-            st.markdown("<div class='hud-title'>ANALISI VETTORIALE MULTI-ASSE</div>", unsafe_allow_html=True)
-            
-            categories = ['Sonno', 'RPE Inverso', 'Stress Inverso', 'Readiness', 'Capacità']
-            val_oggi = [min(10, ore_sonno), max(0, 10-rpe), max(0, 10-stress), readiness_score/10, 10-(snc_load/3)]
-            val_media = [min(10, media_sonno), max(0, 10-media_rpe), max(0, 10-media_stress), 6, 6]
+        with col_g8:
+            # 8. SCATTER DENSITA (RISCHIO)
+            if all(c in df_base.columns for c in ['Stress Lavoro', 'RPE']):
+                fig_8 = px.scatter(df_base, x='Stress Lavoro', y='RPE', opacity=0.5, color_discrete_sequence=['#475569'])
+                fig_8.add_trace(go.Scatter(x=[stress], y=[rpe], mode='markers+text', text=["OGGI"], marker=dict(size=15, color=status_col, symbol='cross'), textposition="top center"))
+                fig_8.update_layout(**layout_dark, height=250, title="Matrice di Rischio (Oggi vs Storico)")
+                st.plotly_chart(fig_8, use_container_width=True, config=config_no_menu)
+                figs_export['Risk Matrix'] = fig_8
+            else:
+                st.info("Dati storici insufficienti per la matrice di rischio.")
 
-            fig_rad = go.Figure()
-            fig_rad.add_trace(go.Scatterpolar(r=val_media, theta=categories, fill='toself', name='Baseline 90gg', line_color='#4B5563', fillcolor='rgba(75, 85, 99, 0.3)'))
-            fig_rad.add_trace(go.Scatterpolar(r=val_oggi, theta=categories, fill='toself', name='Oggi', line_color=PURPLE, fillcolor='rgba(157, 0, 255, 0.4)'))
-            fig_rad.update_layout(
-                polar=dict(
-                    radialaxis=dict(visible=True, range=[0, 10], gridcolor="rgba(255,255,255,0.1)", linecolor="rgba(255,255,255,0.1)"),
-                    angularaxis=dict(gridcolor="rgba(255,255,255,0.1)", linecolor="rgba(255,255,255,0.1)")
-                ),
-                showlegend=True, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
-                font=dict(color="#7382A6", family="JetBrains Mono", size=10),
-                height=350, margin=dict(t=40, b=40, l=40, r=40),
-                legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5)
-            )
-            st.plotly_chart(fig_rad, use_container_width=True, config={'displayModeBar': False})
-            figs_for_export['Vettore Multiasse'] = fig_rad
-            st.markdown("</div>", unsafe_allow_html=True)
 
         # =========================================================
-        # TIER 3: TRENDLINES & PREDICTIVE AI
+        # PLAYBOOK OPERATIVO: CONSIGLI ESTREMI E DETTAGLIATI
         # =========================================================
-        st.markdown("<div class='hud-panel' style='--theme-color: #FFB020;'>", unsafe_allow_html=True)
-        st.markdown("<div class='hud-title'>MICRO-TRENDS & ENGINE DIAGNOSTICS (ULTIMI 30 GG)</div>", unsafe_allow_html=True)
-        
-        if 'Data' in df_base.columns:
-            df_plot = df_base.sort_values('Data').tail(30)
-            t1, t2, t3 = st.columns(3)
-            
-            def sparkline_pro(df, y_col, color, name):
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(
-                    x=df['Data'], y=df[y_col], mode='lines+markers', name=name,
-                    line=dict(color=color, width=3, shape='spline'),
-                    marker=dict(size=4, color=color),
-                    fill='tozeroy', fillcolor=f"rgba({int(color[1:3], 16)},{int(color[3:5], 16)},{int(color[5:7], 16)},0.15)"
-                ))
-                fig.add_hline(y=df[y_col].mean(), line_dash="dot", line_color="rgba(255,255,255,0.3)", annotation_text="AVG", annotation_position="bottom right", annotation_font_color="rgba(255,255,255,0.3)")
-                fig.update_layout(**layout_master, height=180, margin=dict(l=0, r=0, t=10, b=0), xaxis=dict(visible=False), yaxis=dict(visible=False, showgrid=False))
-                return fig
+        st.markdown("<h3 style='color:#F8FAFC; margin-top:40px; border-bottom:1px solid #1E293B; padding-bottom:10px;'>3. TACTICAL PLAYBOOK (PROTOCOLLI DI INGAGGIO)</h3>", unsafe_allow_html=True)
 
-            with t1:
-                st.markdown(f"<p style='color:{CYAN}; font-family:JetBrains Mono; font-weight:bold; margin:0;'>» DEBITO DI SONNO</p>", unsafe_allow_html=True)
-                fig_s1 = sparkline_pro(df_plot, 'Ore Sonno', CYAN, "Sonno")
-                st.plotly_chart(fig_s1, use_container_width=True, config={'displayModeBar': False})
-                figs_for_export['Trend Sonno'] = fig_s1
-            with t2:
-                st.markdown(f"<p style='color:{DANGER}; font-family:JetBrains Mono; font-weight:bold; margin:0;'>» ACCUMULO CORTISOLO (STRESS)</p>", unsafe_allow_html=True)
-                fig_s2 = sparkline_pro(df_plot, 'Stress Lavoro', DANGER, "Stress")
-                st.plotly_chart(fig_s2, use_container_width=True, config={'displayModeBar': False})
-                figs_for_export['Trend Stress'] = fig_s2
-            with t3:
-                st.markdown(f"<p style='color:{WARNING}; font-family:JetBrains Mono; font-weight:bold; margin:0;'>» FATICA MECCANICA (RPE)</p>", unsafe_allow_html=True)
-                fig_s3 = sparkline_pro(df_plot, 'RPE', WARNING, "RPE")
-                st.plotly_chart(fig_s3, use_container_width=True, config={'displayModeBar': False})
-                figs_for_export['Trend RPE'] = fig_s3
-        st.markdown("</div>", unsafe_allow_html=True)
+        t1, t2 = st.columns(2)
 
-        # =========================================================
-        # TIER 4: PROTOCOLLO D'INGAGGIO (ACTION PLAN)
-        # =========================================================
-        st.markdown("<div class='hud-panel' style='--theme-color: #00FF66;'>", unsafe_allow_html=True)
-        st.markdown("<div class='hud-title'>PROTOCOLLO D'INGAGGIO OPERATIVO</div>", unsafe_allow_html=True)
-        
-        tab1, tab2, tab3, tab4 = st.tabs(["[1] PRE-FLIGHT (Attivazione)", "[2] ENGINE ON (Esecuzione)", "[3] SHUTDOWN (Defaticamento)", "[4] NEURO-RECOVERY (Sera)"])
-        
-        with tab1:
+        with t1:
             st.markdown(f"""
-            <div class='tactic-box' style='--t-color: {CYAN}'>
-                <h4>Protocollo di Innesco</h4>
-                <ul>
-                    <li><b>Analisi del Terreno:</b> Setup calzature ottimizzato per <b>{tipo_all}</b>.</li>
-                    <li><b>Mobilità Dinamica [T-15m]:</b> 5 minuti. Focus: sblocco anche (leg swings), attivazione caviglie.</li>
-                    <li><b>Innesco Neuromuscolare [T-5m]:</b> 3x15m skip bassi. 10 squat esplosivi per reclutare fibre veloci senza affaticare.</li>
-                    <li><b>Fase di Transizione:</b> Primi 5-8 minuti obbligatori in Zona 1 cardiaca (camminata rapida o jogging leggerissimo).</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
-            
-        with tab2:
-            z_card = "ZONA 2-3 (Aerobico Base)" if readiness_score > 60 else "ZONA 1-2 (Scarico Attivo)"
-            st.markdown(f"""
-            <div class='tactic-box' style='--t-color: {WARNING}'>
-                <h4>Parametri di Esecuzione</h4>
-                <ul>
-                    <li><b>Target Telemetrico:</b> Lock cardiaco richiesto in <b>{z_card}</b>.</li>
-                    <li><b>Biomechanical Lock:</b> Mantenere cadenza > 170 spm. Obiettivo: minimizzare tempo di volo e ridurre forza di impatto G.</li>
-                    <li><b>Regolazione Pacing:</b> Se RPE percepito supera {min(rpe, 7)}/10, abortire progressione e scalare al passo base.</li>
-                    <li><b>Check Posturale (Ogni 1km):</b> Rilassare spalle, sguardo 20m avanti, appoggio reattivo di mesopiede.</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
-            
-        with tab3:
-            st.markdown(f"""
-            <div class='tactic-box' style='--t-color: {NEON_GREEN}'>
-                <h4>Protocollo di Rientro</h4>
-                <ul>
-                    <li><b>Clearance Metabolica [T+0m]:</b> Divieto di arresto improvviso. Camminata attiva per 300-500 metri.</li>
-                    <li><b>Ripristino Fasciale [T+10m]:</b> Stretching statico selettivo (40" per muscolo). Focus: Polpacci, Flessori dell'anca, Ischiocrurali.</li>
-                    <li><b>Reidratazione Iniziale:</b> Ripristino liquidi immediato.</li>
-                    <li><b>Monitoraggio Danni:</b> Eseguire body-scan mentale per micro-traumi o dolori articolari acuti (differenziando dalla fatica).</li>
+            <div style="background:#0F172A; border-left:4px solid #00F2FE; padding:20px; border-radius:4px; margin-bottom:20px;">
+                <h4 style="color:#00F2FE; margin-top:0; font-family:'JetBrains Mono';">FASE 1: PRE-CARICO (T-30 MIN)</h4>
+                <ul style="color:#CBD5E1; font-size:0.95rem; line-height:1.6;">
+                    <li><b>Nutrizione Tattica:</b> Assumere carboidrati a rapido assorbimento (es. 20-30g da gel o miele) 20 min prima se la sessione supera i 60 minuti.</li>
+                    <li><b>Idratazione:</b> 250ml di acqua con un pizzico di sodio per massimizzare il volume plasmatico pre-impatto.</li>
+                    <li><b>Attivazione SNC:</b> 5 min mobilità dinamica (cerchi d'anca, leg swings). NESSUN allungamento statico pre-corsa per non inibire il riflesso miotatico.</li>
+                    <li><b>Drills:</b> 3 serie da 20m di skip A (ginocchia alte) e B (calciata) per settare le rigidità tendinee.</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
 
-        with tab4:
             st.markdown(f"""
-            <div class='tactic-box' style='--t-color: {PURPLE}'>
-                <h4>Sistema di Rigenerazione</h4>
-                <ul>
-                    <li><b>Target Sonno Rigenerativo:</b> Obbligatorio hit di <b>{max(ore_sonno, 7.5) + 0.5:.1f} Ore</b>.</li>
-                    <li><b>SNC Down-Regulation:</b> Blocco schermi (Luce Blu) 60 minuti prima del sonno. Interrompere input dopaminergici.</li>
-                    <li><b>Respirazione Tattica:</b> 5 minuti Box Breathing (4s in, 4s hold, 4s out, 4s hold) nel letto per switch parasimpatico.</li>
-                    <li><b>Recupero Meccanico:</b> 10 min Foam Roller serale su catena laterale (IT Band) se tensione percepita > 5/10.</li>
+            <div style="background:#0F172A; border-left:4px solid {status_col}; padding:20px; border-radius:4px; margin-bottom:20px;">
+                <h4 style="color:{status_col}; margin-top:0; font-family:'JetBrains Mono';">FASE 2: ESECUZIONE (BIOMECCANICA E PACING)</h4>
+                <ul style="color:#CBD5E1; font-size:0.95rem; line-height:1.6;">
+                    <li><b>Volume Autorizzato:</b> {dist_cons:.1f} km (Pacing calibrato su readiness al {readiness:.0f}%).</li>
+                    <li><b>Cadenza (SPM):</b> Mantenere <b>170-180 passi/minuto</b>. Aumentare la frequenza del passo del 5% riduce il carico sulle ginocchia fino al 20%.</li>
+                    <li><b>Appoggio:</b> Focus sul mesopiede. Evitare l'overstriding (atterrare col tallone troppo avanti rispetto al baricentro).</li>
+                    <li><b>Gestione RPE:</b> Se lo sforzo percepito supera il {rpe}/10 stabilito, declassare immediatamente l'allenamento in Z1 (Camminata) per 2 minuti.</li>
+                    <li><b>Respirazione:</b> Sincronizza sul ritmo 2:2 o 3:3 (passi per inspirazione:passi per espirazione) per prevenire fitte diaframmatiche.</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+
+        with t2:
+            st.markdown(f"""
+            <div style="background:#0F172A; border-left:4px solid #FFB020; padding:20px; border-radius:4px; margin-bottom:20px;">
+                <h4 style="color:#FFB020; margin-top:0; font-family:'JetBrains Mono';">FASE 3: SHUTDOWN (POST-WORKOUT 0-60 MIN)</h4>
+                <ul style="color:#CBD5E1; font-size:0.95rem; line-height:1.6;">
+                    <li><b>Clearance Metabolica:</b> Non sedersi immediatamente. Ultime 5-8 minuti obbligatori in camminata per smaltire H+ e lattato muscolare.</li>
+                    <li><b>Finestra Anabolica:</b> Entro 45 minuti, assumere un rapporto 3:1 Carboidrati/Proteine (es. 60g CHO / 20g PRO) per bloccare il catabolismo.</li>
+                    <li><b>Ripristino Fasciale:</b> Stretching statico profondo (45-60 secondi per gruppo muscolare). Focus primario su Flessori dell'anca (Iliopsoas) e Polpacci.</li>
+                    <li><b>Termoregolazione:</b> Doccia fredda sulle gambe (1-2 minuti) per vasocostrizione e riduzione micro-infiammazioni articolari.</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown(f"""
+            <div style="background:#0F172A; border-left:4px solid #9D00FF; padding:20px; border-radius:4px; margin-bottom:20px;">
+                <h4 style="color:#9D00FF; margin-top:0; font-family:'JetBrains Mono';">FASE 4: NEURO-RECOVERY (SERALE)</h4>
+                <ul style="color:#CBD5E1; font-size:0.95rem; line-height:1.6;">
+                    <li><b>Target Sonno:</b> Impostare allarme per garantire <b>{max(ore_sonno, 7.5) + 0.5:.1f} ore</b> di sonno stanotte. Fondamentale per il rilascio di HGH (ormone della crescita).</li>
+                    <li><b>Igiene della Luce:</b> Filtri luce blu attivati sui dispositivi 90 minuti prima di coricarsi per massimizzare la produzione di melatonina.</li>
+                    <li><b>SNC Down-Regulation:</b> Protocollo "Box Breathing" a letto (4 sec inspiro, 4 sec trattenuta, 4 sec espiro, 4 sec trattenuta) per 5 minuti. Sforza il passaggio dal sistema Simpatico (Fight/Flight) a quello Parasimpatico (Rest/Digest).</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
 
         # =========================================================
-        # TIER 5: DATA EXTRACTION & MASTER EXPORT
+        # ESPORTAZIONE MASSIVA HTML (REPORT AUTONOMO CON 8 GRAFICI)
         # =========================================================
-        st.markdown("<div class='hud-panel' style='--theme-color: #FFFFFF;'>", unsafe_allow_html=True)
-        st.markdown("<div class='hud-title'>MASTER DATA EXTRACTION</div>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color:#F8FAFC; margin-top:40px; border-bottom:1px solid #1E293B; padding-bottom:10px;'>4. MASTER EXPORT TERMINAL</h3>", unsafe_allow_html=True)
         
-        # Generazione Div Grafici per HTML Export
-        html_charts = ""
-        for name, fig in figs_for_export.items():
+        # Rendering dei grafici in HTML
+        html_graphs = ""
+        for title, fig in figs_export.items():
             div = fig.to_html(full_html=False, include_plotlyjs=False)
-            html_charts += f"""
-            <div style="background:#0F172A; border:1px solid #1E293B; border-radius:8px; padding:15px; margin-bottom:20px;">
-                <h3 style="color:#38BDF8; font-family:'JetBrains Mono', monospace; font-size:1.1rem; text-transform:uppercase; margin-top:0; margin-bottom:15px; border-bottom:1px solid #1E293B; padding-bottom:10px;">> {name}</h3>
-                <div style="width:100%; overflow-x:auto;">{div}</div>
-            </div>
-            """
+            html_graphs += f"<div style='background:#111827; border:1px solid #334155; border-radius:8px; padding:15px; margin-bottom:20px;'><h4 style='color:#38BDF8; font-family:monospace; margin-top:0;'>// {title.upper()}</h4>{div}</div>"
 
         master_html = f"""<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RunAI | Master Bio-Report</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+<title>RunAI - Master Tactical Report</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
-  body {{ background-color:#020617; color:#94A3B8; font-family:'Inter', sans-serif; margin:0; padding:40px; }}
-  .container {{ max-width: 1200px; margin: 0 auto; }}
-  .header {{ text-align: center; margin-bottom: 50px; }}
-  .header h1 {{ font-family:'Inter', sans-serif; font-weight:900; font-size:3rem; color:#FFFFFF; margin:0; text-shadow: 0 0 20px rgba(0,242,254,0.3); }}
-  .subtitle {{ font-family:'JetBrains Mono', monospace; color:#00F2FE; letter-spacing:4px; text-transform:uppercase; font-size:0.9rem; margin-bottom: 10px; }}
-  
-  .hud-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 40px; }}
-  .hud-box {{ background: #0F172A; border: 1px solid #1E293B; border-top: 3px solid {status_col}; border-radius: 8px; padding: 25px; }}
-  .hud-box h4 {{ font-family:'JetBrains Mono', monospace; font-size: 0.8rem; color:#64748B; text-transform: uppercase; margin:0 0 10px 0; letter-spacing:1px; }}
-  .hud-box .val {{ font-size: 3rem; font-weight: 900; color: #F8FAFC; line-height: 1; }}
-  
-  .terminal {{ background: #000; border: 1px solid {PURPLE}; border-left: 5px solid {PURPLE}; padding: 20px; font-family: 'JetBrains Mono', monospace; color: #E2E8F0; margin-bottom: 40px; border-radius:4px; }}
-  .charts-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px; margin-bottom: 40px; }}
-  
-  .tactic-box {{ background: #0F172A; border-left: 4px solid; padding: 20px; margin-bottom: 15px; border-radius: 4px; }}
-  .tactic-box h3 {{ font-family: 'Inter'; font-weight: 900; text-transform: uppercase; margin-top:0; }}
-  .tactic-box ul {{ color: #CBD5E1; line-height:1.6; font-size:1.05rem; }}
+    body {{ background: #020617; color: #94A3B8; font-family: 'Inter', sans-serif; padding: 30px; margin: 0; }}
+    h1 {{ color: #F8FAFC; font-weight: 900; font-size: 2.5rem; border-bottom: 2px solid #00F2FE; padding-bottom: 10px; }}
+    .kpi-container {{ display: flex; gap: 20px; margin-bottom: 40px; flex-wrap: wrap; }}
+    .kpi-box {{ background: #0F172A; border: 1px solid #1E293B; border-left: 5px solid {status_col}; padding: 20px; border-radius: 6px; flex: 1; min-width: 200px; }}
+    .kpi-box h3 {{ margin: 0; font-size: 0.8rem; color: #64748B; text-transform: uppercase; letter-spacing: 1px; }}
+    .kpi-box .val {{ font-size: 2.5rem; font-weight: 900; color: #F8FAFC; margin-top: 10px; }}
+    .charts-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 40px; }}
+    .advice-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }}
+    .advice-box {{ background: #0F172A; border-top: 4px solid #00F2FE; padding: 25px; border-radius: 6px; }}
+    .advice-box h3 {{ color: #E2E8F0; margin-top:0; }}
+    .advice-box li {{ margin-bottom: 10px; line-height: 1.5; }}
 </style>
 </head>
 <body>
-<div class="container">
-    <div class="header">
-        <div class="subtitle">RunAI Master Telemetry Export</div>
-        <h1>BIO-COMMAND LOG</h1>
-        <p style="color:#64748B; font-family:'JetBrains Mono'; margin-top:20px;">GENERATO IL: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+    <h1>MASTER TACTICAL REPORT</h1>
+    <div class="kpi-container">
+        <div class="kpi-box"><h3>System Readiness</h3><div class="val" style="color:{status_col};">{readiness:.0f}%</div></div>
+        <div class="kpi-box"><h3>Target Consigliato</h3><div class="val">{dist_cons:.1f} <span style="font-size:1rem; color:#64748B;">km</span></div></div>
+        <div class="kpi-box"><h3>Recovery ETA</h3><div class="val">{tempo_recupero_stimato} <span style="font-size:1rem; color:#64748B;">Ore</span></div></div>
     </div>
-
-    <div class="hud-grid">
-        <div class="hud-box" style="border-top-color:{status_col}">
-            <h4>System Readiness</h4>
-            <div class="val" style="color:{status_col}">{readiness_score:.0f}%</div>
-            <p style="color:{status_col}; font-family:'JetBrains Mono'; font-weight:bold; font-size:0.8rem; margin:10px 0 0 0;">[{status}]</p>
-        </div>
-        <div class="hud-box" style="border-top-color:#38BDF8">
-            <h4>Target Approved</h4>
-            <div class="val">{dist_cons:.1f}<span style="font-size:1rem; color:#64748B;"> km</span></div>
-            <p style="color:#64748B; font-family:'JetBrains Mono'; font-size:0.8rem; margin:10px 0 0 0;">Tipo: {tipo_all}</p>
-        </div>
-        <div class="hud-box" style="border-top-color:#9D00FF">
-            <h4>Recovery ETA</h4>
-            <div class="val">{est_recovery_time}<span style="font-size:1rem; color:#64748B;"> H</span></div>
-            <p style="color:#64748B; font-family:'JetBrains Mono'; font-size:0.8rem; margin:10px 0 0 0;">Clearance stimata post-WO</p>
-        </div>
-    </div>
-
-    <div class="terminal">
-        > <b>SYS.ANALYSIS.AI:</b> {alert_msg} <br><br>
-        > <b>IMPACT FORCE:</b> {impact_gforce} <br>
-        > <b>SNC LOAD OVERHEAD:</b> {snc_load:.1f} pt
-    </div>
-
-    <h2 style="color:#F8FAFC; border-bottom: 1px solid #1E293B; padding-bottom:10px; margin-bottom:30px;">INTERACTIVE TELEMETRY CHARTS</h2>
+    
+    <h2 style="color:#F8FAFC;">TELEMETRIA GRAFICA</h2>
     <div class="charts-grid">
-        {html_charts}
+        {html_graphs}
     </div>
 
-    <h2 style="color:#F8FAFC; border-bottom: 1px solid #1E293B; padding-bottom:10px; margin-bottom:30px; margin-top:50px;">ACTION PLAN / PROTOCOLLI</h2>
-    
-    <div class="tactic-box" style="border-color:{CYAN}">
-        <h3 style="color:{CYAN}">1. PRE-FLIGHT (Attivazione)</h3>
-        <ul>
-            <li>Setup calzature per: {tipo_all}</li>
-            <li>Mobilità Dinamica 5 min (sblocco anche, caviglie)</li>
-            <li>3x15m skip bassi + 10 squat esplosivi</li>
-        </ul>
+    <h2 style="color:#F8FAFC;">PLAYBOOK OPERATIVO</h2>
+    <div class="advice-grid">
+        <div class="advice-box" style="border-color:#00F2FE;">
+            <h3>1. PRE-CARICO</h3>
+            <ul>
+                <li>Nutrizione: 20-30g CHO a rapido assorbimento.</li>
+                <li>Attivazione SNC: 5 min mobilità dinamica, NO statico.</li>
+            </ul>
+        </div>
+        <div class="advice-box" style="border-color:{status_col};">
+            <h3>2. ESECUZIONE</h3>
+            <ul>
+                <li>Cadenza Target: 170-180 spm.</li>
+                <li>RPE Cap: Non superare {rpe}/10.</li>
+                <li>Respirazione 2:2 o 3:3 per prevenire fitte.</li>
+            </ul>
+        </div>
+        <div class="advice-box" style="border-color:#FFB020;">
+            <h3>3. SHUTDOWN</h3>
+            <ul>
+                <li>Clearance: 5 min finali in camminata.</li>
+                <li>Finestra Anabolica: CHO/PRO (3:1) entro 45 min.</li>
+            </ul>
+        </div>
+        <div class="advice-box" style="border-color:#9D00FF;">
+            <h3>4. NEURO-RECOVERY</h3>
+            <ul>
+                <li>Target Sonno: {max(ore_sonno, 7.5) + 0.5:.1f}h minime.</li>
+                <li>SNC Down-Regulation: Box breathing e no schermi.</li>
+            </ul>
+        </div>
     </div>
-    
-    <div class="tactic-box" style="border-color:{WARNING}">
-        <h3 style="color:{WARNING}">2. ENGINE ON (Esecuzione)</h3>
-        <ul>
-            <li>Target Zone: Zona 2-3 (Aerobico Base)</li>
-            <li>Pacing RPE Max: {min(rpe, 7)}/10</li>
-            <li>Biomechanical Lock: Cadenza > 170 spm per ridurre G-Force</li>
-        </ul>
-    </div>
-
-    <div class="tactic-box" style="border-color:{PURPLE}">
-        <h3 style="color:{PURPLE}">3. RECOVERY (Sera)</h3>
-        <ul>
-            <li>Target Sonno: {max(ore_sonno, 7.5) + 0.5:.1f} Ore MINIMO</li>
-            <li>Box Breathing: 5 min prima del sonno (4-4-4-4)</li>
-            <li>Stop schermi 60 min prima di dormire</li>
-        </ul>
-    </div>
-    
-    <div style="text-align:center; margin-top: 50px; font-family:'JetBrains Mono'; color:#475569; font-size:0.8rem;">
-        // END OF REPORT // RUNAI KINETIC SYSTEMS //
-    </div>
-</div>
 </body>
 </html>"""
 
-        c_d1, c_d2 = st.columns(2)
-        with c_d1:
-            st.download_button(
-                label="📥 DOWNLOAD MASTER HTML REPORT (INTERACTIVE)",
-                data=master_html,
-                file_name=f"RunAI_Master_Log_{pd.Timestamp.now().strftime('%Y%m%d')}.html",
-                mime="text/html",
-                use_container_width=True
-            )
-            st.markdown("<p style='font-size:0.8rem; color:#7382A6; margin-top:5px;'>Report HTML Autonomo (Stile Dashboard F1). Include grafica PlotlyJS, CSS e insights testuali. Condivisibile ovunque.</p>", unsafe_allow_html=True)
-            
-        with c_d2:
-            # Creazione di un micro-dataset esportabile in CSV della sessione odierna
-            csv_data = pd.DataFrame([{
-                'Data': pd.Timestamp.now().strftime('%Y-%m-%d'),
-                'Readiness_Score': readiness_score,
-                'Volume_Target': target_km,
-                'Volume_Consigliato': dist_cons,
-                'SNC_Load': snc_load,
-                'Recovery_ETA_H': est_recovery_time,
-                'Ore_Sonno': ore_sonno,
-                'Stress_Lavoro': stress,
-                'RPE_Previsto': rpe
-            }]).to_csv(index=False).encode('utf-8')
-            
-            st.download_button(
-                label="📊 DOWNLOAD RAW TELEMETRY (CSV)",
-                data=csv_data,
-                file_name=f"RunAI_Raw_Data_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-            st.markdown("<p style='font-size:0.8rem; color:#7382A6; margin-top:5px;'>Dati vettoriali grezzi della sessione per integrazione in Excel o database di allenamento.</p>", unsafe_allow_html=True)
-            
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.download_button(
+            label="📊 SCARICA MASTER REPORT HTML (TUTTI I GRAFICI INTERATTIVI E CONSIGLI)",
+            data=master_html,
+            file_name=f"RunAI_Overload_Report_{pd.Timestamp.now().strftime('%Y%m%d')}.html",
+            mime="text/html",
+            use_container_width=True
+        )
 # ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
