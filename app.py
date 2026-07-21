@@ -16,7 +16,7 @@ import os
 
 warnings.filterwarnings('ignore')
 
-st.set_page_config(page_title="RUNAI | Performance Intelligence", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="RUN AI | Performance Intelligence", layout="wide", initial_sidebar_state="expanded")
 
 # =========================================================
 #  DESIGN SYSTEM — RUNAI (SPORT TECH RUN)
