@@ -1085,10 +1085,6 @@ Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
 # ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
-# Richiede: pip install mediapipe opencv-python numpy
-# e il file cv_engine.py nella stessa cartella del tuo app.py
-from cv_engine import analizza_running_video
-
 elif pagina == "COMPUTER VISION":
     header_block(
         "Modulo 06 — Computer Vision",
