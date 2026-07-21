@@ -13,7 +13,7 @@ import warnings
 import base64
 import tempfile
 import os
-
+from sklearn.model_selection import train_test_split
 warnings.filterwarnings('ignore')
 
 st.set_page_config(page_title="RUN AI | Performance Intelligence", layout="wide", initial_sidebar_state="expanded")
