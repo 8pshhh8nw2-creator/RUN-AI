@@ -950,22 +950,17 @@ elif pagina == "ANALISI PREDITTIVA ML":
 
     df_base = st.session_state.dati.copy()
 
-    st.markdown("""
-    <div class='info-box'>
-    <h3>Come opera il Machine Learning in RUNAI?</h3>
-    <p style='color: #B8C2D0; font-family:"Inter",sans-serif;'>Il sistema analizza i tuoi dati storici mediante algoritmi di classificazione, regressione e clustering non supervisionato per individuare pattern invisibili e stimare con precisione la tua risposta biologica agli stimoli. Ogni modello viene validato su un set di dati mai visto in fase di addestramento, per garantire stime realistiche e non ottimistiche.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # --- PULIZIA PREVENTIVA DEI DATI (Elimina NaN e forza i tipi numerici) ---
+    feature_cols = ['Distanza (km)', 'Ore Sonno', 'Stress Lavoro', 'FC Media', 'RPE']
+    feature_names = ['Distanza', 'Sonno', 'Stress', 'FC Media', 'RPE']
 
-    try:
-        feature_cols = ['Distanza (km)', 'Ore Sonno', 'Stress Lavoro', 'FC Media', 'RPE']
-        feature_names = ['Distanza', 'Sonno', 'Stress', 'FC Media', 'RPE']
+    # Riempie eventuali valori mancanti con la media o 0 e converte in numerico
+    for col in feature_cols + ['Rischio Infortunio', 'Velocità (km/h)', 'Temp (°C)', 'SMA']:
+        if col in df_base.columns:
+            df_base[col] = pd.to_numeric(df_base[col], errors='coerce').fillna(0)
 
-        X_class = df_base[feature_cols].values
-        y_class = df_base['Rischio Infortunio'].values
-
-        scaler = StandardScaler()
-        X_scaled_class = scaler.fit_transform(X_class)
+    X_class = df_base[feature_cols].values
+    y_class = df_base['Rischio Infortunio'].astype(int).values
 
         # -----------------------------------------------------
         # SPLIT TRAIN/TEST SICURO (Evita qualsiasi array ambigua)
