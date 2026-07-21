@@ -938,7 +938,7 @@ elif pagina == "KPI DASHBOARD":
 #     SHAP_AVAILABLE = False
 
 # =========================================================
-# PAGINA 4: ANALISI PREDITTIVA ML — VERSIONE TOTALE BLINDATA
+# PAGINA 4: ANALISI PREDITTIVA ML — VERSIONE DEFINITIVA PULITA
 # =========================================================
 elif pagina == "ANALISI PREDITTIVA ML":
     header_block(
@@ -949,6 +949,14 @@ elif pagina == "ANALISI PREDITTIVA ML":
     )
 
     df_base = st.session_state.dati.copy()
+
+    st.markdown("""
+    <div class='info-box'>
+    <h3>Come opera il Machine Learning in RUNAI?</h3>
+    <p style='color: #B8C2D0; font-family:"Inter",sans-serif;'>Il sistema analizza i tuoi dati storici mediante algoritmi di classificazione, regressione e clustering non supervisionato per individuare pattern invisibili e stimare con precisione la tua risposta biologica agli stimoli. Ogni modello viene validato su un set di dati mai visto in fase di addestramento, per garantire stime realistiche e non ottimistiche.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
     try:
         feature_cols = ['Distanza (km)', 'Ore Sonno', 'Stress Lavoro', 'FC Media', 'RPE']
         feature_names = ['Distanza', 'Sonno', 'Stress', 'FC Media', 'RPE']
@@ -979,31 +987,6 @@ elif pagina == "ANALISI PREDITTIVA ML":
 
         # -----------------------------------------------------
         # DEFINIZIONE TAB
-        # -----------------------------------------------------
-        t_ml1, t_ml2, t_ml3, t_ml4, t_ml5, t_ml6, t_ml7, t_ml8, t_ml9, t_ml10 = st.tabs([
-            "Random Forest", "Logistic Regression", "Linear Regression", "Cluster K-Means",
-            "Stress Prediction", "Simulatore What-If", "Confronto Modelli",
-            "Explainability (SHAP)", "Anomaly Detection", "PCA"
-        ])
-
-    
-    
-
-        # -----------------------------------------------------
-        # SPLIT TRAIN/TEST SICURO (Evita qualsiasi array ambigua)
-        # -----------------------------------------------------
-        unique_classes = np.unique(y_class)
-        has_multiple_classes = bool(len(unique_classes) > 1)
-        has_enough_samples = bool(len(df_base) >= 10)
-        
-        stratify_arg = y_class if (has_multiple_classes and has_enough_samples) else None
-        
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_scaled_class, y_class, test_size=0.25, random_state=42, stratify=stratify_arg
-        )
-
-        # -----------------------------------------------------
-        # DEFINIZIONE TAB (Ripristinata al 100%)
         # -----------------------------------------------------
         t_ml1, t_ml2, t_ml3, t_ml4, t_ml5, t_ml6, t_ml7, t_ml8, t_ml9, t_ml10 = st.tabs([
             "Random Forest", "Logistic Regression", "Linear Regression", "Cluster K-Means",
@@ -1384,8 +1367,6 @@ elif pagina == "ANALISI PREDITTIVA ML":
 
     except Exception as e:
         st.error(f"Errore caricamento modelli ML: {str(e)}")
-
-              
 # ---------------------------------------------------------
 # PAGINA 5: CONSIGLIO FINALE  (redesign completo)
 # ---------------------------------------------------------
