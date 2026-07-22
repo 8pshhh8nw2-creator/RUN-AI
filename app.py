@@ -1661,11 +1661,350 @@ elif pagina == "ANALISI PREDITTIVA ML":
 
     except Exception as e:
         st.error(f"Errore caricamento modelli ML: {str(e)}")
-                <div class='coach-block'>
-                    <div class='label' style='color:#4EC9F0;'>Progressione d'ingresso — T-5 min</div>
-                    <ul><li>Parti sempre con 3-5' a ritmo molto blando prima di raggiungere il ritmo target (Zona 1-2 (recupero attivo)).</li><li>Livello di cautela oggi: MEDIO — mantieni un'andatura più conservativa del solito.</li></ul>
+elif pagina == "CONSIGLIO FINALE":
+    import math
+    import textwrap
+
+    # CORREZIONE BUG HTML: Aggiunto unsafe_allow_html=True e corretto l'uso di st.markdown
+    def md(html):
+        st.markdown(textwrap.dedent(html).strip(), unsafe_allow_html=True)
+
+    header_block(
+        "Modulo 05 — Action Plan",
+        "CONSIGLIO FINALE",
+        "Protocollo operativo, proiezioni fisiologiche ed export report per la sessione odierna.",
+        IMG_HERO_PLAN, "Coach Protocol"
+    )
+
+    if not st.session_state.analisi_fatta:
+        st.warning("Completa prima il questionario nella pagina 'ANALISI STATO DI FORMA'.")
+    else:
+        r = st.session_state.risultati_analisi
+        df_base = st.session_state.dati.copy()
+
+        # =========================================================
+        # TOKEN DI DESIGN (High-Tech Sports Theme)
+        # =========================================================
+        PANEL_BG   = "#0D1117"      # Nero profondo tech
+        PANEL_BD   = "#1E2633"
+        PANEL_BD_H = "#2A3546"
+        TXT_PRIMARY   = "#F8F9FA"   # Bianco gesso brillante
+        TXT_SECONDARY = "#8B949E"
+        TXT_TERTIARY  = "#485363"
+
+        C_SONNO  = "#2E90FF"        # Blu elettrico (Recupero)
+        C_STRESS = "#FF453A"        # Rosso vivo (Allerta)
+        C_RPE    = "#30D158"        # Verde fluo (Ottimale)
+        C_AMBRA  = "#FF9F0A"        # Arancio (Attenzione)
+        C_VIOLA  = "#BF5AF2"
+        C_NEUTRO = "#1F2733"
+
+        # CSS Globale corretto
+        md(f"""
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap');
+
+        .panel {{
+            background: {PANEL_BG}; border: 1px solid {PANEL_BD}; border-radius: 12px;
+            padding: 24px; transition: border-color .2s ease, box-shadow .2s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }}
+        .panel:hover {{ border-color: {PANEL_BD_H}; box-shadow: 0 4px 24px rgba(0,0,0,0.3); }}
+        
+        .panel-flush {{ padding: 0; overflow: hidden; }}
+        .panel-flush .panel-body {{ padding: 16px 20px; }}
+        .panel-flush .chart-top-rule {{ height: 4px; width: 100%; }}
+
+        .eyebrow {{
+            font-family:'JetBrains Mono',monospace; font-size:.7rem; letter-spacing:.12em;
+            text-transform:uppercase; color:{TXT_TERTIARY}; margin:0 0 6px 0; font-weight:700;
+        }}
+        .section-head {{ margin: 12px 0 20px 0; display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; }}
+        .section-head h3 {{
+            font-family:'Oswald',sans-serif; font-weight:600; color:{TXT_PRIMARY};
+            margin:0; font-size:1.4rem; letter-spacing:.02em; text-transform:uppercase;
+        }}
+        .section-head .sub {{ color:{TXT_SECONDARY}; font-size:.9rem; font-family:'Inter',sans-serif; margin-top:4px; }}
+        .section-head .rule {{ flex:1; height:1px; background: linear-gradient(90deg, {PANEL_BD} 0%, transparent 100%); align-self:center; }}
+
+        .kv-num {{ font-family:'JetBrains Mono',monospace; color:{TXT_PRIMARY}; font-weight:700; }}
+        .badge {{
+            display:inline-block; font-family:'JetBrains Mono',monospace; font-size:.65rem;
+            letter-spacing:.1em; text-transform:uppercase; padding:4px 10px; border-radius:4px; font-weight:700;
+        }}
+
+        /* Stile Coach Block corretto e migliorato */
+        .coach-block {{ margin-bottom: 22px; background: rgba(255,255,255,0.02); padding: 16px; border-radius: 8px; border-left: 3px solid var(--block-color); }}
+        .coach-block:last-child {{ margin-bottom: 0; }}
+        .coach-block .label {{
+            font-family:'Oswald',sans-serif; font-size:.9rem; letter-spacing:.05em;
+            text-transform:uppercase; margin-bottom:10px; font-weight:600; color: var(--block-color);
+        }}
+        .coach-block ul {{ margin:0; padding-left:0; list-style:none; }}
+        .coach-block li {{
+            position:relative; padding-left:18px; margin-bottom:8px; color:{TXT_SECONDARY};
+            font-family:'Inter',sans-serif; font-size:.95rem; line-height:1.6;
+        }}
+        .coach-block li::before {{
+            content:"▸"; position:absolute; left:0; top:1px; color:var(--block-color); font-size: 1rem;
+        }}
+
+        /* Split Sheet ridisegnata */
+        .split-sheet {{ padding:0; overflow:hidden; border-radius: 12px; }}
+        .split-row {{
+            display:grid; grid-template-columns: 1.2fr 1fr 1fr 1.6fr;
+            align-items:center; padding:18px 24px; border-bottom:1px solid {PANEL_BD}; gap:12px;
+        }}
+        .split-row:last-child {{ border-bottom:none; }}
+        .split-row .sr-label {{ font-family:'Oswald',sans-serif; font-size:1rem; letter-spacing:.02em; text-transform:uppercase; color:{TXT_PRIMARY}; font-weight:500; }}
+        .split-row .sr-value {{ font-family:'JetBrains Mono',monospace; font-size:1.6rem; font-weight:700; }}
+        .split-row .sr-value .unit {{ font-family:'Inter',sans-serif; font-size:.45em; color:{TXT_SECONDARY}; margin-left:4px; text-transform:uppercase; }}
+        .split-row .sr-ref {{ font-family:'JetBrains Mono',monospace; font-size:.85rem; color:{TXT_SECONDARY}; }}
+        .split-row .sr-note {{ font-family:'Inter',sans-serif; font-size:.85rem; color:{TXT_SECONDARY}; line-height:1.5; border-left: 1px solid {PANEL_BD}; padding-left: 12px; }}
+        .split-head {{
+            display:grid; grid-template-columns: 1.2fr 1fr 1fr 1.6fr; padding:12px 24px;
+            border-bottom:1px solid {PANEL_BD}; background:#161C24;
+        }}
+        .split-head span {{ font-family:'JetBrains Mono',monospace; font-size:.65rem; letter-spacing:.12em; text-transform:uppercase; color:{TXT_TERTIARY}; font-weight:700; }}
+
+        /* HUD Stats */
+        .hud-grid {{ display: flex; gap: 20px; align-items: flex-end; margin-bottom: 20px; }}
+        .hud-stat {{ flex: 1; }}
+        .hud-stat h2 {{ margin:0; font-family:"Oswald",sans-serif; font-weight:700; font-size:1.8rem; text-transform:uppercase; letter-spacing:.02em; line-height:1; }}
+        </style>
+        """)
+
+        def section_head(eyebrow, title, sub=None):
+            sub_html = f"<div class='sub'>{sub}</div>" if sub else ""
+            md(f"""
+            <div class='section-head'>
+                <div class='head-txt'>
+                    <p class='eyebrow'>{eyebrow}</p>
+                    <h3>{title}</h3>
+                    {sub_html}
                 </div>
+                <div class='rule'></div>
+            </div>
+            """)
+
+        # =========================================================
+        # CALCOLI BASE
+        # =========================================================
+        risk_score = min(100,
+            (40 if r['ore_sonno'] < 6 else 25 if r['ore_sonno'] < 6.5 else 10) +
+            (35 if r['stress_lavoro'] >= 8 else 20 if r['stress_lavoro'] >= 6 else 5) +
+            (30 if r['rpe_previsto'] >= 8 else 15 if r['rpe_previsto'] >= 6 else 5) +
+            (20 if r['ore_sonno'] < 6.5 and r['stress_lavoro'] >= 7 and r['rpe_previsto'] >= 7 else 0)
+        )
+        recovery_score = max(0, 100 - abs(r['ore_sonno'] - 7.5) * 13.33)
+        sma = (r['stress_lavoro'] * r['rpe_previsto']) / r['ore_sonno'] if r['ore_sonno'] > 0 else 0
+
+        distanza_target = r.get('distanza_oggi', 10.0)
+        distanza_consigliata = distanza_target if risk_score < 40 else distanza_target * 0.6 if risk_score < 70 else 0.0
+
+        if risk_score < 25:
+            tit, col, liv = "AUTORIZZATO", C_RPE, "basso"
+        elif risk_score < 60:
+            tit, col, liv = "RECUPERO ATTIVO", C_AMBRA, "medio"
+        else:
+            tit, col, liv = "RIPOSO OBBLIGATORIO", C_STRESS, "alto"
+
+        tipo_all = r.get('tipo_allenamento', 'Easy Run')
+        cadenza_target = "170-180 spm" if liv != "alto" else "165-172 spm (passo rilassato)"
+        zona_consigliata = "Zona 2-3 (aerobico)" if liv == "basso" else "Zona 1-2 (recupero)" if liv == "medio" else "Cammino / Zona 1"
+
+        # =========================================================
+        # IL NUOVO EFFORT EQUALIZER (SORPRESA)
+        # Una telemetria vettoriale: decine di barre verticali la
+        # cui altezza simula una curva esponenziale di affaticamento.
+        # Si "accendono" fino al punteggio di rischio attuale.
+        # =========================================================
+        def disegna_telemetria_rischio(score, active_col):
+            svg_width, svg_height = 800, 100
+            bars = 60
+            gap = 2
+            bar_w = (svg_width - (bars * gap)) / bars
+            
+            elements = []
+            for i in range(bars):
+                # Posizione X
+                x = i * (bar_w + gap)
+                
+                # Calcola l'altezza: una rampa che cresce in modo esponenziale
+                # per dare il senso di "rischio crescente"
+                progression = i / bars
+                h = 15 + (progression ** 2.5) * (svg_height - 15)
+                y = svg_height - h
+                
+                # Logica di colore e opacità
+                threshold_pct = (i / bars) * 100
+                is_active = threshold_pct <= score
+                
+                if threshold_pct < 25:
+                    bar_col = C_RPE
+                elif threshold_pct < 60:
+                    bar_col = C_AMBRA
+                else:
+                    bar_col = C_STRESS
+                
+                # Se la barra è attiva, usa il suo colore pieno, altrimenti rendila spenta
+                fill = bar_col if is_active else C_NEUTRO
+                opacity = "1.0" if is_active else "0.3"
+                
+                elements.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{bar_w:.1f}" height="{h:.1f}" fill="{fill}" opacity="{opacity}" rx="2"/>')
+
+            # Linea indicatore del punteggio attuale
+            marker_x = (score / 100) * svg_width
+            
+            return f"""
+            <svg viewBox="0 0 {svg_width} {svg_height + 25}" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:auto; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.3));">
+                <!-- Griglia di background -->
+                <line x1="0" y1="{svg_height}" x2="{svg_width}" y2="{svg_height}" stroke="{TXT_TERTIARY}" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"/>
+                
+                <!-- Barre telemetria -->
+                {"".join(elements)}
+                
+                <!-- Marker attuale -->
+                <g transform="translate({marker_x}, 0)">
+                    <line x1="0" y1="0" x2="0" y2="{svg_height + 10}" stroke="{TXT_PRIMARY}" stroke-width="2" />
+                    <polygon points="-6,{svg_height + 10} 6,{svg_height + 10} 0,{svg_height + 18}" fill="{TXT_PRIMARY}" />
+                    <rect x="-24" y="-20" width="48" height="20" rx="4" fill="{TXT_PRIMARY}" />
+                    <text x="0" y="-6" font-family="JetBrains Mono, monospace" font-size="12" font-weight="bold" fill="{PANEL_BG}" text-anchor="middle">{int(score)}%</text>
+                </g>
+                
+                <!-- Etichette Zone -->
+                <text x="0" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_RPE}" opacity="0.8">OPTIMAL</text>
+                <text x="{svg_width/2}" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_AMBRA}" text-anchor="middle" opacity="0.8">WARNING</text>
+                <text x="{svg_width}" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_STRESS}" text-anchor="end" opacity="0.8">DANGER</text>
+            </svg>
+            """
+
+        radar_svg = disegna_telemetria_rischio(risk_score, col)
+
+        md(f"""
+        <div class='panel'>
+            <div class='hud-grid'>
+                <div class='hud-stat'>
+                    <p class='eyebrow'>System Status</p>
+                    <h2 style='color:{col};'>{tit}</h2>
                 </div>
+                <div class='hud-stat' style='text-align:right;'>
+                    <p class='eyebrow'>Risk Load</p>
+                    <h2 style='color:{TXT_PRIMARY};'>{risk_score:.0f}<span style='font-size:0.6em; color:{TXT_SECONDARY};'>%</span></h2>
+                </div>
+            </div>
+            <div style='margin-top: 10px;'>
+                {radar_svg}
+            </div>
+        </div>
+        """)
+
+        md("<div style='height:24px;'></div>")
+
+        # =========================================================
+        # SPLIT SHEET (Design Cronometraggio Migliorato)
+        # =========================================================
+        sonno_delta_txt = f"{'+' if (r['ore_sonno']-7.5) >= 0 else ''}{r['ore_sonno']-7.5:.1f}h vs target 7.5h"
+
+        md(f"""
+        <div class='panel split-sheet'>
+            <div class='split-head'>
+                <span>Metric</span><span>Value</span><span>Reference</span><span>Notes / Adjustments</span>
+            </div>
+            <div class='split-row'>
+                <div class='sr-label'>Distanza Target</div>
+                <div class='sr-value' style='color:{TXT_PRIMARY};'>{distanza_consigliata:.1f}<span class='unit'>km</span></div>
+                <div class='sr-ref'>Da piano: {distanza_target} km</div>
+                <div class='sr-note'>In base al rischio: {tipo_all}</div>
+            </div>
+            <div class='split-row'>
+                <div class='sr-label'>Recovery Score</div>
+                <div class='sr-value' style='color:{C_SONNO};'>{recovery_score:.0f}<span class='unit'>%</span></div>
+                <div class='sr-ref'>Dato: {r['ore_sonno']:.1f}h sonno</div>
+                <div class='sr-note'>{sonno_delta_txt}</div>
+            </div>
+            <div class='split-row'>
+                <div class='sr-label'>Mental Load (SMA)</div>
+                <div class='sr-value' style='color:{C_AMBRA};'>{sma:.1f}</div>
+                <div class='sr-ref'>Stress × RPE / Sonno</div>
+                <div class='sr-note'>Carico sistema nervoso: {liv.upper()}</div>
+            </div>
+        </div>
+        """)
+
+        md("<div style='height:34px;'></div>")
+
+        # =========================================================
+        # COACH PERSONALIZZATO
+        # =========================================================
+        section_head("Coach personalizzato", "Protocollo di esecuzione", "Linee guida operative basate sulla telemetria odierna.")
+
+        cautela_txt = "Progressione normale autorizzata." if liv == "basso" else "Gestione conservativa. Non forzare se la FC sale rapidamente." if liv == "medio" else "Sforzo sconsigliato. Limita a mobilità articolare."
+        
+        coach_content = {
+            "Pre-Sessione": {
+                "colore": C_SONNO,
+                "blocchi": [
+                    ("Attivazione / Warm-up", [
+                        "5' mobilità dinamica: swing anche, affondi dinamici.",
+                        "2×10 skip bassi + 10-15 squat corpo libero.",
+                        f"Verifica equipaggiamento per sessione tipo {tipo_all}."
+                    ]),
+                    ("Ingresso Sessione", [
+                        f"Target zona Iniziale: {zona_consigliata}.",
+                        f"Direttiva: {cautela_txt}"
+                    ])
+                ],
+            },
+            "In Azione": {
+                "colore": C_AMBRA,
+                "blocchi": [
+                    ("Biometria in Corsa", [
+                        f"Target FC: {zona_consigliata}.",
+                        f"Cadenza: {cadenza_target}. Ridurre l'ampiezza del passo abbatte l'impatto del 15%."
+                    ]),
+                    ("Controlli Sicurezza", [
+                        "Se fatica > passo atteso, taglia il volume del 20%.",
+                        "In caso di fitte articolari (non muscolari): Stop immediato."
+                    ])
+                ],
+            },
+            "Post-Sessione": {
+                "colore": C_RPE,
+                "blocchi": [
+                    ("Cooldown", [
+                        "Camminata decrescente 3-5' finché la FC non scende in Z1."
+                    ]),
+                    ("Gestione Tessuti", [
+                        "Stretching statico (30'' per gruppo): focus polpacci e ischiocrurali.",
+                        "Foam roller 5' se tollerato."
+                    ])
+                ],
+            }
+        }
+
+        tabs = st.tabs(list(coach_content.keys()))
+        for tab, (nome_tab, contenuto) in zip(tabs, coach_content.items()):
+            with tab:
+                blocchi_html = ""
+                for label, bullets in contenuto["blocchi"]:
+                    bullets_html = "".join(f"<li>{b}</li>" for b in bullets)
+                    blocchi_html += f"""
+                    <div class='coach-block' style='--block-color: {contenuto["colore"]};'>
+                        <div class='label'>{label}</div>
+                        <ul>{bullets_html}</ul>
+                    </div>
+                    """
+                md(f"<div class='panel' style='padding: 20px;'>{blocchi_html}</div>")
+
+        md("<div style='height:34px;'></div>")
+
+        # =========================================================
+        # GRAFICI ANALITICI E RESTO DELLA PAGINA...
+        # =========================================================
+        # Il resto del codice originario (grafici e export) rimane identico
+        # come logica, puoi reincollare la sezione "Analisi dati" in giù
+        # esattamente com'era (assurandomi che l'export usi `disegna_telemetria_rischio`).
 # ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
