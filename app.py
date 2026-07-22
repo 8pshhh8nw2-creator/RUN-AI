@@ -1280,7 +1280,7 @@ elif pagina == "ANALISI PREDITTIVA ML":
             best_model_name = valid_auc.idxmax() if len(valid_auc) > 0 else df_compare["F1-Score"].idxmax()
             st.markdown(f"<div class='explain-text'><strong>Analisi Risultati:</strong> Sul set di test, il modello con la performance più solida è <strong>{best_model_name}</strong>.</div>", unsafe_allow_html=True)
 
-        # =====================================================
+     # =====================================================
         # TAB 8 — EXPLAINABILITY (SHAP)
         # =====================================================
         with t_ml8:
@@ -1290,23 +1290,49 @@ elif pagina == "ANALISI PREDITTIVA ML":
             if SHAP_AVAILABLE:
                 explainer = shap.TreeExplainer(rf_model)
                 shap_values = explainer.shap_values(X_test)
-                shap_vals_risk = shap_values[1] if isinstance(shap_values, list) else shap_values
+
+                # --- Normalizzazione robusta di TUTTI i possibili formati SHAP ---
+                if isinstance(shap_values, list):
+                    # Versioni vecchie di shap: lista [classe_0, classe_1]
+                    shap_vals_risk = shap_values[1]
+                else:
+                    shap_values = np.asarray(shap_values)
+                    if shap_values.ndim == 3:
+                        # Versioni nuove: shape (n_campioni, n_feature, n_classi)
+                        shap_vals_risk = shap_values[:, :, 1]
+                    else:
+                        # Già shape (n_campioni, n_feature)
+                        shap_vals_risk = shap_values
+
+                # expected_value può essere scalare, lista o array
+                base_value_arr = np.atleast_1d(explainer.expected_value)
+                base_value = base_value_arr[1] if base_value_arr.size > 1 else base_value_arr[0]
 
                 mean_abs_shap = np.abs(shap_vals_risk).mean(axis=0)
                 shap_imp = sorted(list(zip(feature_names, mean_abs_shap)), key=lambda x: x[1], reverse=True)
-                fig_shap_global = go.Figure(go.Bar(y=[x[0] for x in shap_imp], x=[x[1] for x in shap_imp], orientation='h', marker_color='#00E5FF', text=[f'{x[1]:.3f}' for x in shap_imp], textposition='auto'))
+                fig_shap_global = go.Figure(go.Bar(
+                    y=[x[0] for x in shap_imp], x=[x[1] for x in shap_imp],
+                    orientation='h', marker_color='#00E5FF',
+                    text=[f'{x[1]:.3f}' for x in shap_imp], textposition='auto'
+                ))
                 fig_shap_global.update_layout(height=350, yaxis=dict(autorange="reversed"), title="Importanza Media |SHAP|")
                 st.plotly_chart(style_fig(fig_shap_global), use_container_width=True)
 
                 st.markdown("#### Spiegazione di una singola sessione")
                 idx_choice = st.slider("Seleziona la sessione di test da spiegare", 0, len(X_test) - 1, 0, key="shap_idx")
                 instance_shap = shap_vals_risk[idx_choice]
-                base_value = explainer.expected_value[1] if isinstance(explainer.expected_value, (list, np.ndarray)) else explainer.expected_value
 
                 waterfall_data = sorted(list(zip(feature_names, instance_shap)), key=lambda x: abs(x[1]), reverse=True)
                 colors_wf = ['#FF6A3D' if v > 0 else '#00F5A0' for _, v in waterfall_data]
-                fig_wf = go.Figure(go.Bar(x=[x[1] for x in waterfall_data], y=[x[0] for x in waterfall_data], orientation='h', marker_color=colors_wf))
-                fig_wf.update_layout(height=320, title=f"Contributo di ogni variabile — sessione #{idx_choice} (base={base_value:.2f})", xaxis_title="Impatto SHAP sulla probabilità di rischio")
+                fig_wf = go.Figure(go.Bar(
+                    x=[x[1] for x in waterfall_data], y=[x[0] for x in waterfall_data],
+                    orientation='h', marker_color=colors_wf
+                ))
+                fig_wf.update_layout(
+                    height=320,
+                    title=f"Contributo di ogni variabile — sessione #{idx_choice} (base={base_value:.2f})",
+                    xaxis_title="Impatto SHAP sulla probabilità di rischio"
+                )
                 fig_wf.add_vline(x=0, line_color="#E8ECF2", line_width=1)
                 st.plotly_chart(style_fig(fig_wf), use_container_width=True)
             else:
