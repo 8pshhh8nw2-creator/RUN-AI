@@ -1661,7 +1661,6 @@ elif pagina == "ANALISI PREDITTIVA ML":
 
     except Exception as e:
         st.error(f"Errore caricamento modelli ML: {str(e)}")
-
 elif pagina == "CONSIGLIO FINALE":
     import math
     import pandas as pd
@@ -1744,7 +1743,7 @@ elif pagina == "CONSIGLIO FINALE":
         }}
         .coach-block ul {{ margin:0; padding-left:0; list-style:none; }}
         .coach-block li {{
-            position:relative; padding-left:18px; margin-bottom:8px; color:{TXT_SECONDARY};
+            position:relative; padding-left:18px; margin-bottom:10px; color:{TXT_SECONDARY};
             font-family:'Inter',sans-serif; font-size:.95rem; line-height:1.6;
         }}
         .coach-block li::before {{ content:"▸"; position:absolute; left:0; top:1px; color:var(--block-color); font-size: 1rem; }}
@@ -1780,7 +1779,7 @@ elif pagina == "CONSIGLIO FINALE":
         .lane-chip .zn {{ font-family:'Inter',sans-serif; font-weight:600; color:{TXT_PRIMARY}; margin:6px 0 6px 0; font-size:.95em; }}
         .lane-chip .zd {{ font-family:'Inter',sans-serif; color:{TXT_SECONDARY}; font-size:.85em; line-height:1.4; }}
         
-        .chart-caption {{ border-top: 1px solid {PANEL_BD}; margin-top: 10px; padding-top: 10px; color:{TXT_SECONDARY}; font-family:'Inter',sans-serif; font-size:.82em; line-height:1.45; }}
+        .chart-caption {{ border-top: 1px solid {PANEL_BD}; margin-top: 10px; padding-top: 10px; color:{TXT_SECONDARY}; font-family:'Inter',sans-serif; font-size:.85rem; line-height:1.55; }}
         
         .delta-track {{ position:relative; height:6px; border-radius:3px; background:{PANEL_BD}; margin:10px 0 4px 0; }}
         .delta-fill {{ position:absolute; top:0; height:6px; border-radius:3px; }}
@@ -1802,7 +1801,7 @@ elif pagina == "CONSIGLIO FINALE":
             """)
 
         # =========================================================
-        # CALCOLI BASE
+        # CALCOLI BASE E GESTIONE ROBUSTA DATASET
         # =========================================================
         risk_score = min(100,
             (40 if r['ore_sonno'] < 6 else 25 if r['ore_sonno'] < 6.5 else 10) +
@@ -1824,13 +1823,24 @@ elif pagina == "CONSIGLIO FINALE":
             tit, col, liv = "RIPOSO OBBLIGATORIO", C_STRESS, "alto"
 
         tipo_all = r.get('tipo_allenamento', 'Easy Run')
-        cadenza_target = "170-180 spm" if liv != "alto" else "165-172 spm (passo rilassato)"
-        zona_consigliata = "Zona 2-3 (aerobico)" if liv == "basso" else "Zona 1-2 (recupero)" if liv == "medio" else "Cammino / Zona 1"
+        cadenza_target = "170-180 spm" if liv != "alto" else "165-172 spm (passo rilassato per abbassare l'impatto articolare)"
+        zona_consigliata = "Zona 2-3 (aerobico puro)" if liv == "basso" else "Zona 1-2 (sforzo percepito bassissimo)" if liv == "medio" else "Solo mobilità o camminata veloce"
+
+        # RICERCA COLONNA DATA (Fallback intelligente)
+        date_col = next((c for c in df_base.columns if c.lower() in ['data', 'date', 'giorno', 'time']), None)
+        df_adv = df_base.copy()
+        if date_col:
+            df_adv['Data_Chart'] = pd.to_datetime(df_adv[date_col], errors='coerce')
+        else:
+            # Se non c'è una data, generiamo un asse fittizio per mostrare i grafici
+            df_adv['Data_Chart'] = pd.date_range(end=pd.Timestamp.today(), periods=len(df_adv))
+        
+        df_adv = df_adv.sort_values('Data_Chart').dropna(subset=['Data_Chart'])
 
         # =========================================================
         # EFFORT EQUALIZER (TELEMETRIA VETTORIALE)
         # =========================================================
-        def disegna_telemetria_rischio(score, active_col):
+        def disegna_telemetria_rischio(score):
             svg_width, svg_height = 800, 100
             bars = 60
             gap = 2
@@ -1846,13 +1856,7 @@ elif pagina == "CONSIGLIO FINALE":
                 threshold_pct = (i / bars) * 100
                 is_active = threshold_pct <= score
                 
-                if threshold_pct < 25:
-                    bar_col = C_RPE
-                elif threshold_pct < 60:
-                    bar_col = C_AMBRA
-                else:
-                    bar_col = C_STRESS
-                
+                bar_col = C_RPE if threshold_pct < 25 else C_AMBRA if threshold_pct < 60 else C_STRESS
                 fill = bar_col if is_active else C_NEUTRO
                 opacity = "1.0" if is_active else "0.3"
                 
@@ -1870,13 +1874,13 @@ elif pagina == "CONSIGLIO FINALE":
                     <rect x="-24" y="-20" width="48" height="20" rx="4" fill="{TXT_PRIMARY}" />
                     <text x="0" y="-6" font-family="JetBrains Mono, monospace" font-size="12" font-weight="bold" fill="{PANEL_BG}" text-anchor="middle">{int(score)}%</text>
                 </g>
-                <text x="0" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_RPE}" opacity="0.8">OPTIMAL</text>
-                <text x="{svg_width/2}" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_AMBRA}" text-anchor="middle" opacity="0.8">WARNING</text>
-                <text x="{svg_width}" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_STRESS}" text-anchor="end" opacity="0.8">DANGER</text>
+                <text x="0" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_RPE}" opacity="0.8">OPTIMAL (0-25)</text>
+                <text x="{svg_width/2}" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_AMBRA}" text-anchor="middle" opacity="0.8">WARNING (26-59)</text>
+                <text x="{svg_width}" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_STRESS}" text-anchor="end" opacity="0.8">DANGER (60-100)</text>
             </svg>
             """
 
-        radar_svg = disegna_telemetria_rischio(risk_score, col)
+        radar_svg = disegna_telemetria_rischio(risk_score)
 
         md(f"""
         <div class='panel'>
@@ -1901,7 +1905,7 @@ elif pagina == "CONSIGLIO FINALE":
         # =========================================================
         # SPLIT SHEET (Cronometraggio)
         # =========================================================
-        sonno_delta_txt = f"{'+' if (r['ore_sonno']-7.5) >= 0 else ''}{r['ore_sonno']-7.5:.1f}h vs target 7.5h"
+        sonno_delta_txt = f"{'+' if (r['ore_sonno']-7.5) >= 0 else ''}{r['ore_sonno']-7.5:.1f}h rispetto al target fisiologico ottimale"
 
         md(f"""
         <div class='panel split-sheet'>
@@ -1911,20 +1915,20 @@ elif pagina == "CONSIGLIO FINALE":
             <div class='split-row'>
                 <div class='sr-label'>Distanza Target</div>
                 <div class='sr-value' style='color:{TXT_PRIMARY};'>{distanza_consigliata:.1f}<span class='unit'>km</span></div>
-                <div class='sr-ref'>Da piano: {distanza_target} km</div>
-                <div class='sr-note'>In base al rischio: {tipo_all}</div>
+                <div class='sr-ref'>Da piano originale: {distanza_target} km</div>
+                <div class='sr-note'>La distanza è stata scalata algoritmicamente del {100 - (distanza_consigliata/distanza_target*100 if distanza_target>0 else 0):.0f}% per proteggere i tuoi tessuti.</div>
             </div>
             <div class='split-row'>
                 <div class='sr-label'>Recovery Score</div>
                 <div class='sr-value' style='color:{C_SONNO};'>{recovery_score:.0f}<span class='unit'>%</span></div>
-                <div class='sr-ref'>Dato: {r['ore_sonno']:.1f}h sonno</div>
-                <div class='sr-note'>{sonno_delta_txt}</div>
+                <div class='sr-ref'>Qualità base: {r['ore_sonno']:.1f}h di sonno</div>
+                <div class='sr-note'>{sonno_delta_txt}. Il sonno governa il recupero del sistema nervoso autonomo.</div>
             </div>
             <div class='split-row'>
                 <div class='sr-label'>Mental Load (SMA)</div>
                 <div class='sr-value' style='color:{C_AMBRA};'>{sma:.1f}</div>
-                <div class='sr-ref'>Stress × RPE / Sonno</div>
-                <div class='sr-note'>Carico sistema nervoso: {liv.upper()}</div>
+                <div class='sr-ref'>(Stress × RPE) / Sonno</div>
+                <div class='sr-note'>Indice composito di sovraccarico del sistema nervoso centrale. Livello odierno: {liv.upper()}.</div>
             </div>
         </div>
         """)
@@ -1932,49 +1936,78 @@ elif pagina == "CONSIGLIO FINALE":
         md("<div style='height:34px;'></div>")
 
         # =========================================================
-        # COACH PERSONALIZZATO
+        # COACH PERSONALIZZATO - ESTESO CON PIÙ CONSIGLI
         # =========================================================
-        section_head("Coach personalizzato", "Protocollo di esecuzione", "Linee guida operative basate sulla telemetria odierna.")
+        section_head("Coach personalizzato", "Protocollo Operativo Dettagliato", "Linee guida biomeccaniche, di pacing e bio-hacking basate sulla telemetria odierna.")
 
-        cautela_txt = "Progressione normale autorizzata." if liv == "basso" else "Gestione conservativa. Non forzare se la FC sale rapidamente." if liv == "medio" else "Sforzo sconsigliato. Limita a mobilità articolare."
-        
+        # Logica dei testi dinamici
+        if liv == "basso":
+            dinamica_pacing = "Mantenimento del ritmo standard. Nessuna restrizione fisiologica sui cambi di velocità, via libera a scatti se previsti."
+            dinamica_resp = "Respirazione naturale (suggerito schema 3:3 in riscaldamento, passando a 2:2 a ritmo gara)."
+            dinamica_rec = "Recupero passivo standard o massaggio leggero. Doccia contrasto (caldo/freddo) autorizzata post-workout."
+        elif liv == "medio":
+            dinamica_pacing = "Gestione conservativa (Pacing difensivo). Togli 10-15 secondi al km dal tuo ritmo abituale. Evita pendenze severe."
+            dinamica_resp = "Forza un'espirazione lunga (schema 3:4) per mantenere bassa la frequenza cardiaca ed evitare picchi di sforzo."
+            dinamica_rec = "Focus massimo su idratazione e reintegro elettrolitico. Niente acqua fredda post-corsa, preferisci temperature neutre per non stressare il SNC."
+        else:
+            dinamica_pacing = "Sforzo sconsigliato. Converti la seduta in 30-40 minuti di camminata dinamica su terreno piatto e morbido (prato/terra)."
+            dinamica_resp = "Respirazione diaframmatica esclusiva naso-naso per favorire il recupero parasimpatico."
+            dinamica_rec = "Yoga nidra o stretching passivo lungo. Applica calore (non freddo) su eventuali zone muscolari tese."
+
         coach_content = {
-            "Pre-Sessione": {
+            "1. Warm-Up & Prep (Pre)": {
                 "colore": C_SONNO,
                 "blocchi": [
-                    ("Attivazione / Warm-up", [
-                        "5' mobilità dinamica: swing anche, affondi dinamici.",
-                        "2×10 skip bassi + 10-15 squat corpo libero.",
-                        f"Verifica equipaggiamento per sessione tipo {tipo_all}."
+                    ("Attivazione Neurale e Meccanica", [
+                        "Camminata sui talloni e sulle punte (30 secondi per tipo) per attivare l'arco plantare e le caviglie.",
+                        "5 minuti di mobilità dinamica: leg swings frontali/laterali, rotazioni delle anche, affondi controllati.",
+                        "Evita lo stretching statico pre-corsa: riduce la reattività elastica del tendine d'Achille del 5-8%."
                     ]),
-                    ("Ingresso Sessione", [
-                        f"Target zona Iniziale: {zona_consigliata}.",
-                        f"Direttiva: {cautela_txt}"
+                    ("Setup Mentale e Fisiologico", [
+                        f"Target zona Iniziale: {zona_consigliata}. I primi 10 minuti devono sembrare 'troppo lenti'.",
+                        "Esegui 10 cicli di respirazione profonda prima di far partire il cronometro per azzerare lo stress lavorativo.",
+                        f"Direttiva Rischio: {dinamica_pacing}"
                     ])
                 ],
             },
-            "In Azione": {
+            "2. In Azione (Durante)": {
                 "colore": C_AMBRA,
                 "blocchi": [
-                    ("Biometria in Corsa", [
-                        f"Target FC: {zona_consigliata}.",
-                        f"Cadenza: {cadenza_target}. Ridurre l'ampiezza del passo abbatte l'impatto del 15%."
+                    ("Gestione Biomeccanica e Pacing", [
+                        f"Frequenza passi (Cadenza): {cadenza_target}. Aumentare la frequenza del 5% riduce il carico sulle ginocchia del 20%.",
+                        "Postura: Busto leggermente inclinato in avanti partendo dalle caviglie (non dalla vita). Sguardo a 20 metri, mai ai piedi.",
+                        "Rilassa mani e mascella: la tensione nel volto si trasmette istantaneamente alla catena muscolare posteriore."
                     ]),
-                    ("Controlli Sicurezza", [
-                        "Se fatica > passo atteso, taglia il volume del 20%.",
-                        "In caso di fitte articolari (non muscolari): Stop immediato."
+                    ("Gestione Sforzo e Sicurezza", [
+                        f"Respirazione: {dinamica_resp}",
+                        "Check Infortuni: Differenzia la 'fatica sorda' (normale) dal 'dolore acuto/fitta' (allarme articolare).",
+                        "Regola dei 15 minuti: Se dopo 15 minuti l'RPE percepito è più alto di 2 punti rispetto al previsto, taglia la distanza a metà."
                     ])
                 ],
             },
-            "Post-Sessione": {
+            "3. Protocollo di Recupero (Post)": {
                 "colore": C_RPE,
                 "blocchi": [
-                    ("Cooldown", [
-                        "Camminata decrescente 3-5' finché la FC non scende in Z1."
+                    ("Cooldown Sistemico", [
+                        "Non fermarti bruscamente. Cammina per 3-5 minuti finché il battito non scende comodamente in Zona 1 (Sotto i 110 bpm).",
+                        "Finestra anabolica: assumi carboidrati e proteine leggere entro 45 minuti per arrestare il catabolismo indotto dallo stress."
                     ]),
                     ("Gestione Tessuti", [
-                        "Stretching statico (30'' per gruppo): focus polpacci e ischiocrurali.",
-                        "Foam roller 5' se tollerato."
+                        "Stretching passivo: mantieni ogni posizione per almeno 45-60 secondi (polpacci, ischiocrurali, psoas).",
+                        "Usa il foam roller lentamente. Se trovi un 'trigger point' (punto di dolore), fermati su di esso respirando per 30 secondi."
+                    ])
+                ],
+            },
+            "4. Bio-Hacking Serale (Mindset)": {
+                "colore": C_VIOLA,
+                "blocchi": [
+                    ("Regolazione Sistema Nervoso", [
+                        "Doccia / Termoterapia: " + dinamica_rec,
+                        "NSDR (Non-Sleep Deep Rest): 10 minuti di meditazione guidata o body-scan prima di dormire se lo stress oggi era sopra il 7/10."
+                    ]),
+                    ("Ottimizzazione Sonno", [
+                        f"Target di stanotte: recuperare il deficit arrivando a {max(7.5, r['ore_sonno']+0.5):.1f} ore.",
+                        "Riduci l'esposizione alla luce blu intensa (smartphone/TV) 60 minuti prima del sonno per permettere il rilascio di melatonina naturale."
                     ])
                 ],
             }
@@ -1999,12 +2032,12 @@ elif pagina == "CONSIGLIO FINALE":
         # =========================================================
         # CORSIE E ZONE
         # =========================================================
-        section_head("Riferimento", "Corsie di frequenza cardiaca")
+        section_head("Riferimento", "Corsie di Frequenza Cardiaca")
 
         corsie = [
-            ("Corsia 1", "Zona 1-2", "Recupero / Base", "Sforzo confortevole (test del parlato superato). Ideale per Easy Run.", C_RPE),
-            ("Corsia 2", "Zona 3", "Aerobico / Tempo", "Ritmo sostenuto ma controllato, adatto a sedute di media intensità.", C_AMBRA),
-            ("Corsia 3", "Zona 4-5", "Soglia / Anaerobico", "Da evitare se il rischio infortunio calcolato è alto (oltre il 40%).", C_STRESS),
+            ("Corsia 1", "Zona 1-2", "Recupero / Base Aerobica", "Sforzo bassissimo (test del parlato superato facilmente). L'energia deriva dai grassi. Ideale per costruire resistenza senza accumulare fatica.", C_RPE),
+            ("Corsia 2", "Zona 3", "Soglia Aerobica / Tempo", "Ritmo sostenuto, respirazione più profonda. Accumulo minimo di acido lattico. Sviluppa la potenza cardiaca.", C_AMBRA),
+            ("Corsia 3", "Zona 4-5", "Soglia Lattacida / VO2Max", "Sforzo massimale (test del parlato fallito). Distrugge le fibre muscolari per super-compensare. Da usare col contagocce se il rischio infortunio è medio/alto.", C_STRESS),
         ]
         cc1, cc2, cc3 = st.columns(3)
         for c, (num, zt, zn, zd, zcol) in zip([cc1, cc2, cc3], corsie):
@@ -2056,7 +2089,7 @@ elif pagina == "CONSIGLIO FINALE":
                 """)
                 st.plotly_chart(fig, use_container_width=True, config=config_pulita)
                 md(f"""
-                    <div class='panel-body' style='padding-top:0;'><div class='chart-caption'>{spiegazione}</div></div>
+                    <div class='panel-body' style='padding-top:0;'><div class='chart-caption'><strong>Insight Clinico:</strong><br>{spiegazione}</div></div>
                 </div>
                 """)
             figs_per_export.append(fig)
@@ -2064,228 +2097,156 @@ elif pagina == "CONSIGLIO FINALE":
 
 
         # =========================================================
-        # SEZIONE 1: DINAMICHE AVANZATE E CARICO (NOVITÀ)
+        # SEZIONE 1: DINAMICHE AVANZATE E CARICO 
+        # (Usa df_adv con data garantita)
         # =========================================================
-        section_head("Analisi Avanzata", "Dinamiche di Carico", "Integrazione dei dati storici con modelli di readiness e previsione infortuni.")
-
-        if 'Data' in df_base.columns:
-            # Creiamo un df temporaneo per i calcoli avanzati
-            df_adv = df_base.sort_values('Data').copy()
-            df_adv['Data'] = pd.to_datetime(df_adv['Data'])
+        section_head("Analisi Avanzata", "Dinamiche di Carico", "Integrazione dei dati storici con modelli di readiness e previsione infortuni (Metodologia ACWR).")
             
-            c_adv1, c_adv2, c_adv3 = st.columns(3)
+        c_adv1, c_adv2, c_adv3 = st.columns(3)
 
-            # --- 1. MATRICE DI PRONTEZZA (Readiness Matrix) ---
-            # Mostra Stress vs Sonno storici con il dato di oggi in evidenza
-            fig_matrix = go.Figure()
-            # Punti storici
-            fig_matrix.add_trace(go.Scatter(
-                x=df_adv['Ore Sonno'], y=df_adv['Stress Lavoro'], mode='markers',
-                marker=dict(color=TXT_TERTIARY, size=6, opacity=0.4), hoverinfo='skip'
-            ))
-            # Punto di oggi
-            fig_matrix.add_trace(go.Scatter(
-                x=[r['ore_sonno']], y=[r['stress_lavoro']], mode='markers',
-                marker=dict(color=col, size=14, symbol='diamond', line=dict(width=2, color=TXT_PRIMARY)),
-                name="Oggi"
-            ))
-            # Linee di quadrante (mediane)
-            fig_matrix.add_hline(y=media_stress_90, line_dash="dot", line_color=PANEL_BD_H, opacity=0.7)
-            fig_matrix.add_vline(x=media_sonno_90, line_dash="dot", line_color=PANEL_BD_H, opacity=0.7)
+        # --- 1. MATRICE DI PRONTEZZA ---
+        fig_matrix = go.Figure()
+        fig_matrix.add_trace(go.Scatter(
+            x=df_adv['Ore Sonno'], y=df_adv['Stress Lavoro'], mode='markers',
+            marker=dict(color=TXT_TERTIARY, size=6, opacity=0.4), hoverinfo='skip'
+        ))
+        fig_matrix.add_trace(go.Scatter(
+            x=[r['ore_sonno']], y=[r['stress_lavoro']], mode='markers',
+            marker=dict(color=col, size=14, symbol='diamond', line=dict(width=2, color=TXT_PRIMARY)),
+            name="Oggi"
+        ))
+        fig_matrix.add_hline(y=media_stress_90, line_dash="dot", line_color=PANEL_BD_H, opacity=0.7)
+        fig_matrix.add_vline(x=media_sonno_90, line_dash="dot", line_color=PANEL_BD_H, opacity=0.7)
+        
+        fig_matrix.update_layout(**layout_base, xaxis_title="Ore di Sonno", yaxis_title="Stress Lavoro", xaxis=dict(range=[4, 10]), yaxis=dict(range=[0, 10]))
+        
+        if r['ore_sonno'] >= media_sonno_90 and r['stress_lavoro'] <= media_stress_90:
+            quad = "Ottimale (Alto recupero, Basso stress)."
+            azione = "Sei nel quadrante d'oro. Il corpo è pronto per carichi pesanti e adattamenti strutturali."
+        elif r['ore_sonno'] >= media_sonno_90 and r['stress_lavoro'] > media_stress_90:
+            quad = "Compensato (Alto recupero, Alto stress)."
+            azione = "Stai dormendo abbastanza per tamponare lo stress lavorativo, ma il sistema nervoso è sotto pressione. Non eccedere in Z4/Z5."
+        elif r['ore_sonno'] < media_sonno_90 and r['stress_lavoro'] <= media_stress_90:
+            quad = "Vulnerabile (Basso recupero, Basso stress)."
+            azione = "Il livello di stress è OK, ma manca materia prima (sonno) per riparare i muscoli. Allenamento leggero consigliato."
+        else:
+            quad = "Critico (Basso recupero, Alto stress)."
+            azione = "Zona rossa di infortunio. Cortisolo alto e recupero cellulare assente. Altamente consigliato riposo totale o sola mobilità."
             
-            fig_matrix.update_layout(
-                **layout_base, 
-                xaxis_title="Ore di Sonno", yaxis_title="Stress Lavoro",
-                xaxis=dict(range=[4, 10]), yaxis=dict(range=[0, 10])
-            )
-            
-            # Determina in quale quadrante cade oggi
-            if r['ore_sonno'] >= media_sonno_90 and r['stress_lavoro'] <= media_stress_90:
-                quad = "Ottimale (Alto recupero, Basso stress)."
-            elif r['ore_sonno'] >= media_sonno_90 and r['stress_lavoro'] > media_stress_90:
-                quad = "Compensato (Alto recupero bilancia alto stress)."
-            elif r['ore_sonno'] < media_sonno_90 and r['stress_lavoro'] <= media_stress_90:
-                quad = "Vulnerabile (Basso recupero, ma basso stress)."
-            else:
-                quad = "Critico (Basso recupero, Alto stress)."
-                
-            chart_card(c_adv1, "Matrice di Prontezza", fig_matrix, f"Il diamante indica la tua sessione odierna rispetto allo storico. Zona attuale: {quad}", col)
+        chart_card(c_adv1, "Matrice di Prontezza", fig_matrix, f"Stato: {quad}<br>{azione}", col)
 
 
-            # --- 2. ACUTE TO CHRONIC WORKLOAD RATIO (ACWR Proxy) ---
-            # RPE Medio 7gg / RPE Medio 28gg
+        # --- 2. ACUTE TO CHRONIC WORKLOAD RATIO (ACWR Proxy) ---
+        if 'RPE' in df_adv.columns:
             df_adv['RPE_7'] = df_adv['RPE'].rolling(7, min_periods=1).mean()
             df_adv['RPE_28'] = df_adv['RPE'].rolling(28, min_periods=1).mean()
-            # Evita divisione per zero
             df_adv['ACWR'] = df_adv['RPE_7'] / df_adv['RPE_28'].replace(0, 0.1)
             
             fig_acwr = go.Figure()
-            # Fascia verde di sicurezza (0.8 - 1.3)
             fig_acwr.add_hrect(y0=0.8, y1=1.3, fillcolor="rgba(48,209,88,0.1)", opacity=1, layer="below", line_width=0)
-            
             fig_acwr.add_trace(go.Scatter(
-                x=df_adv['Data'].tail(60), y=df_adv['ACWR'].tail(60), mode='lines',
+                x=df_adv['Data_Chart'].tail(60), y=df_adv['ACWR'].tail(60), mode='lines',
                 line=dict(color=C_AMBRA, width=2, shape='spline')
             ))
             fig_acwr.add_hline(y=1.3, line_dash="dash", line_color=C_STRESS, line_width=1)
-            
             fig_acwr.update_layout(**layout_base, yaxis_title="Ratio (Acuto/Cronico)", yaxis=dict(range=[0.5, 2.0]))
             
-            acwr_attuale = df_adv['ACWR'].iloc[-1]
+            acwr_attuale = df_adv['ACWR'].iloc[-1] if not df_adv['ACWR'].empty else 1.0
             if acwr_attuale > 1.3:
-                acwr_txt = "ATTENZIONE: Ratio sopra 1.3. Stai aumentando il carico troppo in fretta rispetto all'ultimo mese."
+                acwr_txt = "ATTENZIONE: Ratio sopra 1.3. Stai aumentando il carico (fatica) troppo in fretta rispetto alla tua abitudine mensile. Rischio tendiniti alle stelle. Usa i prossimi giorni per scaricare."
             elif acwr_attuale < 0.8:
-                acwr_txt = "Ratio sotto 0.8. Fase di scarico o de-training evidente."
+                acwr_txt = "Ratio sotto 0.8. Sei in fase di de-training (scarico prolungato). Il tuo corpo sta perdendo adattamenti atletici. Ottimo pre-gara, ma se non hai gare, torna a spingere moderatamente."
             else:
-                acwr_txt = "Ratio nella 'Sweet Spot' (0.8 - 1.3). Progressione del carico sicura e sostenibile."
+                acwr_txt = "Ratio nella 'Sweet Spot' (0.8 - 1.3). Progression del carico perfettamente bilanciata. Stai costruendo fitness senza sovraccaricare le articolazioni."
                 
             chart_card(c_adv2, "ACWR (Carico Acuto vs Cronico)", fig_acwr, acwr_txt, C_AMBRA)
+        else:
+            c_adv2.warning("Dati RPE insufficienti per calcolo ACWR.")
 
 
-            # --- 3. PATTERN SETTIMANALE DELLO STRESS ---
-            df_adv['Giorno'] = df_adv['Data'].dt.dayofweek
-            # Mappa i giorni
+        # --- 3. PATTERN SETTIMANALE DELLO STRESS ---
+        if 'Stress Lavoro' in df_adv.columns:
+            df_adv['Giorno'] = df_adv['Data_Chart'].dt.dayofweek
             giorni_map = {0:'Lun', 1:'Mar', 2:'Mer', 3:'Gio', 4:'Ven', 5:'Sab', 6:'Dom'}
-            df_adv['Nome_Giorno'] = df_adv['Giorno'].map(giorni_map)
             
-            # Media stress per giorno
             stress_giornaliero = df_adv.groupby('Giorno')['Stress Lavoro'].mean().reset_index()
             stress_giornaliero['Nome_Giorno'] = stress_giornaliero['Giorno'].map(giorni_map)
             
-            fig_week = go.Figure(go.Bar(
-                x=stress_giornaliero['Nome_Giorno'], y=stress_giornaliero['Stress Lavoro'],
-                marker_color=TXT_TERTIARY, text=stress_giornaliero['Stress Lavoro'].round(1),
-                textposition='outside', textfont=dict(color=TXT_SECONDARY, size=10)
-            ))
-            # Evidenzia il giorno con più stress
-            giorno_max = stress_giornaliero.loc[stress_giornaliero['Stress Lavoro'].idxmax()]
-            fig_week.add_trace(go.Bar(
-                x=[giorno_max['Nome_Giorno']], y=[giorno_max['Stress Lavoro']],
-                marker_color=C_STRESS, text=[giorno_max['Stress Lavoro'].round(1)],
-                textposition='outside', textfont=dict(color=C_STRESS, size=10)
-            ))
-            
-            fig_week.update_layout(**layout_base, yaxis=dict(range=[0, 10]), xaxis_title="Giorno della Settimana", barmode='overlay')
-            
-            chart_card(c_adv3, "Pattern Stress Settimanale", fig_week, f"Storicamente, il {giorno_max['Nome_Giorno']} è la tua giornata di picco per il carico mentale.", C_STRESS)
+            if not stress_giornaliero.empty:
+                fig_week = go.Figure(go.Bar(
+                    x=stress_giornaliero['Nome_Giorno'], y=stress_giornaliero['Stress Lavoro'],
+                    marker_color=TXT_TERTIARY, text=stress_giornaliero['Stress Lavoro'].round(1),
+                    textposition='outside', textfont=dict(color=TXT_SECONDARY, size=10)
+                ))
+                giorno_max = stress_giornaliero.loc[stress_giornaliero['Stress Lavoro'].idxmax()]
+                fig_week.add_trace(go.Bar(
+                    x=[giorno_max['Nome_Giorno']], y=[giorno_max['Stress Lavoro']],
+                    marker_color=C_STRESS, text=[giorno_max['Stress Lavoro'].round(1)],
+                    textposition='outside', textfont=dict(color=C_STRESS, size=10)
+                ))
+                
+                fig_week.update_layout(**layout_base, yaxis=dict(range=[0, 10]), xaxis_title="Giorno Settimana", barmode='overlay')
+                
+                adv_week = f"Il {giorno_max['Nome_Giorno']} è mediamente la tua giornata con maggior carico mentale. Il consiglio d'oro è spostare gli allenamenti di 'Lavori Specifici' (Ripetute, Soglia, Lunghi) lontano da questo giorno, tenendolo per riposo o Easy Run."
+                chart_card(c_adv3, "Pattern Stress Settimanale", fig_week, adv_week, C_STRESS)
+            else:
+                c_adv3.warning("Dati storici insufficienti per il calcolo settimanale.")
+        else:
+            c_adv3.warning("Colonna Stress Lavoro non trovata.")
 
-            md("<div style='height:34px;'></div>")
-
+        md("<div style='height:34px;'></div>")
 
         # =========================================================
-        # SEZIONE 2: GRAFICI DI TREND BASE (90 GIORNI)
+        # SEZIONE 2: GRAFICI DI TREND BASE
         # =========================================================
-        section_head("Trend Storici", "Andamento Base (90 giorni)", "Evoluzione delle metriche principali nell'ultimo trimestre.")
+        section_head("Trend Storici", "Andamento Base (90 giorni)", "Evoluzione fisiologica per individuare sovrallenamento cronico o deficit di recupero.")
 
-        if 'Data' in df_base.columns:
-            df_plot = df_base.sort_values('Data').tail(90)
+        df_plot = df_adv.tail(90)
 
-            def calcola_trend(serie):
-                recente = serie.tail(14).mean()
-                precedente = serie.head(max(len(serie) - 14, 1)).mean()
-                return recente - precedente
+        def calcola_trend(serie):
+            if len(serie) < 15: return 0
+            recente = serie.tail(14).mean()
+            precedente = serie.head(len(serie) - 14).mean()
+            return recente - precedente
 
+        r1c1, r1c2, r1c3 = st.columns(3)
+
+        if 'Ore Sonno' in df_plot.columns:
             trend_sonno = calcola_trend(df_plot['Ore Sonno'])
-            trend_stress = calcola_trend(df_plot['Stress Lavoro'])
-            trend_rpe = calcola_trend(df_plot['RPE'])
-
-            r1c1, r1c2, r1c3 = st.columns(3)
-
             fig_t1 = go.Figure(go.Scatter(
-                x=df_plot['Data'], y=df_plot['Ore Sonno'], mode='lines',
+                x=df_plot['Data_Chart'], y=df_plot['Ore Sonno'], mode='lines',
                 line=dict(color=C_SONNO, width=2), fill='tozeroy', fillcolor='rgba(46,144,255,0.08)'
             ))
             fig_t1.update_layout(**layout_base, yaxis_title="ore")
-            spieg_sonno = "Sonno in calo nelle ultime 2 settimane." if trend_sonno < -0.3 else "Sonno in miglioramento." if trend_sonno > 0.3 else "Sonno stabile."
-            chart_card(r1c1, "Trend sonno", fig_t1, spieg_sonno, C_SONNO)
+            spieg_sonno = "Un trend in calo indica che non stai compensando il volume di allenamento. Dormire di più (o inserire Power Naps) è l'unica via naturale per innalzare il picco di forma." if trend_sonno < -0.3 else "Il tuo corpo sta ricevendo input di sonno stabili. Ottimo substrato per adattamenti positivi."
+            chart_card(r1c1, "Trend Sonno Temporale", fig_t1, spieg_sonno, C_SONNO)
 
+        if 'Stress Lavoro' in df_plot.columns:
+            trend_stress = calcola_trend(df_plot['Stress Lavoro'])
             fig_t2 = go.Figure(go.Scatter(
-                x=df_plot['Data'], y=df_plot['Stress Lavoro'], mode='lines',
+                x=df_plot['Data_Chart'], y=df_plot['Stress Lavoro'], mode='lines',
                 line=dict(color=C_STRESS, width=2), fill='tozeroy', fillcolor='rgba(255,69,58,0.08)'
             ))
             fig_t2.update_layout(**layout_base, yaxis=dict(range=[0, 10]), yaxis_title="punti")
-            spieg_stress = "Stress in aumento." if trend_stress > 0.5 else "Stress in calo." if trend_stress < -0.5 else "Stress stabile."
-            chart_card(r1c2, "Trend stress", fig_t2, spieg_stress, C_STRESS)
+            spieg_stress = "Stress cronico in ascesa. Il cervello non distingue tra stress da Excel o da Squat: tutto si somma. Se la linea rossa sale, il volume di allenamento DEVE scendere per evitare crac sistemici." if trend_stress > 0.5 else "Carico mentale sotto controllo, via libera per concentrarsi sulla performance."
+            chart_card(r1c2, "Trend Stress Lavorativo", fig_t2, spieg_stress, C_STRESS)
 
+        if 'RPE' in df_plot.columns:
+            trend_rpe = calcola_trend(df_plot['RPE'])
             fig_t3 = go.Figure(go.Scatter(
-                x=df_plot['Data'], y=df_plot['RPE'], mode='lines',
+                x=df_plot['Data_Chart'], y=df_plot['RPE'], mode='lines',
                 line=dict(color=C_RPE, width=2), fill='tozeroy', fillcolor='rgba(48,209,88,0.08)'
             ))
             fig_t3.update_layout(**layout_base, yaxis=dict(range=[0, 10]), yaxis_title="punti")
-            spieg_rpe = "Fatica sistemica in accumulo." if trend_rpe > 0.5 else "Fatica in scarico." if trend_rpe < -0.5 else "Fatica stabile."
-            chart_card(r1c3, "Trend RPE", fig_t3, spieg_rpe, C_RPE)
-
-            md("<div style='height:34px;'></div>")
-
-        # =========================================================
-        # SEZIONE 3: OGGI VS MEDIA
-        # =========================================================
-        section_head("Confronto Storico", "Sessione Odierna vs Media", "Delta tra i parametri di oggi e la tua baseline di lungo periodo.")
-
-        def delta_bar(delta, scala_max, colore):
-            pos = 50 + max(-50, min(50, (delta / scala_max) * 50))
-            larghezza = abs(pos - 50)
-            sinistra = min(pos, 50)
-            return f"""
-            <div class='delta-track'>
-                <div class='delta-mid'></div>
-                <div class='delta-fill' style='left:{sinistra}%; width:{larghezza}%; background:{colore};'></div>
-            </div>
-            """
-
-        col_a1, col_a2, col_a3 = st.columns(3)
-
-        with col_a1:
-            sb, sc = ("SOTTO MEDIA", C_STRESS) if sonno_vs_media < -0.5 else ("SOPRA MEDIA", C_RPE) if sonno_vs_media > 0.5 else ("NELLA MEDIA", TXT_SECONDARY)
-            md(f"""
-            <div class='panel'>
-                <p class='eyebrow' style='margin-bottom:14px;'>Ore sonno</p>
-                <span class='badge' style='background:rgba(255,255,255,0.06); color:{sc};'>{sb}</span>
-                <div style='margin-top:14px;'>
-                    <span class='kv-num' style='font-size:1.9em;'>{r['ore_sonno']:.1f}h</span>
-                    <span style='color:{TXT_SECONDARY}; font-size:.85em;'> · media {media_sonno_90:.1f}h</span>
-                </div>
-                {delta_bar(sonno_vs_media, 3.0, sc)}
-                <p style='font-family:"JetBrains Mono",monospace; color:{sc}; font-size:.82em; margin:2px 0 0 0;'>Δ {'+' if sonno_vs_media>=0 else ''}{sonno_vs_media:.1f}h</p>
-            </div>
-            """)
-
-        with col_a2:
-            stb, stc = ("SOTTO MEDIA", C_RPE) if stress_vs_media < -1 else ("SOPRA MEDIA", C_STRESS) if stress_vs_media > 1 else ("NELLA MEDIA", TXT_SECONDARY)
-            md(f"""
-            <div class='panel'>
-                <p class='eyebrow' style='margin-bottom:14px;'>Stress lavoro</p>
-                <span class='badge' style='background:rgba(255,255,255,0.06); color:{stc};'>{stb}</span>
-                <div style='margin-top:14px;'>
-                    <span class='kv-num' style='font-size:1.9em;'>{r['stress_lavoro']}/10</span>
-                    <span style='color:{TXT_SECONDARY}; font-size:.85em;'> · media {media_stress_90:.1f}/10</span>
-                </div>
-                {delta_bar(stress_vs_media, 5.0, stc)}
-                <p style='font-family:"JetBrains Mono",monospace; color:{stc}; font-size:.82em; margin:2px 0 0 0;'>Δ {'+' if stress_vs_media>=0 else ''}{stress_vs_media:.1f} punti</p>
-            </div>
-            """)
-
-        with col_a3:
-            rpb, rpc = ("SOTTO MEDIA", C_RPE) if rpe_vs_media < -1 else ("SOPRA MEDIA", C_STRESS) if rpe_vs_media > 1 else ("NELLA MEDIA", TXT_SECONDARY)
-            md(f"""
-            <div class='panel'>
-                <p class='eyebrow' style='margin-bottom:14px;'>RPE previsto</p>
-                <span class='badge' style='background:rgba(255,255,255,0.06); color:{rpc};'>{rpb}</span>
-                <div style='margin-top:14px;'>
-                    <span class='kv-num' style='font-size:1.9em;'>{r['rpe_previsto']}/10</span>
-                    <span style='color:{TXT_SECONDARY}; font-size:.85em;'> · media {media_rpe_90:.1f}/10</span>
-                </div>
-                {delta_bar(rpe_vs_media, 5.0, rpc)}
-                <p style='font-family:"JetBrains Mono",monospace; color:{rpc}; font-size:.82em; margin:2px 0 0 0;'>Δ {'+' if rpe_vs_media>=0 else ''}{rpe_vs_media:.1f} punti</p>
-            </div>
-            """)
+            spieg_rpe = "Se l'RPE medio si alza continuamente a parità di passi, sei in over-reaching non funzionale. Necessario valutare una settimana di deload (dimezzare km e intensità)." if trend_rpe > 0.5 else "Mantenimento ottimale dello sforzo, il fitness sta compensando la fatica generata."
+            chart_card(r1c3, "Trend Sforzo Percepito (RPE)", fig_t3, spieg_rpe, C_RPE)
 
         md("<div style='height:34px;'></div>")
 
         # =========================================================
         # EXPORT REPORT
         # =========================================================
-        section_head("Export", "Generazione report per coach", "Scarica l'analisi completa, inclusa l'elaborazione dei grafici vettoriali.")
+        section_head("Export", "Generazione report per coach", "Scarica l'analisi completa.")
 
         coach_txt = ""
         for nome_tab, contenuto in coach_content.items():
@@ -2299,18 +2260,13 @@ elif pagina == "CONSIGLIO FINALE":
 
         report_testo = f"""--- RUNAI PERFORMANCE REPORT ---
 Status: {tit}
-Distanza Consigliata: {distanza_consigliata:.1f} km (Target: {distanza_target} km)
+Distanza Consigliata: {distanza_consigliata:.1f} km (Target Originale: {distanza_target} km)
 Indice Rischio: {risk_score:.0f}%
 Recovery Score: {recovery_score:.0f}%
 Stress Mentale (SMA): {sma:.1f}
 
-ANALISI VS MEDIA 90 GIORNI
-  - Ore Sonno: {r['ore_sonno']:.1f}h (media {media_sonno_90:.1f}h, Δ {'+' if sonno_vs_media>=0 else ''}{sonno_vs_media:.1f}h)
-  - Stress Lavoro: {r['stress_lavoro']}/10 (media {media_stress_90:.1f}/10, Δ {'+' if stress_vs_media>=0 else ''}{stress_vs_media:.1f})
-  - RPE Previsto: {r['rpe_previsto']}/10 (media {media_rpe_90:.1f}/10, Δ {'+' if rpe_vs_media>=0 else ''}{rpe_vs_media:.1f})
-
-NOTE ANALISI AVANZATA:
-{grafici_txt}
+NOTE CLINICHE E ANALISI AVANZATA:
+{grafici_txt.replace('<br>', ' ')}
 
 PROTOCOLLO COACH COMPLETO{coach_txt}
 --------------------------------"""
