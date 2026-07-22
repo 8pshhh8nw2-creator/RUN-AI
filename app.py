@@ -1661,15 +1661,17 @@ elif pagina == "ANALISI PREDITTIVA ML":
 
     except Exception as e:
         st.error(f"Errore caricamento modelli ML: {str(e)}")
+
 elif pagina == "CONSIGLIO FINALE":
     import math
-    import textwrap
+    import pandas as pd
     import plotly.graph_objects as go
     import plotly.express as px
 
     def md(html):
-        """Renderizza HTML in modo sicuro, dedentando il testo per evitare blocchi codice accidentali."""
-        st.markdown(textwrap.dedent(html).strip(), unsafe_allow_html=True)
+        """Renderizza HTML in modo sicuro. Rimuove l'indentazione python."""
+        html_pulito = "\n".join([line.strip() for line in html.split("\n")])
+        st.markdown(html_pulito, unsafe_allow_html=True)
 
     header_block(
         "Modulo 05 — Action Plan",
@@ -1995,7 +1997,7 @@ elif pagina == "CONSIGLIO FINALE":
         md("<div style='height:34px;'></div>")
 
         # =========================================================
-        # CORSIE
+        # CORSIE E ZONE
         # =========================================================
         section_head("Riferimento", "Corsie di frequenza cardiaca")
 
@@ -2018,15 +2020,13 @@ elif pagina == "CONSIGLIO FINALE":
         md("<div style='height:34px;'></div>")
 
         # =========================================================
-        # GRAFICI ANALITICI
+        # PREPARAZIONE GRAFICI E STILI COMUNI
         # =========================================================
-        section_head("Analisi dati", "Grafici analitici", "Andamento storico e posizionamento rispetto ai valori medi.")
-
-        CHART_HEIGHT = 260
+        CHART_HEIGHT = 280
         layout_base = dict(
             paper_bgcolor=PANEL_BG, plot_bgcolor=PANEL_BG,
             font=dict(color=TXT_SECONDARY, family="Inter, sans-serif", size=11),
-            margin=dict(l=38, r=16, t=8, b=32),
+            margin=dict(l=38, r=16, t=10, b=32),
             height=CHART_HEIGHT,
             showlegend=False,
             hoverlabel=dict(bgcolor="#1A2233", font_size=12, font_family="Inter, sans-serif", bordercolor=PANEL_BD),
@@ -2034,7 +2034,10 @@ elif pagina == "CONSIGLIO FINALE":
         axis_style = dict(gridcolor=PANEL_BD, zerolinecolor=PANEL_BD, linecolor=PANEL_BD)
         config_pulita = {'displayModeBar': False}
 
-        media_sonno_90, media_stress_90, media_rpe_90 = df_base['Ore Sonno'].mean(), df_base['Stress Lavoro'].mean(), df_base['RPE'].mean()
+        media_sonno_90 = df_base['Ore Sonno'].mean() if 'Ore Sonno' in df_base.columns else 7.0
+        media_stress_90 = df_base['Stress Lavoro'].mean() if 'Stress Lavoro' in df_base.columns else 5.0
+        media_rpe_90 = df_base['RPE'].mean() if 'RPE' in df_base.columns else 5.0
+
         sonno_vs_media = r['ore_sonno'] - media_sonno_90
         stress_vs_media = r['stress_lavoro'] - media_stress_90
         rpe_vs_media = r['rpe_previsto'] - media_rpe_90
@@ -2059,6 +2062,121 @@ elif pagina == "CONSIGLIO FINALE":
             figs_per_export.append(fig)
             insights_export.append((titolo, spiegazione))
 
+
+        # =========================================================
+        # SEZIONE 1: DINAMICHE AVANZATE E CARICO (NOVITÀ)
+        # =========================================================
+        section_head("Analisi Avanzata", "Dinamiche di Carico", "Integrazione dei dati storici con modelli di readiness e previsione infortuni.")
+
+        if 'Data' in df_base.columns:
+            # Creiamo un df temporaneo per i calcoli avanzati
+            df_adv = df_base.sort_values('Data').copy()
+            df_adv['Data'] = pd.to_datetime(df_adv['Data'])
+            
+            c_adv1, c_adv2, c_adv3 = st.columns(3)
+
+            # --- 1. MATRICE DI PRONTEZZA (Readiness Matrix) ---
+            # Mostra Stress vs Sonno storici con il dato di oggi in evidenza
+            fig_matrix = go.Figure()
+            # Punti storici
+            fig_matrix.add_trace(go.Scatter(
+                x=df_adv['Ore Sonno'], y=df_adv['Stress Lavoro'], mode='markers',
+                marker=dict(color=TXT_TERTIARY, size=6, opacity=0.4), hoverinfo='skip'
+            ))
+            # Punto di oggi
+            fig_matrix.add_trace(go.Scatter(
+                x=[r['ore_sonno']], y=[r['stress_lavoro']], mode='markers',
+                marker=dict(color=col, size=14, symbol='diamond', line=dict(width=2, color=TXT_PRIMARY)),
+                name="Oggi"
+            ))
+            # Linee di quadrante (mediane)
+            fig_matrix.add_hline(y=media_stress_90, line_dash="dot", line_color=PANEL_BD_H, opacity=0.7)
+            fig_matrix.add_vline(x=media_sonno_90, line_dash="dot", line_color=PANEL_BD_H, opacity=0.7)
+            
+            fig_matrix.update_layout(
+                **layout_base, 
+                xaxis_title="Ore di Sonno", yaxis_title="Stress Lavoro",
+                xaxis=dict(range=[4, 10]), yaxis=dict(range=[0, 10])
+            )
+            
+            # Determina in quale quadrante cade oggi
+            if r['ore_sonno'] >= media_sonno_90 and r['stress_lavoro'] <= media_stress_90:
+                quad = "Ottimale (Alto recupero, Basso stress)."
+            elif r['ore_sonno'] >= media_sonno_90 and r['stress_lavoro'] > media_stress_90:
+                quad = "Compensato (Alto recupero bilancia alto stress)."
+            elif r['ore_sonno'] < media_sonno_90 and r['stress_lavoro'] <= media_stress_90:
+                quad = "Vulnerabile (Basso recupero, ma basso stress)."
+            else:
+                quad = "Critico (Basso recupero, Alto stress)."
+                
+            chart_card(c_adv1, "Matrice di Prontezza", fig_matrix, f"Il diamante indica la tua sessione odierna rispetto allo storico. Zona attuale: {quad}", col)
+
+
+            # --- 2. ACUTE TO CHRONIC WORKLOAD RATIO (ACWR Proxy) ---
+            # RPE Medio 7gg / RPE Medio 28gg
+            df_adv['RPE_7'] = df_adv['RPE'].rolling(7, min_periods=1).mean()
+            df_adv['RPE_28'] = df_adv['RPE'].rolling(28, min_periods=1).mean()
+            # Evita divisione per zero
+            df_adv['ACWR'] = df_adv['RPE_7'] / df_adv['RPE_28'].replace(0, 0.1)
+            
+            fig_acwr = go.Figure()
+            # Fascia verde di sicurezza (0.8 - 1.3)
+            fig_acwr.add_hrect(y0=0.8, y1=1.3, fillcolor="rgba(48,209,88,0.1)", opacity=1, layer="below", line_width=0)
+            
+            fig_acwr.add_trace(go.Scatter(
+                x=df_adv['Data'].tail(60), y=df_adv['ACWR'].tail(60), mode='lines',
+                line=dict(color=C_AMBRA, width=2, shape='spline')
+            ))
+            fig_acwr.add_hline(y=1.3, line_dash="dash", line_color=C_STRESS, line_width=1)
+            
+            fig_acwr.update_layout(**layout_base, yaxis_title="Ratio (Acuto/Cronico)", yaxis=dict(range=[0.5, 2.0]))
+            
+            acwr_attuale = df_adv['ACWR'].iloc[-1]
+            if acwr_attuale > 1.3:
+                acwr_txt = "ATTENZIONE: Ratio sopra 1.3. Stai aumentando il carico troppo in fretta rispetto all'ultimo mese."
+            elif acwr_attuale < 0.8:
+                acwr_txt = "Ratio sotto 0.8. Fase di scarico o de-training evidente."
+            else:
+                acwr_txt = "Ratio nella 'Sweet Spot' (0.8 - 1.3). Progressione del carico sicura e sostenibile."
+                
+            chart_card(c_adv2, "ACWR (Carico Acuto vs Cronico)", fig_acwr, acwr_txt, C_AMBRA)
+
+
+            # --- 3. PATTERN SETTIMANALE DELLO STRESS ---
+            df_adv['Giorno'] = df_adv['Data'].dt.dayofweek
+            # Mappa i giorni
+            giorni_map = {0:'Lun', 1:'Mar', 2:'Mer', 3:'Gio', 4:'Ven', 5:'Sab', 6:'Dom'}
+            df_adv['Nome_Giorno'] = df_adv['Giorno'].map(giorni_map)
+            
+            # Media stress per giorno
+            stress_giornaliero = df_adv.groupby('Giorno')['Stress Lavoro'].mean().reset_index()
+            stress_giornaliero['Nome_Giorno'] = stress_giornaliero['Giorno'].map(giorni_map)
+            
+            fig_week = go.Figure(go.Bar(
+                x=stress_giornaliero['Nome_Giorno'], y=stress_giornaliero['Stress Lavoro'],
+                marker_color=TXT_TERTIARY, text=stress_giornaliero['Stress Lavoro'].round(1),
+                textposition='outside', textfont=dict(color=TXT_SECONDARY, size=10)
+            ))
+            # Evidenzia il giorno con più stress
+            giorno_max = stress_giornaliero.loc[stress_giornaliero['Stress Lavoro'].idxmax()]
+            fig_week.add_trace(go.Bar(
+                x=[giorno_max['Nome_Giorno']], y=[giorno_max['Stress Lavoro']],
+                marker_color=C_STRESS, text=[giorno_max['Stress Lavoro'].round(1)],
+                textposition='outside', textfont=dict(color=C_STRESS, size=10)
+            ))
+            
+            fig_week.update_layout(**layout_base, yaxis=dict(range=[0, 10]), xaxis_title="Giorno della Settimana", barmode='overlay')
+            
+            chart_card(c_adv3, "Pattern Stress Settimanale", fig_week, f"Storicamente, il {giorno_max['Nome_Giorno']} è la tua giornata di picco per il carico mentale.", C_STRESS)
+
+            md("<div style='height:34px;'></div>")
+
+
+        # =========================================================
+        # SEZIONE 2: GRAFICI DI TREND BASE (90 GIORNI)
+        # =========================================================
+        section_head("Trend Storici", "Andamento Base (90 giorni)", "Evoluzione delle metriche principali nell'ultimo trimestre.")
+
         if 'Data' in df_base.columns:
             df_plot = df_base.sort_values('Data').tail(90)
 
@@ -2078,62 +2196,31 @@ elif pagina == "CONSIGLIO FINALE":
                 line=dict(color=C_SONNO, width=2), fill='tozeroy', fillcolor='rgba(46,144,255,0.08)'
             ))
             fig_t1.update_layout(**layout_base, yaxis_title="ore")
-            spieg_sonno = "Sonno in calo." if trend_sonno < -0.3 else "Sonno in miglioramento." if trend_sonno > 0.3 else "Sonno stabile."
-            chart_card(r1c1, "Trend sonno — 90gg", fig_t1, spieg_sonno, C_SONNO)
+            spieg_sonno = "Sonno in calo nelle ultime 2 settimane." if trend_sonno < -0.3 else "Sonno in miglioramento." if trend_sonno > 0.3 else "Sonno stabile."
+            chart_card(r1c1, "Trend sonno", fig_t1, spieg_sonno, C_SONNO)
 
             fig_t2 = go.Figure(go.Scatter(
                 x=df_plot['Data'], y=df_plot['Stress Lavoro'], mode='lines',
                 line=dict(color=C_STRESS, width=2), fill='tozeroy', fillcolor='rgba(255,69,58,0.08)'
             ))
-            fig_t2.update_layout(**layout_base, yaxis=dict(range=[0, 10], **axis_style), yaxis_title="punti")
+            fig_t2.update_layout(**layout_base, yaxis=dict(range=[0, 10]), yaxis_title="punti")
             spieg_stress = "Stress in aumento." if trend_stress > 0.5 else "Stress in calo." if trend_stress < -0.5 else "Stress stabile."
-            chart_card(r1c2, "Trend stress — 90gg", fig_t2, spieg_stress, C_STRESS)
+            chart_card(r1c2, "Trend stress", fig_t2, spieg_stress, C_STRESS)
 
             fig_t3 = go.Figure(go.Scatter(
                 x=df_plot['Data'], y=df_plot['RPE'], mode='lines',
                 line=dict(color=C_RPE, width=2), fill='tozeroy', fillcolor='rgba(48,209,88,0.08)'
             ))
-            fig_t3.update_layout(**layout_base, yaxis=dict(range=[0, 10], **axis_style), yaxis_title="punti")
-            spieg_rpe = "RPE medio in aumento (fatica)." if trend_rpe > 0.5 else "RPE in calo." if trend_rpe < -0.5 else "RPE stabile."
-            chart_card(r1c3, "Trend RPE — 90gg", fig_t3, spieg_rpe, C_RPE)
+            fig_t3.update_layout(**layout_base, yaxis=dict(range=[0, 10]), yaxis_title="punti")
+            spieg_rpe = "Fatica sistemica in accumulo." if trend_rpe > 0.5 else "Fatica in scarico." if trend_rpe < -0.5 else "Fatica stabile."
+            chart_card(r1c3, "Trend RPE", fig_t3, spieg_rpe, C_RPE)
 
-            md("<div style='height:18px;'></div>")
-
-        r2c1, r2c2, r2c3 = st.columns(3)
-
-        fig_b1 = go.Figure(go.Bar(
-            x=['Oggi', 'Media 90gg'], y=[r['ore_sonno'], media_sonno_90],
-            marker_color=[C_SONNO, C_NEUTRO], text=[f"{r['ore_sonno']:.1f}h", f"{media_sonno_90:.1f}h"],
-            textposition='outside', textfont=dict(color=TXT_SECONDARY, size=11), width=0.5
-        ))
-        fig_b1.update_layout(**layout_base, yaxis_title="ore")
-        spieg_b1 = f"Oggi sonno {'sotto' if sonno_vs_media < 0 else 'sopra'} media storica."
-        chart_card(r2c1, "Ore sonno — oggi vs media", fig_b1, spieg_b1, C_SONNO)
-
-        fig_b2 = go.Figure(go.Bar(
-            x=['Oggi', 'Media 90gg'], y=[r['stress_lavoro'], media_stress_90],
-            marker_color=[C_STRESS, C_NEUTRO], text=[f"{r['stress_lavoro']}/10", f"{media_stress_90:.1f}/10"],
-            textposition='outside', textfont=dict(color=TXT_SECONDARY, size=11), width=0.5
-        ))
-        fig_b2.update_layout(**layout_base, yaxis=dict(range=[0, 10], **axis_style), yaxis_title="punti")
-        spieg_b2 = f"Oggi stress {'sotto' if stress_vs_media < 0 else 'sopra'} media storica."
-        chart_card(r2c2, "Stress lavoro — oggi vs media", fig_b2, spieg_b2, C_STRESS)
-
-        fig_b3 = go.Figure(go.Bar(
-            x=['Oggi', 'Media 90gg'], y=[r['rpe_previsto'], media_rpe_90],
-            marker_color=[C_RPE, C_NEUTRO], text=[f"{r['rpe_previsto']}/10", f"{media_rpe_90:.1f}/10"],
-            textposition='outside', textfont=dict(color=TXT_SECONDARY, size=11), width=0.5
-        ))
-        fig_b3.update_layout(**layout_base, yaxis=dict(range=[0, 10], **axis_style), yaxis_title="punti")
-        spieg_b3 = f"Oggi RPE {'sotto' if rpe_vs_media < 0 else 'sopra'} media storica."
-        chart_card(r2c3, "RPE previsto — oggi vs media", fig_b3, spieg_b3, C_RPE)
-
-        md("<div style='height:34px;'></div>")
+            md("<div style='height:34px;'></div>")
 
         # =========================================================
-        # ANALISI PARAMETRI VS MEDIA
+        # SEZIONE 3: OGGI VS MEDIA
         # =========================================================
-        section_head("Confronto storico", "Analisi parametri vs media", "Scostamento barra: centro = media, sinistra = sotto, destra = sopra.")
+        section_head("Confronto Storico", "Sessione Odierna vs Media", "Delta tra i parametri di oggi e la tua baseline di lungo periodo.")
 
         def delta_bar(delta, scala_max, colore):
             pos = 50 + max(-50, min(50, (delta / scala_max) * 50))
@@ -2159,7 +2246,7 @@ elif pagina == "CONSIGLIO FINALE":
                     <span style='color:{TXT_SECONDARY}; font-size:.85em;'> · media {media_sonno_90:.1f}h</span>
                 </div>
                 {delta_bar(sonno_vs_media, 3.0, sc)}
-                <p style='font-family:"JetBrains Mono",monospace; color:{sc}; font-size:.82em; margin:2px 0 12px 0;'>Δ {'+' if sonno_vs_media>=0 else ''}{sonno_vs_media:.1f}h</p>
+                <p style='font-family:"JetBrains Mono",monospace; color:{sc}; font-size:.82em; margin:2px 0 0 0;'>Δ {'+' if sonno_vs_media>=0 else ''}{sonno_vs_media:.1f}h</p>
             </div>
             """)
 
@@ -2174,7 +2261,7 @@ elif pagina == "CONSIGLIO FINALE":
                     <span style='color:{TXT_SECONDARY}; font-size:.85em;'> · media {media_stress_90:.1f}/10</span>
                 </div>
                 {delta_bar(stress_vs_media, 5.0, stc)}
-                <p style='font-family:"JetBrains Mono",monospace; color:{stc}; font-size:.82em; margin:2px 0 12px 0;'>Δ {'+' if stress_vs_media>=0 else ''}{stress_vs_media:.1f} punti</p>
+                <p style='font-family:"JetBrains Mono",monospace; color:{stc}; font-size:.82em; margin:2px 0 0 0;'>Δ {'+' if stress_vs_media>=0 else ''}{stress_vs_media:.1f} punti</p>
             </div>
             """)
 
@@ -2189,7 +2276,7 @@ elif pagina == "CONSIGLIO FINALE":
                     <span style='color:{TXT_SECONDARY}; font-size:.85em;'> · media {media_rpe_90:.1f}/10</span>
                 </div>
                 {delta_bar(rpe_vs_media, 5.0, rpc)}
-                <p style='font-family:"JetBrains Mono",monospace; color:{rpc}; font-size:.82em; margin:2px 0 12px 0;'>Δ {'+' if rpe_vs_media>=0 else ''}{rpe_vs_media:.1f} punti</p>
+                <p style='font-family:"JetBrains Mono",monospace; color:{rpc}; font-size:.82em; margin:2px 0 0 0;'>Δ {'+' if rpe_vs_media>=0 else ''}{rpe_vs_media:.1f} punti</p>
             </div>
             """)
 
@@ -2198,7 +2285,7 @@ elif pagina == "CONSIGLIO FINALE":
         # =========================================================
         # EXPORT REPORT
         # =========================================================
-        section_head("Export", "Generazione report per coach", "Scarica l'analisi completa con grafici vettoriali.")
+        section_head("Export", "Generazione report per coach", "Scarica l'analisi completa, inclusa l'elaborazione dei grafici vettoriali.")
 
         coach_txt = ""
         for nome_tab, contenuto in coach_content.items():
@@ -2208,7 +2295,6 @@ elif pagina == "CONSIGLIO FINALE":
                 for b in bullets:
                     coach_txt += f"    - {b}\n"
 
-        corsie_txt = "\n".join(f"  - {num} · {zt} ({zn}): {zd}" for num, zt, zn, zd, _ in corsie)
         grafici_txt = "\n".join(f"  - {t}: {s}" for t, s in insights_export)
 
         report_testo = f"""--- RUNAI PERFORMANCE REPORT ---
@@ -2222,6 +2308,9 @@ ANALISI VS MEDIA 90 GIORNI
   - Ore Sonno: {r['ore_sonno']:.1f}h (media {media_sonno_90:.1f}h, Δ {'+' if sonno_vs_media>=0 else ''}{sonno_vs_media:.1f}h)
   - Stress Lavoro: {r['stress_lavoro']}/10 (media {media_stress_90:.1f}/10, Δ {'+' if stress_vs_media>=0 else ''}{stress_vs_media:.1f})
   - RPE Previsto: {r['rpe_previsto']}/10 (media {media_rpe_90:.1f}/10, Δ {'+' if rpe_vs_media>=0 else ''}{rpe_vs_media:.1f})
+
+NOTE ANALISI AVANZATA:
+{grafici_txt}
 
 PROTOCOLLO COACH COMPLETO{coach_txt}
 --------------------------------"""
