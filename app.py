@@ -23,6 +23,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.metrics import silhouette_score
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.ensemble import IsolationForest
+from sklearn.decomposition import PCA
 warnings.filterwarnings('ignore')
 try:
     import shap
