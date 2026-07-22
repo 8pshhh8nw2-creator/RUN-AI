@@ -1662,36 +1662,54 @@ elif pagina == "ANALISI PREDITTIVA ML":
     except Exception as e:
         st.error(f"Errore caricamento modelli ML: {str(e)}")
 # ---------------------------------------------------------
-# PAGINA 5: CONSIGLIO FINALE  (redesign completo)
+# PAGINA 5: CONSIGLIO FINALE  (redesign v2 — "Split Sheet")
 # ---------------------------------------------------------
-# ASSUNZIONI:
+# ASSUNZIONI (invariate rispetto alla versione precedente):
 # - import plotly.graph_objects as go / import plotly.express as px
 #   già presenti in cima al file principale.
 # - df_base ha una colonna data chiamata 'Data' (per i trend a 90gg).
-#   Se si chiama diversamente, aggiorna la sezione "GRAFICI ANALITICI".
-# - Streamlit >= 1.29 (per st.tabs; non serve altro di recente).
+# - Streamlit >= 1.29 (per st.tabs).
 #
-# SISTEMA DI DESIGN:
-# - Un'unica componente "panel" riusata ovunque (KPI, coach, grafici,
-#   confronti) per coerenza visiva: stesso bordo, stesso radius,
-#   stesso ritmo di spaziatura.
-# - Palette ridotta e con significato fisso: ciano = sonno,
-#   corallo = stress, menta = RPE/positivo, ambra = attenzione,
-#   viola = recupero serale. Il bordo dei pannelli resta neutro:
-#   il colore si usa solo su numeri, linee e accenti, non sui bordi,
-#   per evitare l'effetto "arcobaleno".
-# - Header di sezione con eyebrow (etichetta mono maiuscola) invece
-#   del semplice st.subheader, per un look da cruscotto dati.
-# - Il contenuto del coach è definito una sola volta come struttura
-#   dati (coach_content) e riusato sia per il rendering nei tab sia
-#   per il report scaricabile — evita duplicazioni e disallineamenti.
+# COSA CAMBIA E PERCHÉ
+# ---------------------------------------------------------
+# La versione precedente era un dashboard "da fintech" applicato
+# a un'app di corsa: badge arrotondati, barra sfumata generica,
+# card KPI fluttuanti. Funzionale, ma non parlava il linguaggio
+# del running.
+#
+# Questa versione prende un solo rischio preciso e lo porta fino
+# in fondo: l'indice di rischio non è più una barra piatta, ma una
+# vera e propria pista di atletica vista dall'alto (curva-rettilineo-
+# curva-rettilineo), disegnata in SVG puro e calcolata in Python
+# (nessun JS, nessuna libreria esterna). Il segnalino percorre la
+# pista in base al risk_score: più si avvicina al 100%, più
+# "corre" dentro il tratto rosso. È l'unico elemento vistoso della
+# pagina — tutto il resto resta disciplinato.
+#
+# Coerenza con il tema:
+# - Le zone cardiache diventano "corsie" (Corsia 1/2/3), lo stesso
+#   lessico della pista.
+# - I tre KPI non sono più tre card isolate ma un unico "foglio
+#   split" in stile cronometraggio: etichetta, valore, riferimento,
+#   variazione — la forma in cui un allenatore legge davvero i dati.
+# - Titoli in Oswald condensato maiuscolo (tabelloni di stadio),
+#   corpo in Inter, dati in JetBrains Mono (cronometro).
+# - Palette quasi nera con un solo accento "gesso" (bianco caldo,
+#   il colore delle righe di corsia) per i numeri principali; i
+#   colori semantici (sonno/stress/RPE/recupero) restano quelli
+#   già in uso per non rompere le convenzioni imparate dall'utente.
+#
+# La logica di calcolo (risk_score, recovery_score, sma, coach_content,
+# grafici, export) è INVARIATA: cambia solo la pelle visiva.
 # ---------------------------------------------------------
 
 elif pagina == "CONSIGLIO FINALE":
+    import math
+
     header_block(
         "Modulo 05 — Action Plan",
         "CONSIGLIO FINALE",
-        "Protocollo operativo, proiezioni fisiologiche e export report per la sessione odierna.",
+        "Protocollo operativo, proiezioni fisiologiche ed export report per la sessione odierna.",
         IMG_HERO_PLAN, "Coach Protocol"
     )
 
@@ -1704,40 +1722,47 @@ elif pagina == "CONSIGLIO FINALE":
         # =========================================================
         # TOKEN DI DESIGN
         # =========================================================
-        PANEL_BG   = "#121826"
-        PANEL_BD   = "#212A3B"
-        PANEL_BD_H = "#2E3A52"
-        TXT_PRIMARY   = "#E7ECF5"
-        TXT_SECONDARY = "#8A93A6"
-        TXT_TERTIARY  = "#4F5972"
+        PANEL_BG   = "#111620"
+        PANEL_BD   = "#1F2733"
+        PANEL_BD_H = "#2C3646"
+        TXT_PRIMARY   = "#F2F0E9"   # gesso caldo — colore delle righe di corsia
+        TXT_SECONDARY = "#8C93A3"
+        TXT_TERTIARY  = "#525B6E"
 
-        C_SONNO  = "#22E1FF"
-        C_STRESS = "#FF6A4D"
-        C_RPE    = "#17E8A6"
-        C_AMBRA  = "#FFB020"
-        C_VIOLA  = "#9B7BFF"
-        C_NEUTRO = "#3A4458"
+        C_SONNO  = "#4EC9F0"
+        C_STRESS = "#FF6B4A"
+        C_RPE    = "#3ADD9B"
+        C_AMBRA  = "#FFC24B"
+        C_VIOLA  = "#B18AFF"
+        C_NEUTRO = "#333D4E"
+        C_CHALK  = TXT_PRIMARY
 
         st.markdown(f"""
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap');
+
         .panel {{
-            background: {PANEL_BG}; border: 1px solid {PANEL_BD}; border-radius: 16px;
+            background: {PANEL_BG}; border: 1px solid {PANEL_BD}; border-radius: 14px;
             padding: 22px 24px; transition: border-color .15s ease;
         }}
         .panel:hover {{ border-color: {PANEL_BD_H}; }}
         .panel-flush {{ padding: 0; overflow: hidden; }}
-        .panel-flush .panel-body {{ padding: 18px 20px 20px 20px; }}
+        .panel-flush .panel-body {{ padding: 16px 20px 18px 20px; }}
+        .panel-flush .chart-top-rule {{ height: 3px; width: 100%; }}
+
         .eyebrow {{
             font-family:'JetBrains Mono',monospace; font-size:.68em; letter-spacing:.14em;
             text-transform:uppercase; color:{TXT_TERTIARY}; margin:0 0 8px 0; font-weight:600;
         }}
-        .section-head {{ margin: 6px 0 16px 0; }}
-        .section-head .eyebrow {{ margin-bottom: 4px; }}
+        .section-head {{ margin: 6px 0 16px 0; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }}
+        .section-head .head-txt .eyebrow {{ margin-bottom: 4px; }}
         .section-head h3 {{
-            font-family:'Inter',sans-serif; font-weight:700; color:{TXT_PRIMARY};
-            margin:0; font-size:1.25em; letter-spacing:-.01em;
+            font-family:'Oswald',sans-serif; font-weight:600; color:{TXT_PRIMARY};
+            margin:0; font-size:1.3em; letter-spacing:.02em; text-transform:uppercase;
         }}
-        .section-head .sub {{ color:{TXT_SECONDARY}; font-size:.88em; margin-top:4px; }}
+        .section-head .sub {{ color:{TXT_SECONDARY}; font-size:.88em; margin-top:4px; font-family:'Inter',sans-serif; }}
+        .section-head .rule {{ flex:1; height:1px; background:{PANEL_BD}; min-width:24px; align-self:center; }}
+
         .panel-title {{
             font-family:'Inter',sans-serif; font-weight:600; color:{TXT_PRIMARY};
             font-size:.94em; margin:0;
@@ -1745,13 +1770,14 @@ elif pagina == "CONSIGLIO FINALE":
         .kv-num {{ font-family:'JetBrains Mono',monospace; color:{TXT_PRIMARY}; font-weight:600; }}
         .badge {{
             display:inline-block; font-family:'JetBrains Mono',monospace; font-size:.66em;
-            letter-spacing:.08em; text-transform:uppercase; padding:3px 9px; border-radius:999px;
+            letter-spacing:.08em; text-transform:uppercase; padding:3px 9px; border-radius:4px;
             font-weight:600;
         }}
+
         .coach-block {{ margin-bottom: 18px; }}
         .coach-block:last-child {{ margin-bottom: 0; }}
         .coach-block .label {{
-            font-family:'JetBrains Mono',monospace; font-size:.72em; letter-spacing:.1em;
+            font-family:'Oswald',sans-serif; font-size:.82em; letter-spacing:.08em;
             text-transform:uppercase; margin-bottom:8px; font-weight:600;
         }}
         .coach-block ul {{ margin:0; padding-left:0; list-style:none; }}
@@ -1760,22 +1786,56 @@ elif pagina == "CONSIGLIO FINALE":
             font-family:'Inter',sans-serif; font-size:.92em; line-height:1.5;
         }}
         .coach-block li::before {{
-            content:"›"; position:absolute; left:0; color:{TXT_TERTIARY}; font-weight:700;
+            content:"—"; position:absolute; left:0; color:{TXT_TERTIARY}; font-weight:700;
         }}
+
         .chart-caption {{
             border-top: 1px solid {PANEL_BD}; margin-top: 10px; padding-top: 10px;
             color:{TXT_SECONDARY}; font-family:'Inter',sans-serif; font-size:.82em; line-height:1.45;
         }}
-        .zone-chip {{
-            background:{PANEL_BG}; border:1px solid {PANEL_BD}; border-left:3px solid var(--zc);
-            border-radius:10px; padding:14px 16px;
+
+        /* Corsie (ex "zone cardiache") */
+        .lane-chip {{
+            background:{PANEL_BG}; border:1px solid {PANEL_BD}; border-radius:10px;
+            padding:14px 16px 16px 16px; position:relative; overflow:hidden;
         }}
-        .zone-chip .zt {{ font-family:'JetBrains Mono',monospace; font-size:.72em; letter-spacing:.08em; color:var(--zc); text-transform:uppercase; font-weight:700; }}
-        .zone-chip .zn {{ font-family:'Inter',sans-serif; font-weight:600; color:{TXT_PRIMARY}; margin:4px 0 6px 0; font-size:.95em; }}
-        .zone-chip .zd {{ font-family:'Inter',sans-serif; color:{TXT_SECONDARY}; font-size:.85em; line-height:1.4; }}
+        .lane-chip::before {{
+            content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--zc);
+        }}
+        .lane-chip .lane-num {{
+            font-family:'Oswald',sans-serif; font-weight:600; font-size:1.6em; color:var(--zc);
+            line-height:1; margin-bottom:2px;
+        }}
+        .lane-chip .zt {{ font-family:'JetBrains Mono',monospace; font-size:.68em; letter-spacing:.08em; color:{TXT_TERTIARY}; text-transform:uppercase; font-weight:600; }}
+        .lane-chip .zn {{ font-family:'Inter',sans-serif; font-weight:600; color:{TXT_PRIMARY}; margin:6px 0 6px 0; font-size:.95em; }}
+        .lane-chip .zd {{ font-family:'Inter',sans-serif; color:{TXT_SECONDARY}; font-size:.85em; line-height:1.4; }}
+
+        /* Split sheet — foglio dei tempi al posto delle 3 card KPI */
+        .split-sheet {{ padding:0; overflow:hidden; }}
+        .split-row {{
+            display:grid; grid-template-columns: 1.3fr .9fr 1fr 1.6fr;
+            align-items:center; padding:16px 22px; border-bottom:1px solid {PANEL_BD}; gap:10px;
+        }}
+        .split-row:last-child {{ border-bottom:none; }}
+        .split-row .sr-label {{ font-family:'Oswald',sans-serif; font-size:.98em; letter-spacing:.03em; text-transform:uppercase; color:{TXT_PRIMARY}; font-weight:500; }}
+        .split-row .sr-value {{ font-family:'JetBrains Mono',monospace; font-size:1.5em; font-weight:600; }}
+        .split-row .sr-value .unit {{ font-family:'Inter',sans-serif; font-size:.5em; color:{TXT_SECONDARY}; margin-left:2px; }}
+        .split-row .sr-ref {{ font-family:'JetBrains Mono',monospace; font-size:.82em; color:{TXT_SECONDARY}; }}
+        .split-row .sr-note {{ font-family:'Inter',sans-serif; font-size:.82em; color:{TXT_SECONDARY}; line-height:1.4; }}
+        .split-head {{
+            display:grid; grid-template-columns: 1.3fr .9fr 1fr 1.6fr; padding:12px 22px;
+            border-bottom:1px solid {PANEL_BD}; background:rgba(255,255,255,0.015);
+        }}
+        .split-head span {{ font-family:'JetBrains Mono',monospace; font-size:.64em; letter-spacing:.12em; text-transform:uppercase; color:{TXT_TERTIARY}; font-weight:600; }}
+
         .delta-track {{ position:relative; height:6px; border-radius:3px; background:{PANEL_BD}; margin:10px 0 4px 0; }}
         .delta-fill {{ position:absolute; top:0; height:6px; border-radius:3px; }}
         .delta-mid {{ position:absolute; top:-3px; left:50%; width:1px; height:12px; background:{TXT_TERTIARY}; }}
+
+        .track-wrap {{ width:100%; max-width:560px; margin:0 auto; }}
+        .track-legend {{ display:flex; gap:18px; justify-content:center; margin-top:6px; flex-wrap:wrap; }}
+        .track-legend .lg {{ display:flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:.68em; letter-spacing:.06em; text-transform:uppercase; color:{TXT_SECONDARY}; }}
+        .track-legend .dot {{ width:8px; height:8px; border-radius:2px; }}
         </style>
         """, unsafe_allow_html=True)
 
@@ -1783,14 +1843,17 @@ elif pagina == "CONSIGLIO FINALE":
             sub_html = f"<div class='sub'>{sub}</div>" if sub else ""
             container.markdown(f"""
             <div class='section-head'>
-                <p class='eyebrow'>{eyebrow}</p>
-                <h3>{title}</h3>
-                {sub_html}
+                <div class='head-txt'>
+                    <p class='eyebrow'>{eyebrow}</p>
+                    <h3>{title}</h3>
+                    {sub_html}
+                </div>
+                <div class='rule'></div>
             </div>
             """, unsafe_allow_html=True)
 
         # =========================================================
-        # CALCOLI BASE
+        # CALCOLI BASE — invariati
         # =========================================================
         risk_score = min(100,
             (40 if r['ore_sonno'] < 6 else 25 if r['ore_sonno'] < 6.5 else 10) +
@@ -1830,31 +1893,82 @@ elif pagina == "CONSIGLIO FINALE":
         )
 
         # =========================================================
-        # BANNER DI STATO — elemento distintivo della pagina:
-        # strumento a barra con zone di rischio e marker della
-        # posizione odierna, invece del solito badge colorato isolato.
+        # PISTA DI ATLETICA COME INDICATORE DI RISCHIO
+        # Geometria calcolata in Python (nessun JS): la pista è uno
+        # "stadio" (due rettilinei + due curve semicircolari), colorata
+        # a tratti in base alle soglie di rischio, con un segnalino
+        # posizionato esattamente sul risk_score odierno.
         # =========================================================
-        marker_pos = max(2, min(98, risk_score))
+        def disegna_pista(risk_score, low_c, mid_c, high_c, base_c, marker_c, label_c):
+            L, RAD = 400.0, 80.0
+            arc_len = math.pi * RAD
+            total = 2 * L + 2 * arc_len
+
+            def punto(t):
+                t = t % total
+                if t <= L:
+                    return 100 + t, 20
+                t -= L
+                if t <= arc_len:
+                    a = math.radians(-90 + 180 * (t / arc_len))
+                    return 500 + RAD * math.cos(a), 100 + RAD * math.sin(a)
+                t -= arc_len
+                if t <= L:
+                    return 500 - t, 180
+                t -= L
+                a = math.radians(90 + 180 * (t / arc_len))
+                return 100 + RAD * math.cos(a), 100 + RAD * math.sin(a)
+
+            z1, z2 = 0.25 * total, 0.60 * total
+            seg_low, seg_mid, seg_high = z1, z2 - z1, total - z2
+
+            mt = (max(0, min(100, risk_score)) / 100.0) * total
+            mx, my = punto(mt)
+            mx2, my2 = punto(mt + 3)
+            ang = math.degrees(math.atan2(my2 - my, mx2 - mx))
+
+            path_d = f"M 100,20 L 500,20 A {RAD},{RAD} 0 0 1 500,180 L 100,180 A {RAD},{RAD} 0 0 1 100,20"
+
+            tri_size = 9
+            return f"""
+            <svg viewBox="0 0 600 210" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:auto;">
+                <path d="{path_d}" fill="none" stroke="{base_c}" stroke-width="14" stroke-linecap="round"/>
+                <path d="{path_d}" fill="none" stroke="{low_c}" stroke-width="14" stroke-linecap="butt"
+                      stroke-dasharray="{seg_low} {total - seg_low}" stroke-dashoffset="0" opacity="0.9"/>
+                <path d="{path_d}" fill="none" stroke="{mid_c}" stroke-width="14" stroke-linecap="butt"
+                      stroke-dasharray="{seg_mid} {total - seg_mid}" stroke-dashoffset="-{z1}" opacity="0.9"/>
+                <path d="{path_d}" fill="none" stroke="{high_c}" stroke-width="14" stroke-linecap="butt"
+                      stroke-dasharray="{seg_high} {total - seg_high}" stroke-dashoffset="-{z2}" opacity="0.9"/>
+                <path d="{path_d}" fill="none" stroke="{PANEL_BG}" stroke-width="14" stroke-linecap="butt"
+                      stroke-dasharray="1 {total - 1}" stroke-dashoffset="0"/>
+                <g transform="translate({mx},{my}) rotate({ang})">
+                    <circle cx="0" cy="0" r="11" fill="{PANEL_BG}" stroke="{marker_c}" stroke-width="2.5"/>
+                    <polygon points="6,0 -3,-{tri_size/2:.1f} -3,{tri_size/2:.1f}" fill="{marker_c}"/>
+                </g>
+                <text x="100" y="205" font-family="JetBrains Mono, monospace" font-size="11" fill="{label_c}" text-anchor="start">0</text>
+                <text x="500" y="205" font-family="JetBrains Mono, monospace" font-size="11" fill="{label_c}" text-anchor="end">100</text>
+            </svg>
+            """
+
+        pista_svg = disegna_pista(risk_score, C_RPE, C_AMBRA, C_STRESS, C_NEUTRO, C_CHALK, TXT_TERTIARY)
+
         st.markdown(f"""
         <div class='panel'>
-            <div style='display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:24px;'>
+            <div style='display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:24px; margin-bottom:14px;'>
                 <div>
                     <p class='eyebrow'>Stato sessione odierna</p>
-                    <h2 style='margin:0; font-family:"Inter",sans-serif; font-weight:700; font-size:1.6em; color:{col}; letter-spacing:-.01em;'>{tit}</h2>
+                    <h2 style='margin:0; font-family:"Oswald",sans-serif; font-weight:600; font-size:1.55em; color:{col}; text-transform:uppercase; letter-spacing:.01em;'>{tit}</h2>
                 </div>
                 <div style='text-align:right;'>
                     <p class='eyebrow'>Indice di rischio</p>
                     <p style='margin:0; font-family:"JetBrains Mono",monospace; font-size:2em; color:{col}; font-weight:600;'>{risk_score:.0f}%</p>
                 </div>
             </div>
-            <div style='margin-top:22px; position:relative; height:6px; border-radius:3px; background:linear-gradient(90deg, {C_RPE} 0%, {C_RPE} 25%, {C_AMBRA} 25%, {C_AMBRA} 60%, {C_STRESS} 60%, {C_STRESS} 100%); opacity:0.30;'>
-                <div style='position:absolute; top:-7px; left:calc({marker_pos}% - 1px); width:2px; height:20px; background:{TXT_PRIMARY};'></div>
-            </div>
-            <div style='display:flex; justify-content:space-between; margin-top:8px;'>
-                <span class='eyebrow' style='margin:0;'>0 — basso</span>
-                <span class='eyebrow' style='margin:0;'>25</span>
-                <span class='eyebrow' style='margin:0;'>60 — alto</span>
-                <span class='eyebrow' style='margin:0;'>100</span>
+            <div class='track-wrap'>{pista_svg}</div>
+            <div class='track-legend'>
+                <div class='lg'><span class='dot' style='background:{C_RPE};'></span>0-25 basso</div>
+                <div class='lg'><span class='dot' style='background:{C_AMBRA};'></span>25-60 medio</div>
+                <div class='lg'><span class='dot' style='background:{C_STRESS};'></span>60-100 alto</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1862,50 +1976,45 @@ elif pagina == "CONSIGLIO FINALE":
         st.markdown("<div style='height:22px;'></div>", unsafe_allow_html=True)
 
         # =========================================================
-        # KPI PRINCIPALI
+        # SPLIT SHEET — i tre KPI come un unico foglio dei tempi,
+        # invece di tre card isolate. Stessa informazione della
+        # versione precedente, letta però nel formato in cui un
+        # allenatore legge davvero un cronometraggio: etichetta,
+        # valore, riferimento, nota.
         # =========================================================
-        col_new1, col_new2, col_new3 = st.columns(3)
+        sonno_delta_txt = f"{'+' if (r['ore_sonno']-7.5) >= 0 else ''}{r['ore_sonno']-7.5:.1f}h vs target 7.5h"
 
-        with col_new1:
-            st.markdown(f"""
-            <div class='panel' style='height:170px; display:flex; flex-direction:column; justify-content:space-between;'>
-                <p class='eyebrow'>Distanza consigliata</p>
-                <div>
-                    <span style='font-family:"JetBrains Mono",monospace; font-size:2.3em; color:{TXT_PRIMARY}; font-weight:600;'>{distanza_consigliata:.1f}</span>
-                    <span style='font-family:"Inter",sans-serif; color:{TXT_SECONDARY}; font-size:1em;'> km</span>
-                </div>
-                <p style='margin:0; color:{TXT_SECONDARY}; font-size:.82em;'>su {distanza_target} km desiderati · {tipo_all}</p>
+        st.markdown(f"""
+        <div class='panel split-sheet'>
+            <div class='split-head'>
+                <span>Voce</span><span>Valore</span><span>Riferimento</span><span>Nota</span>
             </div>
-            """, unsafe_allow_html=True)
-
-        with col_new2:
-            st.markdown(f"""
-            <div class='panel' style='height:170px; display:flex; flex-direction:column; justify-content:space-between;'>
-                <p class='eyebrow'>Recovery score</p>
-                <div>
-                    <span style='font-family:"JetBrains Mono",monospace; font-size:2.3em; color:{C_RPE}; font-weight:600;'>{recovery_score:.0f}</span>
-                    <span style='font-family:"Inter",sans-serif; color:{TXT_SECONDARY}; font-size:1em;'> %</span>
-                </div>
-                <p style='margin:0; color:{TXT_SECONDARY}; font-size:.82em;'>basato su {r['ore_sonno']:.1f}h di sonno vs target 7.5h</p>
+            <div class='split-row'>
+                <div class='sr-label'>Distanza consigliata</div>
+                <div class='sr-value' style='color:{TXT_PRIMARY};'>{distanza_consigliata:.1f}<span class='unit'>km</span></div>
+                <div class='sr-ref'>target {distanza_target} km</div>
+                <div class='sr-note'>{tipo_all}</div>
             </div>
-            """, unsafe_allow_html=True)
-
-        with col_new3:
-            st.markdown(f"""
-            <div class='panel' style='height:170px; display:flex; flex-direction:column; justify-content:space-between;'>
-                <p class='eyebrow'>Carico mentale (SMA)</p>
-                <div>
-                    <span style='font-family:"JetBrains Mono",monospace; font-size:2.3em; color:{C_AMBRA}; font-weight:600;'>{sma:.1f}</span>
-                </div>
-                <p style='margin:0; color:{TXT_SECONDARY}; font-size:.82em;'>stress × RPE / ore di sonno</p>
+            <div class='split-row'>
+                <div class='sr-label'>Recovery score</div>
+                <div class='sr-value' style='color:{C_RPE};'>{recovery_score:.0f}<span class='unit'>%</span></div>
+                <div class='sr-ref'>{r['ore_sonno']:.1f}h di sonno</div>
+                <div class='sr-note'>{sonno_delta_txt}</div>
             </div>
-            """, unsafe_allow_html=True)
+            <div class='split-row'>
+                <div class='sr-label'>Carico mentale (SMA)</div>
+                <div class='sr-value' style='color:{C_AMBRA};'>{sma:.1f}</div>
+                <div class='sr-ref'>stress × RPE / sonno</div>
+                <div class='sr-note'>livello odierno: {liv}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         st.markdown("<div style='height:34px;'></div>", unsafe_allow_html=True)
 
         # =========================================================
-        # COACH PERSONALIZZATO — contenuto definito una sola volta
-        # e riusato sia nei tab che nel report scaricabile.
+        # COACH PERSONALIZZATO — struttura dati invariata, riusata
+        # sia per il rendering nei tab sia per il report scaricabile.
         # =========================================================
         section_head(st, "Coach personalizzato", "Protocollo di allenamento",
                      "Indicazioni operative su preparazione, esecuzione e recupero — nessun riferimento nutrizionale.")
@@ -2008,19 +2117,21 @@ elif pagina == "CONSIGLIO FINALE":
         st.markdown("<div style='height:34px;'></div>", unsafe_allow_html=True)
 
         # =========================================================
-        # ZONE CARDIACHE
+        # CORSIE (ex zone cardiache) — stesso contenuto, lessico
+        # coerente con la pista disegnata sopra.
         # =========================================================
-        section_head(st, "Riferimento", "Zone cardiache consigliate per oggi")
+        section_head(st, "Riferimento", "Corsie di frequenza cardiaca")
 
-        zone = [
-            ("Zona 1-2", "Recupero / Base", "Sforzo confortevole (test del parlato superato). Ideale per Easy Run o sedute di recupero.", C_RPE),
-            ("Zona 3", "Aerobico / Tempo", "Ritmo sostenuto ma controllato, adatto a sedute di media intensità.", C_AMBRA),
-            ("Zona 4-5", "Soglia / Anaerobico", "Da evitare se il rischio infortunio calcolato è alto (oltre il 40%).", C_STRESS),
+        corsie = [
+            ("Corsia 1", "Zona 1-2", "Recupero / Base", "Sforzo confortevole (test del parlato superato). Ideale per Easy Run o sedute di recupero.", C_RPE),
+            ("Corsia 2", "Zona 3", "Aerobico / Tempo", "Ritmo sostenuto ma controllato, adatto a sedute di media intensità.", C_AMBRA),
+            ("Corsia 3", "Zona 4-5", "Soglia / Anaerobico", "Da evitare se il rischio infortunio calcolato è alto (oltre il 40%).", C_STRESS),
         ]
-        zc1, zc2, zc3 = st.columns(3)
-        for c, (zt, zn, zd, zcol) in zip([zc1, zc2, zc3], zone):
+        cc1, cc2, cc3 = st.columns(3)
+        for c, (num, zt, zn, zd, zcol) in zip([cc1, cc2, cc3], corsie):
             c.markdown(f"""
-            <div class='zone-chip' style='--zc:{zcol};'>
+            <div class='lane-chip' style='--zc:{zcol};'>
+                <div class='lane-num'>{num}</div>
                 <div class='zt'>{zt}</div>
                 <div class='zn'>{zn}</div>
                 <div class='zd'>{zd}</div>
@@ -2030,9 +2141,9 @@ elif pagina == "CONSIGLIO FINALE":
         st.markdown("<div style='height:34px;'></div>", unsafe_allow_html=True)
 
         # =========================================================
-        # GRAFICI ANALITICI
-        # =========================================================
-        section_head(st, "Analisi dati", "Grafici Analitici",
+        # GRAFICI ANALITICI — stessa logica di calcolo, riskin coerente
+        # ============================================================
+        section_head(st, "Analisi dati", "Grafici analitici",
                      "Andamento storico e posizionamento della sessione odierna rispetto ai tuoi valori medi.")
 
         CHART_HEIGHT = 260
@@ -2052,14 +2163,15 @@ elif pagina == "CONSIGLIO FINALE":
         stress_vs_media = r['stress_lavoro'] - media_stress_90
         rpe_vs_media = r['rpe_previsto'] - media_rpe_90
 
-        figs_per_export = []   # per l'export HTML
-        insights_export = []   # per il testo del report (titolo, spiegazione)
+        figs_per_export = []
+        insights_export = []
 
-        def chart_card(container, titolo, fig, spiegazione):
+        def chart_card(container, titolo, fig, spiegazione, rule_color=C_NEUTRO):
             fig.update_xaxes(**axis_style)
             fig.update_yaxes(**axis_style)
             with container:
-                st.markdown(f"<div class='panel panel-flush'>", unsafe_allow_html=True)
+                st.markdown("<div class='panel panel-flush'>", unsafe_allow_html=True)
+                st.markdown(f"<div class='chart-top-rule' style='background:{rule_color};'></div>", unsafe_allow_html=True)
                 st.markdown(f"<div class='panel-body'><p class='panel-title'>{titolo}</p></div>", unsafe_allow_html=True)
                 st.plotly_chart(fig, use_container_width=True, config=config_pulita)
                 st.markdown(f"<div class='panel-body' style='padding-top:0;'><div class='chart-caption'>{spiegazione}</div></div>", unsafe_allow_html=True)
@@ -2084,7 +2196,7 @@ elif pagina == "CONSIGLIO FINALE":
 
             fig_t1 = go.Figure(go.Scatter(
                 x=df_plot['Data'], y=df_plot['Ore Sonno'], mode='lines',
-                line=dict(color=C_SONNO, width=2), fill='tozeroy', fillcolor='rgba(34,225,255,0.07)'
+                line=dict(color=C_SONNO, width=2), fill='tozeroy', fillcolor='rgba(78,201,240,0.08)'
             ))
             fig_t1.update_layout(**layout_base, yaxis_title="ore")
             spieg_sonno = (
@@ -2094,11 +2206,11 @@ elif pagina == "CONSIGLIO FINALE":
                 if trend_sonno > 0.3 else
                 "Il sonno è rimasto stabile nelle ultime settimane, senza variazioni significative."
             )
-            chart_card(r1c1, "Trend ore sonno — 90 giorni", fig_t1, spieg_sonno)
+            chart_card(r1c1, "Trend ore sonno — 90 giorni", fig_t1, spieg_sonno, C_SONNO)
 
             fig_t2 = go.Figure(go.Scatter(
                 x=df_plot['Data'], y=df_plot['Stress Lavoro'], mode='lines',
-                line=dict(color=C_STRESS, width=2), fill='tozeroy', fillcolor='rgba(255,106,77,0.07)'
+                line=dict(color=C_STRESS, width=2), fill='tozeroy', fillcolor='rgba(255,107,74,0.08)'
             ))
             fig_t2.update_layout(**layout_base, yaxis=dict(range=[0, 10], **axis_style), yaxis_title="punti")
             spieg_stress = (
@@ -2108,11 +2220,11 @@ elif pagina == "CONSIGLIO FINALE":
                 if trend_stress < -0.5 else
                 "Il livello di stress lavorativo è rimasto stabile nelle ultime settimane."
             )
-            chart_card(r1c2, "Trend stress lavoro — 90 giorni", fig_t2, spieg_stress)
+            chart_card(r1c2, "Trend stress lavoro — 90 giorni", fig_t2, spieg_stress, C_STRESS)
 
             fig_t3 = go.Figure(go.Scatter(
                 x=df_plot['Data'], y=df_plot['RPE'], mode='lines',
-                line=dict(color=C_RPE, width=2), fill='tozeroy', fillcolor='rgba(23,232,166,0.07)'
+                line=dict(color=C_RPE, width=2), fill='tozeroy', fillcolor='rgba(58,221,155,0.08)'
             ))
             fig_t3.update_layout(**layout_base, yaxis=dict(range=[0, 10], **axis_style), yaxis_title="punti")
             spieg_rpe = (
@@ -2122,7 +2234,7 @@ elif pagina == "CONSIGLIO FINALE":
                 if trend_rpe < -0.5 else
                 "Il carico percepito (RPE) è rimasto stabile nelle ultime settimane."
             )
-            chart_card(r1c3, "Trend RPE — 90 giorni", fig_t3, spieg_rpe)
+            chart_card(r1c3, "Trend RPE — 90 giorni", fig_t3, spieg_rpe, C_RPE)
 
             st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
         else:
@@ -2141,7 +2253,7 @@ elif pagina == "CONSIGLIO FINALE":
             f"Oggi il sonno è {abs(sonno_vs_media):.1f}h {'sotto' if sonno_vs_media < 0 else 'sopra'} la media storica."
             if abs(sonno_vs_media) > 0.3 else "Il sonno di oggi è sostanzialmente in linea con la media storica."
         )
-        chart_card(r2c1, "Ore sonno — oggi vs media", fig_b1, spieg_b1)
+        chart_card(r2c1, "Ore sonno — oggi vs media", fig_b1, spieg_b1, C_SONNO)
 
         fig_b2 = go.Figure(go.Bar(
             x=['Oggi', 'Media 90gg'], y=[r['stress_lavoro'], media_stress_90],
@@ -2153,7 +2265,7 @@ elif pagina == "CONSIGLIO FINALE":
             f"Lo stress di oggi è {abs(stress_vs_media):.1f} punti {'sotto' if stress_vs_media < 0 else 'sopra'} la media storica."
             if abs(stress_vs_media) > 0.5 else "Lo stress lavorativo di oggi è in linea con la media storica."
         )
-        chart_card(r2c2, "Stress lavoro — oggi vs media", fig_b2, spieg_b2)
+        chart_card(r2c2, "Stress lavoro — oggi vs media", fig_b2, spieg_b2, C_STRESS)
 
         fig_b3 = go.Figure(go.Bar(
             x=['Oggi', 'Media 90gg'], y=[r['rpe_previsto'], media_rpe_90],
@@ -2165,7 +2277,7 @@ elif pagina == "CONSIGLIO FINALE":
             f"Il carico percepito previsto è {abs(rpe_vs_media):.1f} punti {'sotto' if rpe_vs_media < 0 else 'sopra'} la media storica."
             if abs(rpe_vs_media) > 0.5 else "Il carico percepito previsto è in linea con la media storica."
         )
-        chart_card(r2c3, "RPE previsto — oggi vs media", fig_b3, spieg_b3)
+        chart_card(r2c3, "RPE previsto — oggi vs media", fig_b3, spieg_b3, C_RPE)
 
         st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
 
@@ -2175,7 +2287,7 @@ elif pagina == "CONSIGLIO FINALE":
         if all(c in df_base.columns for c in ['Stress Lavoro', 'RPE', 'Ore Sonno']):
             fig_scatter = px.scatter(
                 df_base, x='Stress Lavoro', y='RPE', color='Ore Sonno',
-                color_continuous_scale=[[0, '#3A4458'], [0.5, C_SONNO], [1, '#FFFFFF']]
+                color_continuous_scale=[[0, '#333D4E'], [0.5, C_SONNO], [1, '#FFFFFF']]
             )
             fig_scatter.update_traces(marker=dict(size=6, opacity=0.55))
             fig_scatter.add_trace(go.Scatter(
@@ -2184,7 +2296,7 @@ elif pagina == "CONSIGLIO FINALE":
             ))
             fig_scatter.update_layout(**layout_base, coloraxis_showscale=False, xaxis=dict(range=[0, 10], **axis_style), yaxis=dict(range=[0, 10], **axis_style))
             spieg_scatter = "Il punto in evidenza mostra la posizione della sessione odierna rispetto allo storico: più è in alto a destra, maggiore è il carico combinato di stress e sforzo percepito."
-            chart_card(r3c1, "Relazione stress vs RPE (storico)", fig_scatter, spieg_scatter)
+            chart_card(r3c1, "Relazione stress vs RPE (storico)", fig_scatter, spieg_scatter, C_VIOLA)
 
         fig_g1 = go.Figure(go.Indicator(
             mode="gauge+number", value=risk_score, number={'suffix': "%", 'font': {'color': col, 'size': 30}},
@@ -2192,12 +2304,12 @@ elif pagina == "CONSIGLIO FINALE":
                 'axis': {'range': [0, 100], 'tickcolor': TXT_TERTIARY, 'tickfont': {'size': 9}},
                 'bar': {'color': col, 'thickness': 0.28},
                 'bgcolor': PANEL_BG, 'borderwidth': 0,
-                'steps': [{'range': [0, 25], 'color': '#152018'}, {'range': [25, 60], 'color': '#241d10'}, {'range': [60, 100], 'color': '#2a1414'}]
+                'steps': [{'range': [0, 25], 'color': '#132019'}, {'range': [25, 60], 'color': '#241d10'}, {'range': [60, 100], 'color': '#2a1410'}]
             }
         ))
         fig_g1.update_layout(**layout_base)
         spieg_g1 = f"Probabilità stimata di infortunio o burnout in base ai parametri odierni. Livello attuale: {liv}."
-        chart_card(r3c2, "Indice di rischio", fig_g1, spieg_g1)
+        chart_card(r3c2, "Indice di rischio", fig_g1, spieg_g1, col)
 
         fig_g2 = go.Figure(go.Indicator(
             mode="gauge+number", value=recovery_score, number={'suffix': "%", 'font': {'color': C_RPE, 'size': 30}},
@@ -2205,12 +2317,12 @@ elif pagina == "CONSIGLIO FINALE":
                 'axis': {'range': [0, 100], 'tickcolor': TXT_TERTIARY, 'tickfont': {'size': 9}},
                 'bar': {'color': C_RPE, 'thickness': 0.28},
                 'bgcolor': PANEL_BG, 'borderwidth': 0,
-                'steps': [{'range': [0, 40], 'color': '#2a1414'}, {'range': [40, 75], 'color': '#241d10'}, {'range': [75, 100], 'color': '#152018'}]
+                'steps': [{'range': [0, 40], 'color': '#2a1410'}, {'range': [40, 75], 'color': '#241d10'}, {'range': [75, 100], 'color': '#132019'}]
             }
         ))
         fig_g2.update_layout(**layout_base)
         spieg_g2 = "Stima della qualità del recupero in base alle ore di sonno rispetto al target fisiologico di 7.5h."
-        chart_card(r3c3, "Recovery score", fig_g2, spieg_g2)
+        chart_card(r3c3, "Recovery score", fig_g2, spieg_g2, C_RPE)
 
         st.markdown("<div style='height:34px;'></div>", unsafe_allow_html=True)
 
@@ -2284,14 +2396,12 @@ elif pagina == "CONSIGLIO FINALE":
         st.markdown("<div style='height:34px;'></div>", unsafe_allow_html=True)
 
         # =========================================================
-        # EXPORT REPORT — versione testuale completa (TXT) e
-        # versione stilizzata completa (HTML) con tutti i consigli,
-        # le zone cardiache e le note di ogni grafico.
+        # EXPORT REPORT — TXT completo e HTML stilizzato, coerenti
+        # con il nuovo sistema (pista, corsie, split sheet).
         # =========================================================
         section_head(st, "Export", "Generazione report per coach",
-                     "Il report include l'intero protocollo, le zone cardiache, l'analisi vs media e le note di ogni grafico.")
+                     "Il report include l'intero protocollo, le corsie di frequenza, l'analisi vs media e le note di ogni grafico.")
 
-        # --- Costruzione testo coach in formato piano, riusando coach_content ---
         coach_txt = ""
         for nome_tab, contenuto in coach_content.items():
             coach_txt += f"\n[{nome_tab.upper()}]\n"
@@ -2300,7 +2410,7 @@ elif pagina == "CONSIGLIO FINALE":
                 for b in bullets:
                     coach_txt += f"    - {b}\n"
 
-        zone_txt = "\n".join(f"  - {zt} ({zn}): {zd}" for zt, zn, zd, _ in zone)
+        corsie_txt = "\n".join(f"  - {num} · {zt} ({zn}): {zd}" for num, zt, zn, zd, _ in corsie)
         grafici_txt = "\n".join(f"  - {t}: {s}" for t, s in insights_export)
 
         report_testo = f"""--- RUNAI PERFORMANCE REPORT ---
@@ -2315,8 +2425,8 @@ ANALISI VS MEDIA 90 GIORNI
   - Stress Lavoro: {r['stress_lavoro']}/10 (media {media_stress_90:.1f}/10, Δ {'+' if stress_vs_media>=0 else ''}{stress_vs_media:.1f})
   - RPE Previsto: {r['rpe_previsto']}/10 (media {media_rpe_90:.1f}/10, Δ {'+' if rpe_vs_media>=0 else ''}{rpe_vs_media:.1f})
 
-ZONE CARDIACHE CONSIGLIATE
-{zone_txt}
+CORSIE DI FREQUENZA CARDIACA CONSIGLIATE
+{corsie_txt}
 
 PROTOCOLLO COACH COMPLETO
 {coach_txt}
@@ -2326,12 +2436,12 @@ NOTE DEI GRAFICI ANALITICI
 Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
 --------------------------------"""
 
-        st.text_area("Testo Report Formattato:", value=report_testo, height=180)
+        st.text_area("Testo report formattato:", value=report_testo, height=180)
 
         colb1, colb2 = st.columns(2)
         with colb1:
             st.download_button(
-                "SCARICA REPORT TXT COMPLETO", data=report_testo,
+                "Scarica il report TXT completo", data=report_testo,
                 file_name="runai_report_allenamento.txt", mime="text/plain",
                 use_container_width=True
             )
@@ -2342,7 +2452,6 @@ Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
                 include_js = 'cdn' if i == 0 else False
                 charts_html += f.to_html(full_html=False, include_plotlyjs=include_js)
 
-            # Coach in HTML, riusando la stessa struttura dati
             coach_html = ""
             for nome_tab, contenuto in coach_content.items():
                 blocchi_html = ""
@@ -2351,12 +2460,14 @@ Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
                     blocchi_html += f"<div class='coach-block'><div class='label' style='color:{contenuto['colore']};'>{label}</div><ul>{bullets_html}</ul></div>"
                 coach_html += f"<div class='panel' style='margin-bottom:14px;'><p class='panel-title' style='margin-bottom:14px;'>{nome_tab}</p>{blocchi_html}</div>"
 
-            zone_html = "".join(
-                f"<div class='zone-chip' style='--zc:{zcol}; margin-bottom:10px;'><div class='zt'>{zt}</div><div class='zn'>{zn}</div><div class='zd'>{zd}</div></div>"
-                for zt, zn, zd, zcol in zone
+            corsie_html = "".join(
+                f"<div class='lane-chip' style='--zc:{zcol}; margin-bottom:10px;'><div class='lane-num'>{num}</div><div class='zt'>{zt}</div><div class='zn'>{zn}</div><div class='zd'>{zd}</div></div>"
+                for num, zt, zn, zd, zcol in corsie
             )
 
             insights_html = "".join(f"<p style='margin:0 0 8px 0; color:{TXT_SECONDARY}; font-size:.88em;'><strong style='color:{TXT_PRIMARY};'>{t}</strong> — {s}</p>" for t, s in insights_export)
+
+            pista_svg_export = disegna_pista(risk_score, C_RPE, C_AMBRA, C_STRESS, C_NEUTRO, C_CHALK, TXT_TERTIARY)
 
             report_html_completo = f"""<!DOCTYPE html>
 <html lang="it">
@@ -2364,24 +2475,28 @@ Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
 <meta charset="UTF-8">
 <title>RunAI Performance Report</title>
 <style>
-  body {{ background:#0B0F17; color:{TXT_SECONDARY}; font-family: Inter, sans-serif; padding: 36px; max-width:1100px; margin:0 auto; }}
-  h1 {{ color:{col}; font-weight:700; font-size:1.8em; margin-bottom:4px; }}
-  h2 {{ color:{TXT_PRIMARY}; font-weight:700; font-size:1.15em; margin:34px 0 14px 0; }}
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap');
+  body {{ background:#0A0E15; color:{TXT_SECONDARY}; font-family: Inter, sans-serif; padding: 36px; max-width:1100px; margin:0 auto; }}
+  h1 {{ color:{col}; font-family:'Oswald',sans-serif; font-weight:600; text-transform:uppercase; font-size:1.7em; margin-bottom:4px; }}
+  h2 {{ color:{TXT_PRIMARY}; font-family:'Oswald',sans-serif; font-weight:600; text-transform:uppercase; font-size:1.15em; margin:34px 0 14px 0; }}
   .eyebrow {{ font-family:'JetBrains Mono',monospace; font-size:.7em; letter-spacing:.14em; text-transform:uppercase; color:{TXT_TERTIARY}; margin:0 0 8px 0; font-weight:600; }}
-  .panel {{ background:{PANEL_BG}; border:1px solid {PANEL_BD}; border-radius:16px; padding:20px 22px; }}
+  .panel {{ background:{PANEL_BG}; border:1px solid {PANEL_BD}; border-radius:14px; padding:20px 22px; }}
+  .track-wrap {{ max-width:520px; margin:14px auto 0 auto; }}
   .kpi-row {{ display:flex; gap:14px; flex-wrap:wrap; margin-top:18px; }}
   .kpi-row .panel {{ flex:1 1 30%; min-width:200px; }}
   .kpi-row .val {{ font-family:'JetBrains Mono',monospace; font-size:1.7em; color:{TXT_PRIMARY}; font-weight:600; }}
   .coach-block {{ margin-bottom:14px; }}
-  .coach-block .label {{ font-family:'JetBrains Mono',monospace; font-size:.72em; letter-spacing:.1em; text-transform:uppercase; margin-bottom:8px; font-weight:600; }}
+  .coach-block .label {{ font-family:'Oswald',sans-serif; font-size:.85em; letter-spacing:.05em; text-transform:uppercase; margin-bottom:8px; font-weight:600; }}
   .coach-block ul {{ margin:0; padding-left:0; list-style:none; }}
   .coach-block li {{ position:relative; padding-left:16px; margin-bottom:6px; font-size:.9em; line-height:1.5; }}
-  .coach-block li::before {{ content:"›"; position:absolute; left:0; color:{TXT_TERTIARY}; font-weight:700; }}
-  .zone-grid {{ display:flex; gap:12px; flex-wrap:wrap; }}
-  .zone-chip {{ flex:1 1 28%; min-width:220px; background:{PANEL_BG}; border:1px solid {PANEL_BD}; border-left:3px solid var(--zc); border-radius:10px; padding:14px 16px; }}
-  .zone-chip .zt {{ font-family:'JetBrains Mono',monospace; font-size:.72em; letter-spacing:.08em; color:var(--zc); text-transform:uppercase; font-weight:700; }}
-  .zone-chip .zn {{ font-weight:600; color:{TXT_PRIMARY}; margin:4px 0 6px 0; font-size:.95em; }}
-  .zone-chip .zd {{ color:{TXT_SECONDARY}; font-size:.85em; line-height:1.4; }}
+  .coach-block li::before {{ content:"—"; position:absolute; left:0; color:{TXT_TERTIARY}; font-weight:700; }}
+  .lane-grid {{ display:flex; gap:12px; flex-wrap:wrap; }}
+  .lane-chip {{ flex:1 1 28%; min-width:220px; background:{PANEL_BG}; border:1px solid {PANEL_BD}; border-radius:10px; padding:14px 16px; position:relative; overflow:hidden; }}
+  .lane-chip::before {{ content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--zc); }}
+  .lane-chip .lane-num {{ font-family:'Oswald',sans-serif; font-weight:600; font-size:1.4em; color:var(--zc); }}
+  .lane-chip .zt {{ font-family:'JetBrains Mono',monospace; font-size:.7em; letter-spacing:.08em; color:{TXT_TERTIARY}; text-transform:uppercase; font-weight:600; }}
+  .lane-chip .zn {{ font-weight:600; color:{TXT_PRIMARY}; margin:6px 0 6px 0; font-size:.95em; }}
+  .lane-chip .zd {{ color:{TXT_SECONDARY}; font-size:.85em; line-height:1.4; }}
   .charts-grid {{ display:flex; flex-wrap:wrap; gap:16px; }}
   .charts-grid > div {{ flex: 1 1 30%; min-width:280px; background:{PANEL_BG}; border:1px solid {PANEL_BD}; border-radius:12px; padding:10px; }}
 </style>
@@ -2389,6 +2504,7 @@ Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
 <body>
   <p class="eyebrow">RunAI Performance Report</p>
   <h1>{tit}</h1>
+  <div class="track-wrap">{pista_svg_export}</div>
 
   <div class="kpi-row">
     <div class="panel"><p class="eyebrow">Distanza Consigliata</p><div class="val">{distanza_consigliata:.1f} km</div><p>su {distanza_target} km desiderati</p></div>
@@ -2396,34 +2512,33 @@ Note Atleta: {r.get('nota_soggettiva', 'Nessuna nota')}
     <div class="panel"><p class="eyebrow">Recovery Score</p><div class="val" style="color:{C_RPE};">{recovery_score:.0f}%</div><p>SMA: {sma:.1f}</p></div>
   </div>
 
-  <h2>Analisi vs Media 90 Giorni</h2>
+  <h2>Analisi vs media 90 giorni</h2>
   <div class="kpi-row">
     <div class="panel"><p class="eyebrow">Ore Sonno</p><div class="val">{r['ore_sonno']:.1f}h</div><p>media {media_sonno_90:.1f}h · Δ {'+' if sonno_vs_media>=0 else ''}{sonno_vs_media:.1f}h</p></div>
     <div class="panel"><p class="eyebrow">Stress Lavoro</p><div class="val">{r['stress_lavoro']}/10</div><p>media {media_stress_90:.1f}/10 · Δ {'+' if stress_vs_media>=0 else ''}{stress_vs_media:.1f}</p></div>
     <div class="panel"><p class="eyebrow">RPE Previsto</p><div class="val">{r['rpe_previsto']}/10</div><p>media {media_rpe_90:.1f}/10 · Δ {'+' if rpe_vs_media>=0 else ''}{rpe_vs_media:.1f}</p></div>
   </div>
 
-  <h2>Zone Cardiache Consigliate</h2>
-  <div class="zone-grid">{zone_html}</div>
+  <h2>Corsie di frequenza cardiaca consigliate</h2>
+  <div class="lane-grid">{corsie_html}</div>
 
-  <h2>Protocollo Coach Completo</h2>
+  <h2>Protocollo coach completo</h2>
   {coach_html}
 
-  <h2>Grafici Analitici</h2>
+  <h2>Grafici analitici</h2>
   <div class="charts-grid">{charts_html}</div>
   <div style="margin-top:16px;">{insights_html}</div>
 
-  <h2>Note Atleta</h2>
+  <h2>Note atleta</h2>
   <p>{r.get('nota_soggettiva', 'Nessuna nota')}</p>
 </body>
 </html>"""
 
             st.download_button(
-                "SCARICA REPORT COMPLETO (HTML)", data=report_html_completo,
+                "Scarica il report completo (HTML)", data=report_html_completo,
                 file_name="runai_report_completo.html", mime="text/html",
                 use_container_width=True
             )
-
 # ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
