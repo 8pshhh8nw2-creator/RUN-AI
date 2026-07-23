@@ -12,7 +12,7 @@ from utils.components import header_block, get_svg_url
 st.set_page_config(page_title="Consiglio Finale", layout="wide")
 carica_css()
 
-# Alias rapido per pulire il codice
+# Funzione di utilità per renderizzare HTML in modo sicuro
 def md(text):
     st.markdown(text, unsafe_allow_html=True)
 
@@ -33,7 +33,6 @@ else:
     df = df_full
     filtro_tempo = "Ultimi 30 giorni"
 
-# Header della pagina
 header_block(
     "Modulo 05 — Sintesi Operativa",
     "CONSIGLIO FINALE E REPORT GIORNALIERO",
@@ -88,12 +87,6 @@ else:
     }}
     .section-head .sub {{ color:{TXT_SECONDARY}; font-size:.9rem; font-family:'Inter',sans-serif; margin-top:4px; }}
     .section-head .rule {{ flex:1; height:1px; background: linear-gradient(90deg, {PANEL_BD} 0%, transparent 100%); align-self:center; }}
-
-    .kv-num {{ font-family:'JetBrains Mono',monospace; color:{TXT_PRIMARY}; font-weight:700; }}
-    .badge {{
-        display:inline-block; font-family:'JetBrains Mono',monospace; font-size:.65rem;
-        letter-spacing:.1em; text-transform:uppercase; padding:4px 10px; border-radius:4px; font-weight:700;
-    }}
 
     .coach-block {{ margin-bottom: 22px; background: rgba(255,255,255,0.02); padding: 16px; border-radius: 8px; border-left: 3px solid var(--block-color); }}
     .coach-block:last-child {{ margin-bottom: 0; }}
@@ -328,7 +321,7 @@ else:
             "blocchi": [
                 ("Gestione Biomeccanica e Pacing", [
                     f"Frequenza passi (Cadenza): {cadenza_target}. Aumentare la frequenza del 5% riduce il carico sulle ginocchia del 20%.",
-                    "Postura: Busto leggermente inclinato in avanti partendo dalle caviglie (not dalla vita). Sguardo a 20 metri, mai ai piedi.",
+                    "Postura: Busto leggermente inclinato in avanti partendo dalle caviglie (non dalla vita). Sguardo a 20 metri, mai ai piedi.",
                     "Rilassa mani e mascella: la tensione nel volto si trasmette istantaneamente alla catena muscolare posteriore."
                 ]),
                 ("Gestione Sforzo e Sicurezza", [
