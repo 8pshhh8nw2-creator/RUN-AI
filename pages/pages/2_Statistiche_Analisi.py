@@ -1,3 +1,33 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+
+from utils.style import carica_css
+from utils.data import genera_dati
+from utils.components import header_block, style_fig, get_svg_url, SVG_STATS
+st.set_page_config(page_title="Statistiche Analisi", layout="wide")
+carica_css()
+
+if 'dati' not in st.session_state:
+    st.session_state.dati = genera_dati()
+
+IMG_HERO_STATS = get_svg_url(SVG_STATS)
+
+# ricrea il filtro temporale (sidebar)
+with st.sidebar:
+    st.subheader("Filtri Temporali Storico")
+    filtro_tempo = st.selectbox("Intervallo Analisi:", ["Ultimi 30 giorni", "Ultimi 60 giorni", "Ultimi 90 giorni (Tutto)"], label_visibility="collapsed")
+
+df_full = st.session_state.dati.copy()
+if filtro_tempo == "Ultimi 30 giorni":
+    df = df_full.tail(30)
+elif filtro_tempo == "Ultimi 60 giorni":
+    df = df_full.tail(60)
+else:
+    df = df_full
+
+
 # ---------------------------------------------------------
 # PAGINA 2: STATISTICHE ANALISI
 # ---------------------------------------------------------
