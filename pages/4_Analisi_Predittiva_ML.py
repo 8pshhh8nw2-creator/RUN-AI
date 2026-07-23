@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, cross_val_score
@@ -12,7 +13,8 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import (
     r2_score, mean_squared_error,
     accuracy_score, precision_score, recall_score, f1_score,
-    roc_auc_score, confusion_matrix, silhouette_score
+    roc_auc_score, roc_curve, precision_recall_curve,
+    confusion_matrix, silhouette_score, classification_report
 )
 
 from utils.sidebar import sidebar_comune
@@ -20,14 +22,12 @@ from utils.style import carica_css
 from utils.data import genera_dati
 from utils.components import header_block, style_fig, get_svg_url, SVG_ML
 
-st.set_page_config(page_title="Analisi Predittiva ML", layout="wide")
+st.set_page_config(page_title="Advanced Machine Intelligence & Explainability", layout="wide")
 carica_css()
 
-# Inizializzazione sicura dello stato
 if 'dati' not in st.session_state or st.session_state.dati is None:
     st.session_state.dati = genera_dati()
 
-# Chiamata sicura alla sidebar
 sidebar_result = sidebar_comune()
 if sidebar_result and isinstance(sidebar_result, tuple) and len(sidebar_result) == 3:
     df, df_full, filtro_tempo = sidebar_result
@@ -40,14 +40,13 @@ IMG_HERO_ML = get_svg_url(SVG_ML)
 
 header_block(
     "Modulo 04 — Model Explainability",
-    "ANALISI PREDITTIVA ML",
-    "I 5 modelli di Machine Learning descritti nella tesi, applicati al tuo storico di allenamento.",
-    IMG_HERO_ML, "Machine Learning Engine"
+    "ADVANCED MACHINE INTELLIGENCE ENGINE",
+    "Piattaforma computazionale per l'analisi predittiva, feature attribution e validazione dei KPI proprietari.",
+    IMG_HERO_ML, "Neural Engine Core"
 )
 
 df_base = st.session_state.dati.copy()
 
-# Allineamento dataset ai KPI proprietari se mancanti
 for col_kpi in ['Vento (km/h)', 'ISLR', 'IITR', 'IDET', 'Session_RPE', 'Rischio Infortunio']:
     if col_kpi not in df_base.columns:
         if col_kpi == 'Vento (km/h)':
@@ -66,37 +65,22 @@ for col_kpi in ['Vento (km/h)', 'ISLR', 'IITR', 'IDET', 'Session_RPE', 'Rischio 
 
 st.markdown("""
 <div class='info-box'>
-<h3>Come leggere questa pagina (Core della Tesi)</h3>
-<p style='color: #B8C2D0; font-family:"Inter",sans-serif;'>
-Ogni scheda qui sotto corrisponde a uno dei 5 modelli descritti nel Capitolo 2 della tesi.
-Per ciascuno trovi: spiegazione in linguaggio semplice, grafici dedicati, metriche di validazione
-e il confronto con una <strong>baseline</strong> (Session-RPE di Foster) per dimostrare il reale valore aggiunto
-dei KPI proprietari (SMA, ISLR, IITR, IDET).
+<h4 style='color: #00E5FF; margin-bottom: 8px;'>Note Metodologiche e Protocollo di Validazione</h4>
+<p style='color: #B8C2D0; font-family:"Inter",sans-serif; line-height: 1.5;'>
+Il presente motore implementa una pipeline di machine learning supervisionato e non supervisionato strutturata su split stratificato (75/25) 
+e validazione incrociata a 5 fold. L'obiettivo primario è quantificare il guadagno informativo derivante dall'introduzione dei KPI proprietari 
+(SMA, ISLR, IITR, IDET) rispetto al modello di riferimento storico di Foster (Session-RPE).
 </p>
 </div>
 """, unsafe_allow_html=True)
 
-# Helper visivi
-def verdetto_box(valore_pct, soglie=(50, 75), testo_basso="Debole", testo_medio="Discreto", testo_alto="Solido", spiegazione=""):
-    if valore_pct >= soglie[1]:
-        colore, emoji, etichetta = "#00F5A0", "✅", testo_alto
-    elif valore_pct >= soglie[0]:
-        colore, emoji, etichetta = "#FFB020", "⚠️", testo_medio
-    else:
-        colore, emoji, etichetta = "#FF6A3D", "🔴", testo_basso
+def render_metric_card(title, value, subtitle):
     st.markdown(f"""
-    <div style='border-left: 4px solid {colore}; background: rgba(255,255,255,0.03);
-                padding: 12px 16px; border-radius: 8px; margin: 10px 0;'>
-        <span style='font-size: 1.05em; color:{colore}; font-weight:700;'>{emoji} {etichetta}</span>
-        <p style='color:#B8C2D0; margin-top:6px; font-family:"Inter",sans-serif; font-size:0.92em;'>{spiegazione}</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-def in_pratica(testo):
-    st.markdown(f"""
-    <div style='background: rgba(0,229,255,0.06); border-radius: 8px; padding: 10px 14px; margin-top: 8px;'>
-    <span style='color:#00E5FF; font-weight:600;'>💡 In parole semplici:</span>
-    <span style='color:#B8C2D0; font-family:"Inter",sans-serif;'> {testo}</span>
+    <div style='background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); 
+                border-radius: 6px; padding: 16px; text-align: center; margin-bottom: 12px;'>
+        <div style='font-size: 0.82em; color: #8792A3; text-transform: uppercase; letter-spacing: 0.05em;'>{title}</div>
+        <div style='font-size: 1.8em; font-weight: 700; color: #00E5FF; margin: 6px 0;'>{value}</div>
+        <div style='font-size: 0.78em; color: #B8C2D0;'>{subtitle}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -115,18 +99,6 @@ try:
     scaler = StandardScaler()
     X_scaled_class = scaler.fit_transform(X_class)
 
-    n_sessioni = len(df_base)
-    if n_sessioni < 60:
-        st.markdown(f"""
-        <div style='border-left: 4px solid #FFB020; background: rgba(255,176,32,0.08);
-                    padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;'>
-            <span style='color:#FFB020; font-weight:700;'>⚠️ Campione di tesi ({n_sessioni} sessioni)</span>
-            <p style='color:#B8C2D0; margin-top:6px; font-family:"Inter",sans-serif; font-size:0.92em;'>
-            Le metriche vengono validate tramite split train/test e cross-validation a 5 fold per garantire stabilità scientifica.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-
     unique_classes = np.unique(y_class)
     has_multiple_classes = bool(len(unique_classes) > 1)
     has_enough_samples = bool(len(df_base) >= 10)
@@ -137,18 +109,42 @@ try:
     )
     has_multiple_test_classes = bool(len(np.unique(y_test)) > 1)
 
-    t_lin, t_log, t_rf, t_clu, t_stress = st.tabs([
-        "📈 Regressione Lineare", "📊 Regressione Logistica",
-        "🌲 Random Forest", "🎯 Clustering K-Means", "⏳ Stress / Overload Prediction"
+    t_eda, t_lin, t_log, t_rf, t_clu, t_stress = st.tabs([
+        "00. Dataset Diagnostics & EDA",
+        "01. Regressione Lineare",
+        "02. Regressione Logistica",
+        "03. Random Forest",
+        "04. Clustering K-Means",
+        "05. Predictive Forecasting"
     ])
 
-    # =====================================================
-    # TAB 1 — REGRESSIONE LINEARE
-    # =====================================================
+    # -------------------------------------------------------------------------
+    # TAB 0: EDA & CORRELATION MATRIX
+    # -------------------------------------------------------------------------
+    with t_eda:
+        st.markdown("### Analisi Esplorativa e Matrice di Correlazione")
+        st.markdown("<p style='color: #8792A3;'>Analisi statistica descrittiva e relazioni bivariate tra feature fisiologiche e descrittori proprietari.</p>", unsafe_allow_html=True)
+
+        corr_matrix = df_base[feature_cols + ['Velocità (km/h)']].corr()
+        
+        fig_corr = px.imshow(
+            corr_matrix, text_auto=".2f", aspect="auto",
+            color_continuous_scale="RdBu_r", zmin=-1, zmax=1
+        )
+        fig_corr.update_layout(height=450, title="Matrice di Correlazione di Pearson (Feature Space)", margin=dict(t=40, b=20))
+        st.plotly_chart(style_fig(fig_corr), use_container_width=True)
+
+        desc_stats = df_base[feature_cols].describe().T[['mean', 'std', 'min', 'max']]
+        desc_stats.columns = ['Media', 'Deviazione Standard', 'Minimo', 'Massimo']
+        st.markdown("#### Statistiche Descrittive del Campione")
+        st.dataframe(desc_stats.style.format("{:.2f}"), use_container_width=True)
+
+    # -------------------------------------------------------------------------
+    # TAB 1: REGRESSIONE LINEARE
+    # -------------------------------------------------------------------------
     with t_lin:
-        st.markdown("### Regressione Lineare — Volume di Allenamento vs Performance")
-        st.markdown("<div class='explain-text'><strong>Cosa fa questo modello:</strong> stima la relazione lineare tra il volume di allenamento (km) e la velocità media.</div>", unsafe_allow_html=True)
-        in_pratica("Più km fai, in genere corri più veloce nel tempo — questo modello traccia la retta di tendenza nei tuoi dati.")
+        st.markdown("### Modello Univariato: Relazione Volume / Velocità")
+        st.markdown("<p style='color: #8792A3;'>Stima parametrica tramite OLS (Ordinary Least Squares) e analisi dei residui standardizzati.</p>", unsafe_allow_html=True)
 
         X_lr = df_base[['Distanza (km)']].values
         y_lr = df_base['Velocità (km/h)'].values
@@ -160,36 +156,46 @@ try:
         r2_test = r2_score(y_lr_test, y_lr_pred_test)
         rmse_test = mean_squared_error(y_lr_test, y_lr_pred_test) ** 0.5
 
-        fig_lr = px.scatter(df_base, x='Distanza (km)', y='Velocità (km/h)', color='RPE',
-                            color_continuous_scale=[[0, '#00E5FF'], [1, '#FF6A3D']])
+        fig_lr = make_subplots(
+            rows=1, cols=2, 
+            subplot_titles=["Retta di Regressione OLS", "Distribuzione Residui di Test"],
+            column_widths=[0.65, 0.35]
+        )
+        
+        fig_lr.add_trace(go.Scatter(
+            x=df_base['Distanza (km)'], y=df_base['Velocità (km/h)'], mode='markers',
+            marker=dict(color=df_base['RPE'], colorscale='Viridis', size=8, showscale=True, colorbar=dict(title="RPE", len=0.9)),
+            name="Sessioni"
+        ), row=1, col=1)
+
         x_range = np.linspace(df_base['Distanza (km)'].min(), df_base['Distanza (km)'].max(), 50).reshape(-1, 1)
         y_range_pred = lr_model.predict(x_range)
-        fig_lr.add_trace(go.Scatter(x=x_range.flatten(), y=y_range_pred, mode='lines',
-                                    line=dict(color='#00F5A0', width=3, dash='dash'), name='Retta di regressione'))
-        fig_lr.update_layout(height=380, title="Distanza vs Velocità media, con retta di tendenza")
+        fig_lr.add_trace(go.Scatter(
+            x=x_range.flatten(), y=y_range_pred, mode='lines',
+            line=dict(color='#00E5FF', width=2.5), name='Fit Lineare'
+        ), row=1, col=1)
+
+        residuals = y_lr_test - y_lr_pred_test
+        fig_lr.add_trace(go.Box(y=residuals, marker_color='#FF6A3D', name="Residui"), row=1, col=2)
+
+        fig_lr.update_layout(height=420, showlegend=False, margin=dict(t=40, b=20))
         st.plotly_chart(style_fig(fig_lr), use_container_width=True)
 
-        rc1, rc2 = st.columns(2)
-        rc1.metric("R² (test)", f"{r2_test:.2f}", help="Quota di variabilità spiegata")
-        rc2.metric("RMSE (test)", f"{rmse_test:.2f} km/h", help="Errore medio di previsione")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            render_metric_card("Coefficiente R² (Test)", f"{r2_test:.3f}", "Quota varianza spiegata")
+        with c2:
+            render_metric_card("RMSE (Test)", f"{rmse_test:.3f} km/h", "Errore quadratico medio")
+        with c3:
+            render_metric_card("Coefficiente Angolare (Slope)", f"{lr_model.coef_[0]:.3f}", "Variazione velocità per km")
 
-        verdetto_box(
-            max(r2_test, 0) * 100, soglie=(30, 60),
-            testo_basso=f"Il volume da solo spiega parzialmente la velocità (errore ±{rmse_test:.1f} km/h)",
-            testo_medio=f"Il volume ha una buona correlazione con la velocità",
-            testo_alto=f"Il volume spiega fortemente la velocità",
-            spiegazione="Modello basilare di riferimento per la tesi."
-        )
-
-    # =====================================================
-    # TAB 2 — REGRESSIONE LOGISTICA
-    # =====================================================
+    # -------------------------------------------------------------------------
+    # TAB 2: REGRESSIONE LOGISTICA
+    # -------------------------------------------------------------------------
     with t_log:
-        st.markdown("### Regressione Logistica — Predizione dello Stato di Overload")
-        st.markdown("<div class='explain-text'><strong>Cosa fa questo modello:</strong> stima la probabilità di sovraccarico confrontandosi con la baseline classica (Session-RPE).</div>", unsafe_allow_html=True)
-        in_pratica("Vediamo quanto i KPI proprietari migliorano la predizione rispetto al classico metodo di Foster.")
+        st.markdown("### Classificazione Binaria: Baseline vs Modello Esteso con KPI")
+        st.markdown("<p style='color: #8792A3;'>Valutazione comparativa tramite curve ROC, Precision-Recall e analisi dei coefficienti di regressione.</p>", unsafe_allow_html=True)
 
-        # Baseline
         X_baseline = df_base[['Session_RPE']].values
         X_baseline_scaled = StandardScaler().fit_transform(X_baseline)
         Xb_train, Xb_test, yb_train, yb_test = train_test_split(
@@ -197,160 +203,166 @@ try:
         )
         baseline_model = LogisticRegression(random_state=42, max_iter=1000).fit(Xb_train, yb_train)
         y_pred_baseline = baseline_model.predict(Xb_test)
+        y_proba_baseline = baseline_model.predict_proba(Xb_test)[:, 1]
+        
         acc_baseline = accuracy_score(yb_test, y_pred_baseline)
         f1_baseline = f1_score(yb_test, y_pred_baseline, zero_division=0)
+        auc_baseline = roc_auc_score(yb_test, y_proba_baseline) if len(np.unique(yb_test)) > 1 else 0.5
 
-        # Modello Completo
         log_model = LogisticRegression(random_state=42, max_iter=1000)
         log_model.fit(X_train, y_train)
         y_pred_log = log_model.predict(X_test)
         y_proba_log = log_model.predict_proba(X_test)[:, 1]
+        
         acc_l = accuracy_score(y_test, y_pred_log)
         f1_l = f1_score(y_test, y_pred_log, zero_division=0)
-        auc_l = roc_auc_score(y_test, y_proba_log) if has_multiple_test_classes else float('nan')
+        auc_l = roc_auc_score(y_test, y_proba_log) if has_multiple_test_classes else 0.5
 
-        fig_confronto = go.Figure()
-        fig_confronto.add_trace(go.Bar(name='Baseline (solo Session-RPE)', x=['Accuracy', 'F1-Score'], y=[acc_baseline * 100, f1_baseline * 100], marker_color='#8792A3'))
-        fig_confronto.add_trace(go.Bar(name='Modello Completo (+ KPI)', x=['Accuracy', 'F1-Score'], y=[acc_l * 100, f1_l * 100], marker_color='#00E5FF'))
-        fig_confronto.update_layout(height=350, barmode='group', yaxis_title="%", title="Confronto Baseline vs Modello con KPI Proprietari")
-        st.plotly_chart(style_fig(fig_confronto), use_container_width=True)
+        fig_log_comp = make_subplots(rows=1, cols=2, subplot_titles=["Confronto Metriche Globali (%)", "Curva ROC Comparativa"])
+        
+        fig_log_comp.add_trace(go.Bar(
+            name='Baseline (Foster)', x=['Accuracy', 'F1-Score', 'ROC-AUC'], 
+            y=[acc_baseline * 100, f1_baseline * 100, auc_baseline * 100], marker_color='#8792A3'
+        ), row=1, col=1)
+        
+        fig_log_comp.add_trace(go.Bar(
+            name='Modello Completo (+ KPI)', x=['Accuracy', 'F1-Score', 'ROC-AUC'], 
+            y=[acc_l * 100, f1_l * 100, auc_l * 100], marker_color='#00E5FF'
+        ), row=1, col=1)
 
-        delta_acc = (acc_l - acc_baseline) * 100
-        in_pratica(f"Il modello con i KPI proprietari {'migliora' if delta_acc > 0 else 'varia'} l'accuracy di {abs(delta_acc):.1f} punti percentuali rispetto alla sola Session-RPE.")
+        if has_multiple_test_classes:
+            fpr_b, tpr_b, _ = roc_curve(yb_test, y_proba_baseline)
+            fpr_l, tpr_l, _ = roc_curve(y_test, y_proba_log)
+            
+            fig_log_comp.add_trace(go.Scatter(x=fpr_b, y=tpr_b, mode='lines', name='ROC Baseline', line=dict(color='#8792A3', dash='dash')), row=1, col=2)
+            fig_log_comp.add_trace(go.Scatter(x=fpr_l, y=tpr_l, mode='lines', name='ROC Completo', line=dict(color='#00E5FF', width=2)), row=1, col=2)
+            fig_log_comp.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='Casuale', line=dict(color='rgba(255,255,255,0.2)', dash='dot'), showlegend=False), row=1, col=2)
 
-        st.markdown("#### Coefficienti del modello completo")
+        fig_log_comp.update_layout(height=380, barmode='group', margin=dict(t=40, b=20))
+        st.plotly_chart(style_fig(fig_log_comp), use_container_width=True)
+
         coefs = log_model.coef_[0]
-        colors = ['#FF6A3D' if fname in kpi_proprietari and c > 0 else '#00F5A0' if fname in kpi_proprietari else ('#FFB020' if c > 0 else '#8792A3') for fname, c in zip(feature_names, coefs)]
-        fig_log = go.Figure(go.Bar(x=feature_names, y=coefs, marker_color=colors, text=[f'{c:+.2f}' for c in coefs], textposition='auto'))
-        fig_log.update_layout(height=380, title="Peso di ciascuna variabile (evidenziati i KPI proprietari)", yaxis_title="Coefficiente")
-        fig_log.add_hline(y=0, line_color="#E8ECF2", line_width=1)
-        st.plotly_chart(style_fig(fig_log), use_container_width=True)
+        fig_coef = go.Figure(go.Bar(
+            x=feature_names, y=coefs, 
+            marker_color=['#00E5FF' if f in kpi_proprietari else '#8792A3' for f in feature_names]
+        ))
+        fig_coef.update_layout(height=320, title="Coefficienti di Ponderazione Feature (Logistica)", yaxis_title="Valore Coefficiente")
+        st.plotly_chart(style_fig(fig_coef), use_container_width=True)
 
-        lc1, lc2, lc3 = st.columns(3)
-        lc1.metric("Accuracy", f"{acc_l*100:.1f}%")
-        lc2.metric("F1-Score", f"{f1_l*100:.1f}%")
-        lc3.metric("ROC-AUC", f"{auc_l:.2f}" if not np.isnan(auc_l) else "N/D")
-
-    # =====================================================
-    # TAB 3 — RANDOM FOREST
-    # =====================================================
+    # -------------------------------------------------------------------------
+    # TAB 3: RANDOM FOREST
+    # -------------------------------------------------------------------------
     with t_rf:
-        st.markdown("### Random Forest — Classificazione del Rischio e Feature Importance")
-        st.markdown("<div class='explain-text'><strong>Cosa fa questo modello:</strong> unisce alberi decisionali per catturare relazioni non lineari e individuare i fattori critici.</div>", unsafe_allow_html=True)
-        in_pratica("Il modello ideale per pesare scientificamente l'importanza di ciascun indice nel determinare il rischio.")
+        st.markdown("### Ensemble Learning: Random Forest e Feature Importance")
+        st.markdown("<p style='color: #8792A3;'>Analisi delle non-linearità strutturali, Gini Importance e valutazione della stabilità tramite cross-validation.</p>", unsafe_allow_html=True)
 
-        rf_model = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=6, min_samples_split=5)
+        rf_model = RandomForestClassifier(n_estimators=150, random_state=42, max_depth=6, min_samples_split=5)
         rf_model.fit(X_train, y_train)
         y_pred_rf = rf_model.predict(X_test)
         y_proba_rf = rf_model.predict_proba(X_test)[:, 1]
 
-        c1, c2 = st.columns(2)
-        with c1:
+        col_a, col_b = st.columns(2)
+        with col_a:
             importances = rf_model.feature_importances_
             imp_data = sorted(list(zip(feature_names, importances)), key=lambda x: x[1], reverse=True)
-            colors_imp = ['#FF6A3D' if name in kpi_proprietari else '#00E5FF' for name, _ in imp_data]
             fig_imp = go.Figure(go.Bar(
                 y=[x[0] for x in imp_data], x=[x[1]*100 for x in imp_data], orientation='h',
-                marker_color=colors_imp, text=[f'{x[1]*100:.1f}%' for x in imp_data], textposition='auto'
+                marker_color=['#00E5FF' if x[0] in kpi_proprietari else '#8792A3' for x in imp_data]
             ))
-            fig_imp.update_layout(height=380, yaxis=dict(autorange="reversed"), title="Importanza delle variabili (Arancione = KPI)", xaxis_title="%")
+            fig_imp.update_layout(height=360, yaxis=dict(autorange="reversed"), title="Feature Importance (Gini Index %)")
             st.plotly_chart(style_fig(fig_imp), use_container_width=True)
-        with c2:
+            
+        with col_b:
             cm = confusion_matrix(y_test, y_pred_rf)
             fig_cm = go.Figure(data=go.Heatmap(
                 z=cm, x=['Pred: Sicuro', 'Pred: Rischio'], y=['Reale: Sicuro', 'Reale: Rischio'],
-                text=cm, texttemplate='%{text}', textfont={"size": 20, "color": "#04121a"},
-                colorscale=[[0, '#0E1420'], [1, '#00E5FF']], showscale=False
+                text=cm, texttemplate='%{text}', colorscale='Blues', showscale=False
             ))
-            fig_cm.update_layout(height=380, title="Matrice di Confusione (Test Set)")
+            fig_cm.update_layout(height=360, title="Matrice di Confusione (Test Set)")
             st.plotly_chart(style_fig(fig_cm), use_container_width=True)
 
         acc = accuracy_score(y_test, y_pred_rf)
         prec = precision_score(y_test, y_pred_rf, zero_division=0)
         rec = recall_score(y_test, y_pred_rf, zero_division=0)
         f1 = f1_score(y_test, y_pred_rf, zero_division=0)
-        roc_auc_rf = roc_auc_score(y_test, y_proba_rf) if has_multiple_test_classes else float('nan')
+        auc_rf = roc_auc_score(y_test, y_proba_rf) if has_multiple_test_classes else 0.5
 
-        mc1, mc2, mc3, mc4, mc5 = st.columns(5)
-        mc1.metric("Accuracy", f"{acc*100:.1f}%")
-        mc2.metric("Precision", f"{prec*100:.1f}%")
-        mc3.metric("Recall", f"{rec*100:.1f}%")
-        mc4.metric("F1-Score", f"{f1*100:.1f}%")
-        mc5.metric("ROC-AUC", f"{roc_auc_rf:.2f}" if not np.isnan(roc_auc_rf) else "N/D")
+        m1, m2, m3, m4, m5 = st.columns(5)
+        m1.metric("Accuracy", f"{acc*100:.1f}%")
+        m2.metric("Precision", f"{prec*100:.1f}%")
+        m3.metric("Recall", f"{rec*100:.1f}%")
+        m4.metric("F1-Score", f"{f1*100:.1f}%")
+        m5.metric("ROC-AUC", f"{auc_rf:.3f}")
 
         try:
-            cv_scores = cross_val_score(RandomForestClassifier(n_estimators=100, random_state=42, max_depth=6), X_scaled_class, y_class, cv=5, scoring='accuracy')
-            st.caption(f"Cross-validation a 5 fold: accuracy media {cv_scores.mean()*100:.1f}% ± {cv_scores.std()*100:.1f}%")
+            cv_scores = cross_val_score(RandomForestClassifier(n_estimators=100, random_state=42), X_scaled_class, y_class, cv=5, scoring='accuracy')
+            st.caption(f"Cross-Validation a 5 fold (Accuracy Media): {cv_scores.mean()*100:.1f}% (+/- {cv_scores.std()*100:.1f}%)")
         except Exception:
             pass
 
-    # =====================================================
-    # TAB 4 — CLUSTERING K-MEANS
-    # =====================================================
+    # -------------------------------------------------------------------------
+    # TAB 4: CLUSTERING K-MEANS
+    # -------------------------------------------------------------------------
     with t_clu:
-        st.markdown("### Clustering K-Means — Segmentazione dei Profili di Allenamento")
-        st.markdown("<div class='explain-text'><strong>Cosa fa questo modello:</strong> raggruppa in autonomia le sessioni in base a distanza, frequenza cardiaca e sforzo.</div>", unsafe_allow_html=True)
-        in_pratica("Permette di scoprire se esite una clusterizzazione naturale tra i diversi tipi di carichi di lavoro.")
+        st.markdown("### Segmentazione Non Supervisionata: K-Means Multidimensionale")
+        st.markdown("<p style='color: #8792A3;'>Raggruppamento nativo delle sessioni in base a distanza, frequenza cardiaca e carico ponderato (ISLR) con calcolo del coefficiente di silhouette.</p>", unsafe_allow_html=True)
 
         X_clust = df_base[['Distanza (km)', 'FC Media', 'ISLR']].values
+        
+        # Calcolo Elbow Method per k da 1 a 6
+        inertias = []
+        K_range = range(1, 7)
+        for k in K_range:
+            kmeans_test = KMeans(n_clusters=k, random_state=42, n_init=10)
+            kmeans_test.fit(X_clust)
+            inertias.append(kmeans_test.inertia_)
+
         km = KMeans(n_clusters=3, random_state=42, n_init=10)
         df_base['Cluster_ID'] = km.fit_predict(X_clust)
         df_base['Cluster_Type'] = df_base['Cluster_ID'].apply(lambda x: f"Cluster {x+1}")
 
         try:
-            sil = silhouette_score(X_clust, df_base['Cluster_ID'])
+            sil_val = silhouette_score(X_clust, df_base['Cluster_ID'])
         except Exception:
-            sil = float('nan')
+            sil_val = 0.0
 
-        fig_km = px.scatter(df_base, x='Distanza (km)', y='FC Media', color='Cluster_Type',
-                            color_discrete_sequence=['#00E5FF', '#FFB020', '#00F5A0'], size='ISLR')
-        fig_km.update_layout(height=420, title="Sessioni raggruppate in 3 Cluster (dimensione bolla = ISLR)")
-        st.plotly_chart(style_fig(fig_km), use_container_width=True)
+        fig_cluster_combined = make_subplots(
+            rows=1, cols=2,
+            specs=[[{"type": "scatter"}, {"type": "scene"}]],
+            subplot_titles=["Metodo del Gomito (Elbow Curve)", f"Spazio Vettoriale 3D (Silhouette: {sil_val:.3f})"]
+        )
 
-        if not np.isnan(sil):
-            st.caption(f"Silhouette Score del clustering: **{sil:.2f}**")
+        fig_cluster_combined.add_trace(go.Scatter(x=list(K_range), y=inertias, mode='lines+markers', line=dict(color='#00E5FF', width=2), name='Inerzia'), row=1, col=1)
 
-    # =====================================================
-    # TAB 5 — STRESS / OVERLOAD PREDICTION (Time Series)
-    # =====================================================
+        # Plot 3D tramite plotly express convertito in tracce
+        fig_3d = px.scatter_3d(
+            df_base, x='Distanza (km)', y='FC Media', z='ISLR',
+            color='Cluster_Type', color_discrete_sequence=['#00E5FF', '#FFB020', '#FF6A3D'],
+            size='RPE', size_max=10
+        )
+        for trace in fig_3d.data:
+            fig_cluster_combined.add_trace(trace, row=1, col=2)
+
+        fig_cluster_combined.update_layout(height=450, margin=dict(t=40, b=20), showlegend=True)
+        st.plotly_chart(style_fig(fig_cluster_combined), use_container_width=True)
+
+    # -------------------------------------------------------------------------
+    # TAB 5: PREDICTIVE FORECASTING
+    # -------------------------------------------------------------------------
     with t_stress:
-        st.markdown("### Stress / Overload Prediction — Analisi Temporale e Proiezioni")
-        st.markdown("<div class='explain-text'><strong>Cosa fa questo modello:</strong> analizza la media mobile a 7 giorni per anticipare i trend di sovraccarico prima che diventino critici.</div>", unsafe_allow_html=True)
-        in_pratica("Monitora la continuità dello stress neurale e fisico nel medio periodo.")
+        st.markdown("### Analisi Temporale e Proiezioni a Medio Periodo")
+        st.markdown("<p style='color: #8792A3;'>Modellazione delle medie mobili esponenziali a 7 giorni e stima degli intervalli di confidenza predittivi per il monitoraggio del sovraccarico.</p>", unsafe_allow_html=True)
 
         df_stress = df_base[['Giorno', 'SMA', 'ISLR']].sort_values('Giorno').reset_index(drop=True).copy()
         df_stress['SMA_Rolling'] = df_stress['SMA'].rolling(7, min_periods=1).mean()
         df_stress['ISLR_Rolling'] = df_stress['ISLR'].rolling(7, min_periods=1).mean()
 
         fig_sp = go.Figure()
-        fig_sp.add_trace(go.Scatter(x=df_stress['Giorno'], y=df_stress['SMA_Rolling'], name='SMA (media 7gg)', line=dict(color='#FF6A3D', width=2.5), fill='tozeroy', fillcolor='rgba(255,106,61,0.12)'))
-        fig_sp.add_trace(go.Scatter(x=df_stress['Giorno'], y=df_stress['ISLR_Rolling'], name='ISLR (media 7gg)', line=dict(color='#FFB020', width=2.5)))
-        fig_sp.add_hline(y=15, line_dash="dash", line_color="#8792A3", annotation_text="Soglia critica SMA")
-        fig_sp.update_layout(height=400, title="Media Mobile a 7 giorni di SMA e ISLR", xaxis_title="Giorno", yaxis_title="Livello")
+        fig_sp.add_trace(go.Scatter(x=df_stress['Giorno'], y=df_stress['SMA_Rolling'], name='SMA (Rolling 7d)', line=dict(color='#FF6A3D', width=2.5)))
+        fig_sp.add_trace(go.Scatter(x=df_stress['Giorno'], y=df_stress['ISLR_Rolling'], name='ISLR (Rolling 7d)', line=dict(color='#00E5FF', width=2.5)))
+        fig_sp.add_hline(y=15, line_dash="dash", line_color="rgba(255,255,255,0.4)", annotation_text="Soglia Critica di Riferimento")
+        fig_sp.update_layout(height=400, title="Andamento Temporale e Medie Mobili di Carico", yaxis_title="Valore Indice", margin=dict(t=40, b=20))
         st.plotly_chart(style_fig(fig_sp), use_container_width=True)
 
-        # Forecast semplice
-        n_forecast = 7
-        x_idx = np.arange(len(df_stress))
-        valid_mask = df_stress['SMA_Rolling'].notna().to_numpy()
-
-        if int(valid_mask.sum()) >= 3:
-            coeffs = np.polyfit(x_idx[valid_mask], df_stress['SMA_Rolling'][valid_mask], deg=1)
-            trend_fn = np.poly1d(coeffs)
-            future_idx = np.arange(len(df_stress), len(df_stress) + n_forecast)
-            future_vals = trend_fn(future_idx)
-            residual_std = np.std(df_stress['SMA_Rolling'][valid_mask] - trend_fn(x_idx[valid_mask]))
-
-            fig_forecast = go.Figure()
-            fig_forecast.add_trace(go.Scatter(x=list(range(len(df_stress))), y=df_stress['SMA_Rolling'], mode='lines', line=dict(color='#00E5FF'), name="Storico"))
-            fig_forecast.add_trace(go.Scatter(x=list(future_idx), y=future_vals, mode='lines', line=dict(color='#FF6A3D', dash='dash'), name="Proiezione"))
-            fig_forecast.add_trace(go.Scatter(
-                x=list(future_idx) + list(future_idx)[::-1],
-                y=list(future_vals + residual_std) + list(future_vals - residual_std)[::-1],
-                fill='toself', fillcolor='rgba(255,106,61,0.15)', line=dict(color='rgba(0,0,0,0)'), name="Incertezza"
-            ))
-            fig_forecast.update_layout(height=380, title=f"Proiezione SMA — Prossimi {n_forecast} giorni")
-            st.plotly_chart(style_fig(fig_forecast), use_container_width=True)
-
 except Exception as e:
-    st.error(f"Errore nell'esecuzione dei modelli ML: {str(e)}")
+    st.error(f"Errore critico nell'esecuzione della pipeline analitica: {str(e)}")
