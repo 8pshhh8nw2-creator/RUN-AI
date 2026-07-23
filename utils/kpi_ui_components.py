@@ -12,7 +12,7 @@ puoi riusarle in tutte le pagine senza duplicare codice.
 
 import streamlit as st
 import plotly.graph_objects as go
-from kpi_engine import FEATURE_IMPORTANCE_CHART_DATA
+from .kpi_engine import FEATURE_IMPORTANCE_CHART_DATA
 
 
 # ============================================================
