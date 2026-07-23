@@ -41,7 +41,7 @@ IMG_HERO_ML = get_svg_url(SVG_ML)
 header_block(
     "Modulo 04 — Model Explainability",
     "ADVANCED MACHINE INTELLIGENCE ENGINE",
-    "Piattaforma computazionale per l'analisi predittiva, feature attribution e validazione dei KPI proprietari.",
+    "Piattaforma computazionale per l'analisi predittiva, feature attribution, validazione dei KPI proprietari e simulazione di carico.",
     IMG_HERO_ML, "Neural Engine Core"
 )
 
@@ -65,11 +65,11 @@ for col_kpi in ['Vento (km/h)', 'ISLR', 'IITR', 'IDET', 'Session_RPE', 'Rischio 
 
 st.markdown("""
 <div class='info-box'>
-<h4 style='color: #00E5FF; margin-bottom: 8px;'>Note Metodologiche e Protocollo di Validazione</h4>
+<h4 style='color: #00E5FF; margin-bottom: 8px;'>Note Metodologiche e Protocollo di Validazione Accademica</h4>
 <p style='color: #B8C2D0; font-family:"Inter",sans-serif; line-height: 1.5;'>
-Il presente motore implementa una pipeline di machine learning supervisionato e non supervisionato strutturata su split stratificato (75/25) 
-e validazione incrociata a 5 fold. L'obiettivo primario è quantificare il guadagno informativo derivante dall'introduzione dei KPI proprietari 
-(SMA, ISLR, IITR, IDET) rispetto al modello di riferimento storico di Foster (Session-RPE).
+Il presente motore analitico implementa pipeline di apprendimento supervisionato e non supervisionato basate su split stratificato (75/25) 
+e validazione incrociata a 5 fold. L'architettura quantifica rigorosamente il differenziale informativo introdotto dai KPI proprietari 
+(SMA, ISLR, IITR, IDET) rispetto al modello di riferimento storico di Foster (Session-RPE), fornendo strumenti di diagnostica avanzata e simulazione predittiva.
 </p>
 </div>
 """, unsafe_allow_html=True)
@@ -109,13 +109,18 @@ try:
     )
     has_multiple_test_classes = bool(len(np.unique(y_test)) > 1)
 
-    t_eda, t_lin, t_log, t_rf, t_clu, t_stress = st.tabs([
+    # Addestramento preventivo dei modelli per il simulatore finale
+    rf_simulator_model = RandomForestClassifier(n_estimators=150, random_state=42, max_depth=6)
+    rf_simulator_model.fit(X_train, y_train)
+
+    t_eda, t_lin, t_log, t_rf, t_clu, t_stress, t_sim = st.tabs([
         "00. Dataset Diagnostics & EDA",
         "01. Regressione Lineare",
         "02. Regressione Logistica",
         "03. Random Forest",
         "04. Clustering K-Means",
-        "05. Predictive Forecasting"
+        "05. Predictive Forecasting",
+        "06. Simulatore What-If"
     ])
 
     # -------------------------------------------------------------------------
@@ -123,7 +128,7 @@ try:
     # -------------------------------------------------------------------------
     with t_eda:
         st.markdown("### Analisi Esplorativa e Matrice di Correlazione")
-        st.markdown("<p style='color: #8792A3;'>Analisi statistica descrittiva e relazioni bivariate tra feature fisiologiche e descrittori proprietari.</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #8792A3;'>Analisi statistica descrittiva, distribuzioni marginali e matrice di correlazione di Pearson nel feature space completo.</p>", unsafe_allow_html=True)
 
         corr_matrix = df_base[feature_cols + ['Velocità (km/h)']].corr()
         
@@ -131,12 +136,12 @@ try:
             corr_matrix, text_auto=".2f", aspect="auto",
             color_continuous_scale="RdBu_r", zmin=-1, zmax=1
         )
-        fig_corr.update_layout(height=450, title="Matrice di Correlazione di Pearson (Feature Space)", margin=dict(t=40, b=20))
+        fig_corr.update_layout(height=450, title="Matrice di Correlazione di Pearson", margin=dict(t=40, b=20))
         st.plotly_chart(style_fig(fig_corr), use_container_width=True)
 
         desc_stats = df_base[feature_cols].describe().T[['mean', 'std', 'min', 'max']]
         desc_stats.columns = ['Media', 'Deviazione Standard', 'Minimo', 'Massimo']
-        st.markdown("#### Statistiche Descrittive del Campione")
+        st.markdown("#### Statistiche Descrittive del Campione di Tesi")
         st.dataframe(desc_stats.style.format("{:.2f}"), use_container_width=True)
 
     # -------------------------------------------------------------------------
@@ -187,14 +192,14 @@ try:
         with c2:
             render_metric_card("RMSE (Test)", f"{rmse_test:.3f} km/h", "Errore quadratico medio")
         with c3:
-            render_metric_card("Coefficiente Angolare (Slope)", f"{lr_model.coef_[0]:.3f}", "Variazione velocità per km")
+            render_metric_card("Coefficiente Angolare", f"{lr_model.coef_[0]:.3f}", "Variazione velocità per km")
 
     # -------------------------------------------------------------------------
     # TAB 2: REGRESSIONE LOGISTICA
     # -------------------------------------------------------------------------
     with t_log:
         st.markdown("### Classificazione Binaria: Baseline vs Modello Esteso con KPI")
-        st.markdown("<p style='color: #8792A3;'>Valutazione comparativa tramite curve ROC, Precision-Recall e analisi dei coefficienti di regressione.</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #8792A3;'>Valutazione comparativa tramite curve ROC, metriche di classificazione e analisi dei coefficienti ponderati.</p>", unsafe_allow_html=True)
 
         X_baseline = df_base[['Session_RPE']].values
         X_baseline_scaled = StandardScaler().fit_transform(X_baseline)
@@ -305,11 +310,10 @@ try:
     # -------------------------------------------------------------------------
     with t_clu:
         st.markdown("### Segmentazione Non Supervisionata: K-Means Multidimensionale")
-        st.markdown("<p style='color: #8792A3;'>Raggruppamento nativo delle sessioni in base a distanza, frequenza cardiaca e carico ponderato (ISLR) con calcolo del coefficiente di silhouette.</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #8792A3;'>Raggruppamento nativo delle sessioni in base a distanza, frequenza cardiaca e carico ponderato (ISLR) con calcolo del coefficiente di silhouette e curva del gomito.</p>", unsafe_allow_html=True)
 
         X_clust = df_base[['Distanza (km)', 'FC Media', 'ISLR']].values
         
-        # Calcolo Elbow Method per k da 1 a 6
         inertias = []
         K_range = range(1, 7)
         for k in K_range:
@@ -334,7 +338,6 @@ try:
 
         fig_cluster_combined.add_trace(go.Scatter(x=list(K_range), y=inertias, mode='lines+markers', line=dict(color='#00E5FF', width=2), name='Inerzia'), row=1, col=1)
 
-        # Plot 3D tramite plotly express convertito in tracce
         fig_3d = px.scatter_3d(
             df_base, x='Distanza (km)', y='FC Media', z='ISLR',
             color='Cluster_Type', color_discrete_sequence=['#00E5FF', '#FFB020', '#FF6A3D'],
@@ -363,6 +366,61 @@ try:
         fig_sp.add_hline(y=15, line_dash="dash", line_color="rgba(255,255,255,0.4)", annotation_text="Soglia Critica di Riferimento")
         fig_sp.update_layout(height=400, title="Andamento Temporale e Medie Mobili di Carico", yaxis_title="Valore Indice", margin=dict(t=40, b=20))
         st.plotly_chart(style_fig(fig_sp), use_container_width=True)
+
+    # -------------------------------------------------------------------------
+    # TAB 6: SIMULATORE WHAT-IF (NUOVO)
+    # -------------------------------------------------------------------------
+    with t_sim:
+        st.markdown("### Simulatore Predittivo What-If in Tempo Reale")
+        st.markdown("<p style='color: #8792A3;'>Configura i parametri di una sessione ipotetica per stimare istantaneamente il rischio di sovraccarico calcolato dal modello Random Forest addestrato.</p>", unsafe_allow_html=True)
+
+        sim_col1, sim_col2 = st.columns(2)
+        with sim_col1:
+            st.markdown("#### Input Parametrici della Sessione")
+            sim_distanza = st.slider("Distanza (km)", min_value=1.0, max_value=42.0, value=10.0, step=0.5)
+            sim_sonno = st.slider("Ore Sonno", min_value=3.0, max_value=10.0, value=7.5, step=0.5)
+            sim_stress = st.slider("Stress Lavoro (1-10)", min_value=1, max_value=10, value=4, step=1)
+            sim_fc = st.slider("Frequenza Cardiaca Media (bpm)", min_value=100.0, max_value=195.0, value=145.0, step=1.0)
+            sim_rpe = st.slider("RPE (1-10)", min_value=1, max_value=10, value=5, step=1)
+
+        with sim_col2:
+            st.markdown("#### Input KPI Proprietari Simulati")
+            sim_sma = st.slider("SMA (Stress Metaindice Acuto)", min_value=1.0, max_value=30.0, value=8.5, step=0.5)
+            sim_islr = st.slider("ISLR (Indice Stress Lavoro-Recupero)", min_value=1.0, max_value=50.0, value=12.0, step=0.5)
+            sim_iitr = st.slider("IITR (Indice Impatto Termico-Regolatorio)", min_value=0.5, max_value=25.0, value=5.0, step=0.5)
+            sim_idet = st.slider("IDET (Indice Dinamico Energetico)", min_value=10.0, max_value=300.0, value=85.0, step=1.0)
+
+        # Calcolo predizione istantanea
+        input_array = np.array([[sim_distanza, sim_sonno, sim_stress, sim_fc, sim_rpe, sim_sma, sim_islr, sim_iitr, sim_idet]])
+        input_scaled = scaler.transform(input_array)
+        pred_prob = rf_simulator_model.predict_proba(input_scaled)[0][1] * 100
+        pred_class = rf_simulator_model.predict(input_scaled)[0]
+
+        st.markdown("---")
+        res_col1, res_col2 = st.columns([1, 2])
+        with res_col1:
+            render_metric_card("Probabilità di Rischio Infortunio", f"{pred_prob:.1f}%", "Stima algoritmica istantanea")
+        with res_col2:
+            if pred_class == 1 or pred_prob > 50.0:
+                st.markdown("""
+                <div style='background: rgba(255,106,61,0.1); border-left: 4px solid #FF6A3D; padding: 16px; border-radius: 6px;'>
+                <h4 style='color: #FF6A3D; margin-top: 0;'>Allerta: Configurazione ad alto rischio di sovraccarico</h4>
+                <p style='color: #B8C2D0; font-size: 0.9em; margin-bottom: 0;'>
+                I parametri inseriti indicano una combinazione critica tra carico esterno (distanza, FC) e fattori di stress psicofisico (sonno, ISLR). 
+                Si consiglia di ridurre l'intensità o incrementare i tempi di recupero prima di procedere con questa sessione.
+                </p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style='background: rgba(0,229,255,0.1); border-left: 4px solid #00E5FF; padding: 16px; border-radius: 6px;'>
+                <h4 style='color: #00E5FF; margin-top: 0;'>Stato Ottimale: Carico sostenibile</h4>
+                <p style='color: #B8C2D0; font-size: 0.9em; margin-bottom: 0;'>
+                La configurazione corrente rientra nei margini di tolleranza fisiologica stimati dal modello. Il profilo di rischio per l'infortunio 
+                è inferiore alla soglia di guardia critica.
+                </p>
+                </div>
+                """, unsafe_allow_html=True)
 
 except Exception as e:
     st.error(f"Errore critico nell'esecuzione della pipeline analitica: {str(e)}")
