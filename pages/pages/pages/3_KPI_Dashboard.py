@@ -1,4 +1,23 @@
+import streamlit as st
+import numpy as np
+import plotly.graph_objects as go
 
+from utils.style import carica_css
+from utils.data import genera_dati
+from utils.components import header_block, style_fig, get_svg_url, SVG_KPI
+st.set_page_config(page_title="KPI Dashboard", layout="wide")
+carica_css()
+
+if 'dati' not in st.session_state:
+    st.session_state.dati = genera_dati()
+    st.session_state.analisi_fatta = False
+    st.session_state.risultati_analisi = {}
+
+IMG_HERO_KPI = get_svg_url(SVG_KPI)
+if not st.session_state.analisi_fatta:
+    st.warning("Completa prima il questionario...")
+else:
+    r = st.session_state.risultati_analisi
 # ---------------------------------------------------------
 # PAGINA 3: KPI DASHBOARD — VERSIONE POTENZIATA
 # ---------------------------------------------------------
