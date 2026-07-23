@@ -12,7 +12,8 @@ from utils.sidebar import sidebar_comune
 
 st.set_page_config(page_title="RUN AI | Performance Intelligence", layout="wide", initial_sidebar_state="expanded")
 carica_css()
-
+from utils.components import header_block, style_fig, get_svg_url, SVG_HOME
+...
 IMG_HERO_HOME = get_svg_url(SVG_HOME)
 
 if 'dati' not in st.session_state:
