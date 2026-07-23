@@ -1,3 +1,29 @@
+import streamlit as st
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.cluster import KMeans
+from sklearn.metrics import (
+    r2_score, mean_squared_error,
+    accuracy_score, precision_score, recall_score, f1_score,
+    roc_auc_score, confusion_matrix
+)
+from sklearn.metrics import silhouette_score
+
+from utils.style import carica_css
+from utils.data import genera_dati
+from utils.components import header_block, style_fig, get_svg_url, SVG_ML
+
+
+
+
+
 # =========================================================
 # PARTE 1 — DA AGGIUNGERE DENTRO genera_dati(), subito dopo
 # la riga che calcola df['SMA'] = ...
