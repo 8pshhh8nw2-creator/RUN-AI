@@ -46,10 +46,9 @@ else:
     C_VIOLA  = "#BF5AF2"
     C_NEUTRO = "#1F2733"
 
-    md(f"""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap');
-
+   st.markdown(f"""
+<div class='info-box'>...</div>
+""", unsafe_allow_html=True)
     .panel {{
         background: {PANEL_BG}; border: 1px solid {PANEL_BD}; border-radius: 12px;
         padding: 24px; transition: border-color .2s ease, box-shadow .2s ease;
