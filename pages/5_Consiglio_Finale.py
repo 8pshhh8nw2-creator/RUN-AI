@@ -118,7 +118,7 @@ else:
     }}
     .split-head span {{ font-family:'JetBrains Mono',monospace; font-size:.65rem; letter-spacing:.12em; text-transform:uppercase; color:{TXT_TERTIARY}; font-weight:700; }}
 
-    .hud-grid {{ display: flex; gap: 20px; align-items: flex-end; margin-bottom: 20px; }}
+    .hud-grid {{ display: flex; gap: 20px; align-items: flex-end; margin-bottom: 10px; }}
     .hud-stat {{ flex: 1; }}
     .hud-stat h2 {{ margin:0; font-family:"Oswald",sans-serif; font-weight:700; font-size:1.8rem; text-transform:uppercase; letter-spacing:.02em; line-height:1; }}
 
@@ -211,7 +211,7 @@ else:
         marker_x = (score / 100) * svg_width
         
         return f"""
-        <svg viewBox="0 0 {svg_width} {svg_height + 25}" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:auto; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.3));">
+        <svg viewBox="0 0 {svg_width} {svg_height + 25}" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:auto;">
             <line x1="0" y1="{svg_height}" x2="{svg_width}" y2="{svg_height}" stroke="{TXT_TERTIARY}" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"/>
             {"".join(elements)}
             <g transform="translate({marker_x}, 0)">
@@ -240,11 +240,11 @@ else:
                 <h2 style='color:{TXT_PRIMARY};'>{risk_score:.0f}<span style='font-size:0.6em; color:{TXT_SECONDARY};'>%</span></h2>
             </div>
         </div>
-        <div style='margin-top: 10px;'>
-            {radar_svg}
-        </div>
     </div>
     """)
+
+    # Visualizzazione pulita e garantita dell'SVG tramite componente HTML nativo
+    st.components.v1.html(f"<div style='background:{PANEL_BG}; padding:10px; border-radius:12px;'>{radar_svg}</div>", height=155)
 
     md("<div style='height:24px;'></div>")
 
