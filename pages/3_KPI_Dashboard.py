@@ -16,10 +16,6 @@ from utils.style import carica_css
 from utils.data import genera_dati
 from utils.components import header_block, style_fig, get_svg_url, SVG_KPI
 
-from kpi_engine import (
-    calcola_kpi_giornalieri, calcola_risk_score_pesato,
-    COL_SONNO, COL_DISTANZA,
-)
 from kpi_ui_components import (
     verdetto_box, in_pratica, azione_consigliata,
     kpi_card_sparkline, feature_importance_chart,
