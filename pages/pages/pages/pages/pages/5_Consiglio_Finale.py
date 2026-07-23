@@ -1,9 +1,21 @@
-elif pagina == "CONSIGLIO FINALE":
-    import math
-    import pandas as pd
-    import plotly.graph_objects as go
-    import plotly.express as px
+import streamlit as st
+import math
+import pandas as pd
+import plotly.graph_objects as go
+import plotly.express as px
 
+from utils.style import carica_css
+from utils.data import genera_dati
+from utils.components import header_block, style_fig, get_svg_url, SVG_PLAN
+st.set_page_config(page_title="Consiglio Finale", layout="wide")
+carica_css()
+
+if 'dati' not in st.session_state:
+    st.session_state.dati = genera_dati()
+
+IMG_HERO_PLAN = get_svg_url(SVG_PLAN)
+
+elif pagina == "CONSIGLIO FINALE":
     def md(html):
         """Renderizza HTML in modo sicuro. Rimuove l'indentazione python."""
         html_pulito = "\n".join([line.strip() for line in html.split("\n")])
