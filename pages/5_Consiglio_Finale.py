@@ -17,7 +17,7 @@ if 'dati' not in st.session_state:
 
 IMG_HERO_PLAN = get_svg_url(SVG_PLAN)
 
-elif pagina == "CONSIGLIO FINALE":
+
     def md(html):
         """Renderizza HTML in modo sicuro. Rimuove l'indentazione python."""
         html_pulito = "\n".join([line.strip() for line in html.split("\n")])
