@@ -1081,7 +1081,6 @@ elif pagina == "KPI DASHBOARD":
         0
     )
     df['Session_RPE'] = df['RPE'] * df['Durata (min)']
-
     return df
 
 
