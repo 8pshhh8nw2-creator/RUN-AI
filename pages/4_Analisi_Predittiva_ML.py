@@ -87,7 +87,7 @@ IMG_HERO_ML = get_svg_url(SVG_ML)
 # Clustering K-Means, Stress/Overload Prediction (time series)
 # =========================================================
 
-elif pagina == "ANALISI PREDITTIVA ML":
+
     header_block(
         "Modulo 04 — Model Explainability",
         "ANALISI PREDITTIVA ML",
