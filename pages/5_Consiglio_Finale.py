@@ -243,7 +243,6 @@ else:
     </div>
     """)
 
-    # Visualizzazione pulita e garantita dell'SVG tramite componente HTML nativo
     st.components.v1.html(f"<div style='background:{PANEL_BG}; padding:10px; border-radius:12px;'>{radar_svg}</div>", height=155)
 
     md("<div style='height:24px;'></div>")
