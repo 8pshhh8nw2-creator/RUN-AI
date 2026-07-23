@@ -23,7 +23,6 @@ else:
 # ---------------------------------------------------------
 # PAGINA 3: KPI DASHBOARD — VERSIONE POTENZIATA
 # ---------------------------------------------------------
-elif pagina == "KPI DASHBOARD":
     header_block(
         "Modulo 03 — Live Monitoring",
         "KPI DASHBOARD",
