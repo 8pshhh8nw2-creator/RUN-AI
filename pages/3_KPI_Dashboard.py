@@ -1,14 +1,14 @@
 """
-pages/04_Centro_KPI.py (adatta il nome/percorso alla tua struttura di pagine)
+pages/04_Centro_KPI.py
 --------------------------------------------------------------------------------
 Dashboard unificata con i 4 KPI proprietari della tesi (SMA, ISLR, IITR, IDET),
 il risk_score pesato sulla Feature Importance reale, e il grafico che mostra
-quali variabili contano davvero nel tuo modello. Segue lo stesso stile/CSS
-della tua Pagina 3 originale (header_block, style_fig, carica_css, kpi-card).
+quali variabili contano davvero nel tuo modello.
 """
 
 from utils.sidebar import sidebar_comune
 import streamlit as st
+import pandas as pd
 
 st.set_page_config(page_title="Centro KPI", layout="wide")
 
@@ -27,17 +27,18 @@ from utils.kpi_engine import (
     calcola_idet,
     calcola_kpi_giornalieri,
     calcola_risk_score_pesato,
-    FEATURE_IMPORTANCE_CHART_DATA
+    FEATURE_IMPORTANCE_CHART_DATA,
+    COL_SONNO, COL_DISTANZA
 )
+
 carica_css()
-df, df_full, filtro_tempo = sidebar_comune()
-# Chiamata sicura alla sidebar con valore di fallback
+
+# Chiamata unica e sicura alla sidebar
 sidebar_result = sidebar_comune()
 if sidebar_result and len(sidebar_result) == 3:
     df, df_full, filtro_tempo = sidebar_result
 else:
-    # Fallback di emergenza se la sidebar dovesse fallire
-    df_full = st.session_state.get('dati', pd.DataFrame())
+    df_full = st.session_state.get('dati', genera_dati() if 'dati' not in st.session_state else st.session_state.dati)
     df = df_full
     filtro_tempo = "Ultimi 30 giorni"
 
@@ -48,7 +49,7 @@ if 'dati' not in st.session_state:
 
 IMG_HERO_KPI = get_svg_url(SVG_KPI)
 
-if not st.session_state.analisi_fatta:
+if not st.session_state.get('analisi_fatta', False):
     st.warning("Completa prima il questionario nella pagina 'ANALISI STATO DI FORMA'.")
 else:
     r = st.session_state.risultati_analisi
@@ -64,22 +65,23 @@ else:
     # ============================================================
     # CALCOLO KPI DI OGGI + STORICO (per confronto percentile)
     # ============================================================
-    kpi_oggi = calcola_kpi_giornalieri(r)  # r deve contenere le stesse chiavi di COL_* in kpi_engine.py
+    kpi_oggi = calcola_kpi_giornalieri(r)
     kpi_storico = df_base.apply(calcola_kpi_giornalieri, axis=1, result_type="expand") if len(df_base) > 0 else None
 
     risk_score, dettaglio_scores = calcola_risk_score_pesato(
         oggi={
             "ISLR": kpi_oggi["ISLR"],
-            "IDET": kpi_oggi["IDET"] if kpi_oggi["IDET"] == kpi_oggi["IDET"] else 0,  # gestisce eventuale NaN
-            "Ore Sonno": r.get(COL_SONNO, r.get("ore_sonno", 0)),
-            "Volume Settimanale": r.get("volume_settimanale_km", df_base[COL_DISTANZA].tail(7).sum() if COL_DISTANZA in df_base else 0),
-            "Passo Medio": r.get("passo_medio", 0),
+            "IDET": kpi_oggi["IDET"] if pd.notna(kpi_oggi["IDET"]) else 0,
+            "Ore Sonno": r.get(COL_SONNO, r.get("ore_sonno", 7.0)),
+            "Volume Settimanale": r.get("volume_settimanale_km", df_base[COL_DISTANZA].tail(7).sum() if COL_DISTANZA in df_base else 25.0),
+            "Passo Medio": r.get("passo_medio", 5.0),
         },
-        storico=kpi_storico if kpi_storico is not None else {},
+        storico=kpi_storico if kpi_storico is not None else pd.DataFrame(),
     )
 
     status_color = "#00F5A0" if risk_score < 25 else "#FFB020" if risk_score < 60 else "#FF6A3D"
     status_text = "OTTIMALE" if risk_score < 25 else "MODERATO" if risk_score < 60 else "CRITICO"
+    
     st.markdown(
         f"<h3 style='text-align:center; color:{status_color}; font-size:2em; letter-spacing:4px;'>"
         f"RISCHIO {status_text} — {risk_score:.0f}%</h3>", unsafe_allow_html=True
@@ -92,31 +94,32 @@ else:
     # ============================================================
     st.markdown("### I Tuoi 4 KPI Proprietari")
 
-    giorni_asse = df_base['Giorno'].tail(14).tolist() if kpi_storico is not None and len(df_base) >= 14 else list(range(14))
+    giorni_asse = df_base['Giorno'].tail(14).tolist() if (kpi_storico is not None and 'Giorno' in df_base.columns and len(df_base) >= 14) else list(range(14))
 
     col1, col2 = st.columns(2)
     with col1:
         colore_sma = "#00F5A0" if kpi_oggi["SMA"] < 10 else "#FFB020" if kpi_oggi["SMA"] < 15 else "#FF6A3D"
         kpi_card_sparkline("SMA — Stress Mentale Allenamento", kpi_oggi["SMA"], colore_sma,
-                            kpi_storico["SMA"].tail(14) if kpi_storico is not None else [], giorni_asse)
+                           kpi_storico["SMA"].tail(14).tolist() if kpi_storico is not None else [], giorni_asse)
         in_pratica("SMA alto = hai corso con poco sonno e molto stress accumulato: oggi il corpo lavora in svantaggio neurale.")
 
         colore_iitr = "#00F5A0" if dettaglio_scores.get("IITR", 50) < 40 else "#FFB020" if dettaglio_scores.get("IITR", 50) < 70 else "#FF6A3D"
         kpi_card_sparkline("IITR — Impatto Termico e Resistenza", kpi_oggi["IITR"], colore_iitr,
-                            kpi_storico["IITR"].tail(14) if kpi_storico is not None else [], giorni_asse)
+                           kpi_storico["IITR"].tail(14).tolist() if kpi_storico is not None else [], giorni_asse)
         in_pratica("IITR alto = caldo e vento hanno reso la corsa di oggi più dura del solito per ogni km percorso.")
 
     with col2:
         colore_islr = "#00F5A0" if kpi_oggi["ISLR"] < 4.5 else "#FFB020" if kpi_oggi["ISLR"] < 6.3 else "#FF6A3D"
         kpi_card_sparkline("ISLR — Sforzo Lavorativo Residuo", kpi_oggi["ISLR"], colore_islr,
-                            kpi_storico["ISLR"].tail(14) if kpi_storico is not None else [], giorni_asse)
+                           kpi_storico["ISLR"].tail(14).tolist() if kpi_storico is not None else [], giorni_asse)
         in_pratica("ISLR è il KPI più predittivo del tuo modello (31,5%): sopra 6,3 il tuo Random Forest classifica le sessioni come overload nel 50%+ dei casi.")
         if kpi_oggi["ISLR"] >= 6.3:
             azione_consigliata("Oggi il tuo carico lavorativo sta 'mangiando' risorse che servirebbero alla corsa. Valuta una sessione più corta o rigenerativa invece che qualitativa.")
 
+        val_idet = kpi_oggi["IDET"] if pd.notna(kpi_oggi["IDET"]) else 0.0
         colore_idet = "#00F5A0" if dettaglio_scores.get("IDET", 50) < 40 else "#FFB020" if dettaglio_scores.get("IDET", 50) < 70 else "#FF6A3D"
-        kpi_card_sparkline("IDET — Degradazione Termica", kpi_oggi["IDET"] if kpi_oggi["IDET"] == kpi_oggi["IDET"] else 0, colore_idet,
-                            kpi_storico["IDET"].tail(14) if kpi_storico is not None else [], giorni_asse)
+        kpi_card_sparkline("IDET — Degradazione Termica", val_idet, colore_idet,
+                           kpi_storico["IDET"].tail(14).tolist() if kpi_storico is not None else [], giorni_asse)
         in_pratica("IDET alto = il caldo sta facendo salire i tuoi battiti più di quanto la velocità giustifichi (deriva cardiaca): non è un calo di forma, è il clima.")
 
     verdetto_box(
