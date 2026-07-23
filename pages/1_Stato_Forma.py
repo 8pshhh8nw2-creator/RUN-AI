@@ -24,7 +24,6 @@ IMG_HERO_ANALISI = get_svg_url(SVG_ANALISI)
 # ---------------------------------------------------------
 # PAGINA 1: ANALISI STATO DI FORMA
 # ---------------------------------------------------------
-elif pagina == "ANALISI STATO DI FORMA":
     header_block(
         "Modulo 01 — Acquisizione Dati",
         "ANALISI STATO DI FORMA",
