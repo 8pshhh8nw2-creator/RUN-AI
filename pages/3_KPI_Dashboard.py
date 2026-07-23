@@ -31,6 +31,15 @@ from utils.kpi_engine import (
 )
 carica_css()
 df, df_full, filtro_tempo = sidebar_comune()
+# Chiamata sicura alla sidebar con valore di fallback
+sidebar_result = sidebar_comune()
+if sidebar_result and len(sidebar_result) == 3:
+    df, df_full, filtro_tempo = sidebar_result
+else:
+    # Fallback di emergenza se la sidebar dovesse fallire
+    df_full = st.session_state.get('dati', pd.DataFrame())
+    df = df_full
+    filtro_tempo = "Ultimi 30 giorni"
 
 if 'dati' not in st.session_state:
     st.session_state.dati = genera_dati()
