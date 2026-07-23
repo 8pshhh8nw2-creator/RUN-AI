@@ -1,3 +1,21 @@
+import streamlit as st
+import tempfile
+import plotly.express as px
+import plotly.graph_objects as go
+
+from utils.style import carica_css
+from utils.data import genera_dati
+from utils.components import header_block, style_fig, get_svg_url, SVG_CV
+from utils.computer_vision import analizza_running_video
+st.set_page_config(page_title="Computer Vision", layout="wide")
+carica_css()
+
+if 'dati' not in st.session_state:
+    st.session_state.dati = genera_dati()
+
+IMG_HERO_CV = get_svg_url(SVG_CV)
+import cv2
+import mediapipe as mp
 # ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
