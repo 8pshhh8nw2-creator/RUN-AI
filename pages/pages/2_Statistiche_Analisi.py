@@ -14,6 +14,8 @@ carica_css()
 if 'dati' not in st.session_state:
     st.session_state.dati = genera_dati()
 
+from utils.components import header_block, style_fig, get_svg_url, SVG_STATS
+...
 IMG_HERO_STATS = get_svg_url(SVG_STATS)
 
 # ricrea il filtro temporale (sidebar)
