@@ -1,26 +1,19 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-from utils.data import genera_dati  # Assicurati di importare il generatore
+from utils.data import genera_dati
 
 def sidebar_comune():
     """
     Disegna la sidebar comune (logo, device, filtro temporale)
     e restituisce i dati filtrati da usare in ogni pagina.
     """
-    # ─── INIZIALIZZAZIONE SICURA DELLO STATE ───
     if 'dati' not in st.session_state or st.session_state.dati is None:
         st.session_state.dati = genera_dati()
 
     with st.sidebar:
         st.markdown("""
             <div style='display:flex; align-items:center; gap:10px; margin-bottom:2px;'>
-                <div style='width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg, #00E5FF, #00F5A0); display:flex; align-items:center; justify-content:center; font-family:"Space Grotesk",sans-serif; font-weight:800; color:#04121a; font-size:1.1em;'>R</div>
-                <h1 style='color: white; text-align: left; font-size: 1.55em; font-family:"Space Grotesk",sans-serif; font-weight:700; margin:0; letter-spacing:-0.03em;'>RUNAI</h1>
-            </div>
-        """, unsafe_allow_html=True)
-        st.markdown("<p style='color: #566178; font-size: 0.78em; margin-top: 2px; margin-bottom: 22px; font-family:\"JetBrains Mono\",monospace; letter-spacing:0.1em; text-transform:uppercase;'>Performance Intelligence System</p>", unsafe_allow_html=True)
-...
                 <div style='width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg, #00E5FF, #00F5A0); display:flex; align-items:center; justify-content:center; font-family:"Space Grotesk",sans-serif; font-weight:800; color:#04121a; font-size:1.1em;'>R</div>
                 <h1 style='color: white; text-align: left; font-size: 1.55em; font-family:"Space Grotesk",sans-serif; font-weight:700; margin:0; letter-spacing:-0.03em;'>RUNAI</h1>
             </div>
@@ -37,8 +30,11 @@ def sidebar_comune():
         if st.button("CONNETTI DISPOSITIVO", use_container_width=True):
             st.session_state.device_connected = True
             st.session_state.device_info = {
-                'nome': device_scelto, 'fc': np.random.randint(60, 80), 'battery': np.random.randint(70, 100),
-                'steps': np.random.randint(2000, 5000), 'calories': np.random.randint(150, 300),
+                'nome': device_scelto, 
+                'fc': int(np.random.randint(60, 80)), 
+                'battery': int(np.random.randint(70, 100)),
+                'steps': int(np.random.randint(2000, 5000)), 
+                'calories': int(np.random.randint(150, 300)),
                 'sync_time': pd.Timestamp.now().strftime('%H:%M:%S')
             }
 
@@ -58,8 +54,11 @@ def sidebar_comune():
                 </div>
             </div>
             """.format(
-                st.session_state.device_info['nome'], st.session_state.device_info['fc'], st.session_state.device_info['battery'],
-                st.session_state.device_info['steps'], st.session_state.device_info['calories']
+                st.session_state.device_info['nome'], 
+                st.session_state.device_info['fc'], 
+                st.session_state.device_info['battery'],
+                st.session_state.device_info['steps'], 
+                st.session_state.device_info['calories']
             ), unsafe_allow_html=True)
 
         st.markdown("---")
