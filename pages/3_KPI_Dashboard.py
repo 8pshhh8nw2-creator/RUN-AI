@@ -24,7 +24,15 @@ from kpi_ui_components import (
     verdetto_box, in_pratica, azione_consigliata,
     kpi_card_sparkline, feature_importance_chart,
 )
-
+from utils.kpi_engine import (
+    calcola_sma,
+    calcola_islr,
+    calcola_iitr,
+    calcola_idet,
+    calcola_kpi_giornalieri,
+    calcola_risk_score_pesato,
+    FEATURE_IMPORTANCE_CHART_DATA
+)
 carica_css()
 df, df_full, filtro_tempo = sidebar_comune()
 
