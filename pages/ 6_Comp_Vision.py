@@ -21,7 +21,6 @@ import mediapipe as mp
 # ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
-elif pagina == "COMPUTER VISION":
     header_block(
         "Modulo 06 — Computer Vision",
         "AI RUNNING FORM ANALYSIS & INJURY PREDICTION",
