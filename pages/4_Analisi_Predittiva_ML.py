@@ -22,7 +22,7 @@ from utils.style import carica_css
 from utils.data import genera_dati
 from utils.components import header_block, style_fig, get_svg_url, SVG_ML
 
-st.set_page_config(page_title="Advanced Machine Intelligence & Explainability", layout="wide")
+st.set_page_config(page_title="Advanced Machine Intelligence & Explainability Suite", layout="wide")
 carica_css()
 
 if 'dati' not in st.session_state or st.session_state.dati is None:
@@ -40,8 +40,8 @@ IMG_HERO_ML = get_svg_url(SVG_ML)
 
 header_block(
     "Modulo 04 — Model Explainability",
-    "ADVANCED MACHINE INTELLIGENCE ENGINE",
-    "Piattaforma computazionale per l'analisi predittiva, feature attribution, validazione dei KPI proprietari e simulazione di carico.",
+    "ADVANCED MACHINE INTELLIGENCE SUITE",
+    "Piattaforma computazionale integrata per l'analisi predittiva, feature attribution, validazione dei KPI proprietari e simulazione di carico.",
     IMG_HERO_ML, "Neural Engine Core"
 )
 
@@ -109,18 +109,19 @@ try:
     )
     has_multiple_test_classes = bool(len(np.unique(y_test)) > 1)
 
-    # Addestramento preventivo dei modelli per il simulatore finale
+    # Addestramento preventivo dei modelli per il simulatore e i test
     rf_simulator_model = RandomForestClassifier(n_estimators=150, random_state=42, max_depth=6)
     rf_simulator_model.fit(X_train, y_train)
 
-    t_eda, t_lin, t_log, t_rf, t_clu, t_stress, t_sim = st.tabs([
+    t_eda, t_lin, t_log, t_rf, t_clu, t_stress, t_sim, t_sum = st.tabs([
         "00. Dataset Diagnostics & EDA",
-        "01. Regressione Lineare",
+        "01. Regressione Lineare OLS",
         "02. Regressione Logistica",
         "03. Random Forest",
         "04. Clustering K-Means",
         "05. Predictive Forecasting",
-        "06. Simulatore What-If"
+        "06. Simulatore What-If",
+        "07. Summary & Comparison"
     ])
 
     # -------------------------------------------------------------------------
@@ -368,7 +369,7 @@ try:
         st.plotly_chart(style_fig(fig_sp), use_container_width=True)
 
     # -------------------------------------------------------------------------
-    # TAB 6: SIMULATORE WHAT-IF (NUOVO)
+    # TAB 6: SIMULATORE WHAT-IF
     # -------------------------------------------------------------------------
     with t_sim:
         st.markdown("### Simulatore Predittivo What-If in Tempo Reale")
@@ -390,7 +391,6 @@ try:
             sim_iitr = st.slider("IITR (Indice Impatto Termico-Regolatorio)", min_value=0.5, max_value=25.0, value=5.0, step=0.5)
             sim_idet = st.slider("IDET (Indice Dinamico Energetico)", min_value=10.0, max_value=300.0, value=85.0, step=1.0)
 
-        # Calcolo predizione istantanea
         input_array = np.array([[sim_distanza, sim_sonno, sim_stress, sim_fc, sim_rpe, sim_sma, sim_islr, sim_iitr, sim_idet]])
         input_scaled = scaler.transform(input_array)
         pred_prob = rf_simulator_model.predict_proba(input_scaled)[0][1] * 100
@@ -421,6 +421,30 @@ try:
                 </p>
                 </div>
                 """, unsafe_allow_html=True)
+
+    # -------------------------------------------------------------------------
+    # TAB 7: SUMMARY & COMPARISON (NUOVO)
+    # -------------------------------------------------------------------------
+    with t_sum:
+        st.markdown("### Quadro Sinottico e Confronto Prestazionale dei Modelli")
+        st.markdown("<p style='color: #8792A3;'>Tabella riassuntiva di validazione trasversale per la discussione dei risultati all'interno della tesi.</p>", unsafe_allow_html=True)
+
+        summary_data = {
+            "Modello": [
+                "Regressione Lineare OLS",
+                "Regressione Logistica (Baseline)",
+                "Regressione Logistica (Completa + KPI)",
+                "Random Forest Classifier",
+                "K-Means Clustering",
+                "Time Series Forecasting"
+            ],
+            "Task": ["Regressione", "Classificazione", "Classificazione", "Classificazione", "Clustering", "Serie Storiche"],
+            "Metrica Principale": [f"R² = {r2_test:.3f}", f"Accuracy = {acc_baseline*100:.1f}%", f"Accuracy = {acc_l*100:.1f}%", f"Accuracy = {acc*100:.1f}%", f"Silhouette = {sil_val:.3f}", "Rolling SMA 7d"],
+            "Valutazione Stabilità": ["OLS Residual Test", "Train-Test Split", "Stratified 5-Fold CV", "Stratified 5-Fold CV", "Elbow & Silhouette", "Confidence Interval"],
+            "Impatto Tesi": ["Base Volume/Performance", "Baseline di Foster", "Dimostrazione Valore KPI", "Attribution & Non-linearità", "Segmentazione Carichi", "Prevenzione Overload"]
+        }
+        summary_df = pd.DataFrame(summary_data)
+        st.dataframe(summary_df, use_container_width=True)
 
 except Exception as e:
     st.error(f"Errore critico nell'esecuzione della pipeline analitica: {str(e)}")
