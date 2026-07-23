@@ -1,26 +1,37 @@
-from utils.sidebar import sidebar_comune
-df, df_full, filtro_tempo = sidebar_comune()
 import streamlit as st
 import pandas as pd
 
 from utils.style import carica_css
 from utils.data import genera_dati
 from utils.components import header_block, get_svg_url, SVG_ANALISI
+from utils.sidebar import sidebar_comune
 
+# 1. Configurazione pagina (DEVE essere il primo comando)
 st.set_page_config(page_title="Analisi Stato di Forma", layout="wide")
 carica_css()
 
-if 'dati' not in st.session_state:
+# 2. Inizializzazione sicura dello stato
+if 'dati' not in st.session_state or st.session_state.dati is None:
     st.session_state.dati = genera_dati()
+if 'analisi_fatta' not in st.session_state:
     st.session_state.analisi_fatta = False
+if 'risultati_analisi' not in st.session_state:
     st.session_state.risultati_analisi = {}
+if 'device_connected' not in st.session_state:
     st.session_state.device_connected = False
+if 'diario_note' not in st.session_state:
     st.session_state.diario_note = []
 
-# from utils.components import header_block, get_svg_url, SVG_ANALISI
-# ...
-IMG_HERO_ANALISI = get_svg_url(SVG_ANALISI)
+# 3. Chiamata sicura alla sidebar (ora che lo state è inizializzato)
+sidebar_result = sidebar_comune()
+if sidebar_result and isinstance(sidebar_result, tuple) and len(sidebar_result) == 3:
+    df, df_full, filtro_tempo = sidebar_result
+else:
+    df_full = st.session_state.dati.copy()
+    df = df_full
+    filtro_tempo = "Ultimi 30 giorni"
 
+IMG_HERO_ANALISI = get_svg_url(SVG_ANALISI)
 
 # ---------------------------------------------------------
 # PAGINA 1: ANALISI STATO DI FORMA
