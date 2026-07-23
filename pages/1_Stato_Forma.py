@@ -1,3 +1,22 @@
+import streamlit as st
+import pandas as pd
+
+from utils.style import carica_css
+from utils.data import genera_dati
+from utils.components import header_block, get_svg_url, SVG_ANALISI
+st.set_page_config(page_title="Analisi Stato di Forma", layout="wide")
+carica_css()
+
+if 'dati' not in st.session_state:
+    st.session_state.dati = genera_dati()
+    st.session_state.analisi_fatta = False
+    st.session_state.risultati_analisi = {}
+    st.session_state.device_connected = False
+    st.session_state.diario_note = []
+
+IMG_HERO_ANALISI = get_svg_url(SVG_ANALISI)
+
+
 # ---------------------------------------------------------
 # PAGINA 1: ANALISI STATO DI FORMA
 # ---------------------------------------------------------
