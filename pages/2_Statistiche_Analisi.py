@@ -35,7 +35,6 @@ else:
 # ---------------------------------------------------------
 # PAGINA 2: STATISTICHE ANALISI
 # ---------------------------------------------------------
-elif pagina == "STATISTICHE ANALISI":
     header_block(
         "Modulo 02 — Analytics Storico",
         "STATISTICHE ANALISI",
