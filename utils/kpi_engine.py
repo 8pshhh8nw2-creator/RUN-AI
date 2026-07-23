@@ -76,21 +76,29 @@ def calcola_idet(fc_media, gradi_c, velocita_kmh):
 
 def calcola_kpi_giornalieri(row):
     """
-    Calcola i 4 KPI per una riga del dataframe storico (o per il record di
-    'oggi' costruito dal questionario). row deve avere le colonne definite
-    nella sezione CONFIG sopra (o equivalenti, se rinomini le costanti).
-    Ritorna un dict {"SMA": ..., "ISLR": ..., "IITR": ..., "IDET": ...}
+    Calcola i 4 KPI per una riga del dataframe storico o per il record di oggi.
+    Gestisce in modo sicuro sia dizionari che serie pandas, con fallback intelligenti.
     """
-    sma = calcola_sma(row[COL_STRESS], row[COL_RPE], row[COL_SONNO])
-    islr = calcola_islr(row[COL_ORE_LAVORO], row[COL_STRESS], row[COL_DISTANZA])
-    iitr = calcola_iitr(row[COL_TEMPERATURA], row[COL_VENTO], row[COL_DISTANZA])
+    # Estrazione sicura con fallback sui nomi alternativi
+    stress = row.get(COL_STRESS, row.get("stress_lavoro", row.get("Stress Lavoro", 5)))
+    rpe = row.get(COL_RPE, row.get("rpe_previsto", row.get("RPE", 5)))
+    sonno = row.get(COL_SONNO, row.get("ore_sonno", row.get("Ore Sonno", 7.5)))
+    
+    ore_lavoro = row.get(COL_ORE_LAVORO, row.get("ore_lavoro", row.get("Ore Lavoro", 8.0)))
+    distanza = row.get(COL_DISTANZA, row.get("distanza_oggi", row.get("Distanza (km)", 10.0)))
+    
+    temp = row.get(COL_TEMPERATURA, row.get("temperatura", 20.0))
+    vento = row.get(COL_VENTO, row.get("vento", 5.0))
+    
+    fc_media = row.get(COL_FC_MEDIA, row.get("fc_riposo", row.get("FC Media", 140.0)))
+    velocita = row.get(COL_VELOCITA, row.get("velocita", 10.0))
 
-    velocita = row[COL_VELOCITA] if COL_VELOCITA in row else None
-    idet = calcola_idet(row[COL_FC_MEDIA], row[COL_TEMPERATURA], velocita) if velocita else np.nan
+    sma = calcola_sma(stress, rpe, sonno)
+    islr = calcola_islr(ore_lavoro, stress, distanza)
+    iitr = calcola_iitr(temp, vento, distanza)
+    idet = calcola_idet(fc_media, temp, velocita) if velocita and velocita > 0 else np.nan
 
     return {"SMA": sma, "ISLR": islr, "IITR": iitr, "IDET": idet}
-
-
 # ============================================================
 # NORMALIZZAZIONE "N-of-1": ogni valore diventa uno score 0-100
 # basato sulla sua posizione percentile nel TUO storico personale,
