@@ -19,7 +19,13 @@ from sklearn.metrics import silhouette_score
 from utils.style import carica_css
 from utils.data import genera_dati
 from utils.components import header_block, style_fig, get_svg_url, SVG_ML
+st.set_page_config(page_title="Analisi Predittiva ML", layout="wide")
+carica_css()
 
+if 'dati' not in st.session_state:
+    st.session_state.dati = genera_dati()
+
+IMG_HERO_ML = get_svg_url(SVG_ML)
 
 
 
