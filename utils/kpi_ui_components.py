@@ -69,9 +69,17 @@ def trend_arrow(oggi, media_storica, invert=False, unita=""):
 def kpi_card_sparkline(titolo, valore, colore, serie_storica, giorni_asse, unita=""):
     """
     Card KPI con numero grande + mini-grafico andamento (senza assi, stile
-    sparkline) inline nella stessa card. Usa le classi CSS 'kpi-card' e
-    'section-label' che hai gia' definito in carica_css().
+    sparkline) inline nella stessa card. Gestisce in modo sicuro i colori rgba.
     """
+    # Conversione sicura del colore esadecimale in rgba per il riempimento
+    if colore.startswith("#") and len(colore) == 7:
+        r = int(colore[1:3], 16)
+        g = int(colore[3:5], 16)
+        b = int(colore[5:7], 16)
+        fill_colore = f"rgba({r}, {g}, {b}, 0.12)"
+    else:
+        fill_colore = "rgba(0, 245, 160, 0.12)"
+
     col_num, col_graf = st.columns([1, 1.4])
     with col_num:
         st.markdown(f"""<div class='kpi-card' style='border-top: 2px solid {colore}; height:100%;'>
@@ -81,7 +89,7 @@ def kpi_card_sparkline(titolo, valore, colore, serie_storica, giorni_asse, unita
     with col_graf:
         fig = go.Figure(go.Scatter(
             x=giorni_asse, y=serie_storica, mode="lines", line=dict(color=colore, width=3),
-            fill="tozeroy", fillcolor=colore.replace(")", ",0.12)").replace("#", "rgba(") if colore.startswith("#") else colore
+            fill="tozeroy", fillcolor=fill_colore
         ))
         fig.update_layout(
             height=90, margin=dict(l=0, r=0, t=4, b=0),
@@ -90,7 +98,6 @@ def kpi_card_sparkline(titolo, valore, colore, serie_storica, giorni_asse, unita
             showlegend=False,
         )
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-
 
 # ============================================================
 # GRAFICO FEATURE IMPORTANCE (dal Random Forest della tesi)
