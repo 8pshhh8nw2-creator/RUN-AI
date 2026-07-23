@@ -21,11 +21,11 @@ import mediapipe as mp
 # ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
-    header_block(
-        "Modulo 06 — Computer Vision",
-        "AI RUNNING FORM ANALYSIS & INJURY PREDICTION",
-        "Carica un video di corsa (profilo laterale): l'IA estrae lo scheletro biometrico, calcola angoli/sovraccarichi e predice il rischio d'infortunio tramite Machine Learning.",
-        IMG_HERO_CV, "Pose Estimation & ML"
+header_block(
+    "Modulo 06 — Computer Vision",
+    "AI RUNNING FORM ANALYSIS & INJURY PREDICTION",
+    "Carica un video di corsa (profilo laterale): l'IA estrae lo scheletro biometrico, calcola angoli/sovraccarichi e predice il rischio d'infortunio tramite Machine Learning.",
+    IMG_HERO_CV, "Pose Estimation & ML"
     )
     st.markdown("""
     <div class='info-box'>
