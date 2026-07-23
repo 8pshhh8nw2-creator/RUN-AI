@@ -15,8 +15,10 @@ if 'dati' not in st.session_state:
     st.session_state.risultati_analisi = {}
     st.session_state.device_connected = False
     st.session_state.diario_note = []
-
+from utils.components import header_block, get_svg_url, SVG_ANALISI
+...
 IMG_HERO_ANALISI = get_svg_url(SVG_ANALISI)
+
 
 
 # ---------------------------------------------------------
