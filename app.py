@@ -1047,39 +1047,39 @@ elif pagina == "KPI DASHBOARD":
 # =========================================================
 df['Rischio Infortunio'] = np.where((df['RPE'] > 7) & (df['Ore Sonno'] < 6.5) & (df['FC Media'] > 155), 1, 0)
 
-    # --- Vento, necessario per IITR ---
-    df['Vento (km/h)'] = np.round(np.random.uniform(0, 25, n), 1)
+# --- Vento, necessario per IITR ---
+df['Vento (km/h)'] = np.round(np.random.uniform(0, 25, n), 1)
 
-    # --- ISLR: Indice di Sforzo Lavorativo Residuo ---
-    df['ISLR'] = np.where(
-        df['Distanza (km)'] > 0,
-        (df['Ore Lavoro'] * df['Stress Lavoro']) / df['Distanza (km)'],
-        0
-    )
+# --- ISLR: Indice di Sforzo Lavorativo Residuo ---
+ df['ISLR'] = np.where(
+     df['Distanza (km)'] > 0,
+    (df['Ore Lavoro'] * df['Stress Lavoro']) / df['Distanza (km)'],
+    0
+)
 
-    # --- IITR: Indice di Impatto Termico e Resistenza ---
-    df['IITR'] = np.where(
-        df['Distanza (km)'] > 0,
-        (df['Temp (°C)'] * df['Vento (km/h)']) / df['Distanza (km)'],
-        0
-    )
+# --- IITR: Indice di Impatto Termico e Resistenza ---
+df['IITR'] = np.where(
+    df['Distanza (km)'] > 0,
+    (df['Temp (°C)'] * df['Vento (km/h)']) / df['Distanza (km)'],
+     0
+)
 
-    # --- IDET: Indice di Degradazione Termica ---
-    df['IDET'] = np.where(
-        df['Velocità (km/h)'] > 0,
-        (df['FC Media'] * df['Temp (°C)']) / df['Velocità (km/h)'],
-        0
-    )
+ # --- IDET: Indice di Degradazione Termica ---
+ df['IDET'] = np.where(
+    df['Velocità (km/h)'] > 0,
+    (df['FC Media'] * df['Temp (°C)']) / df['Velocità (km/h)'],
+    0
+)
 
-    # --- Session-RPE (Foster), usata come baseline di confronto ---
-    df['Durata (min)'] = np.where(
-        df['Velocità (km/h)'] > 0,
-        (df['Distanza (km)'] / df['Velocità (km/h)']) * 60,
-        0
-    )
-    df['Session_RPE'] = df['RPE'] * df['Durata (min)']
+# --- Session-RPE (Foster), usata come baseline di confronto ---
+df['Durata (min)'] = np.where(
+     df['Velocità (km/h)'] > 0,
+    (df['Distanza (km)'] / df['Velocità (km/h)']) * 60,
+    0
+)
+df['Session_RPE'] = df['RPE'] * df['Durata (min)']
 
-    return df
+return df
  
 
 # =========================================================
