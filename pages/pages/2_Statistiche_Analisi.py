@@ -1,3 +1,5 @@
+from utils.sidebar import sidebar_comune
+df, df_full, filtro_tempo = sidebar_comune()
 import streamlit as st
 import pandas as pd
 import plotly.express as px
