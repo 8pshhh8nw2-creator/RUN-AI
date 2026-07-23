@@ -1,41 +1,33 @@
-from utils.sidebar import sidebar_comune
-df, df_full, filtro_tempo = sidebar_comune()
 import streamlit as st
-import math
 import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
+import numpy as np
 
+from utils.sidebar import sidebar_comune
 from utils.style import carica_css
 from utils.data import genera_dati
-from utils.components import header_block, style_fig, get_svg_url, SVG_PLAN
+from utils.components import header_block, get_svg_url
 
 st.set_page_config(page_title="Consiglio Finale", layout="wide")
 carica_css()
 
-if 'dati' not in st.session_state:
+# Inizializzazione sicura dello stato se manca
+if 'dati' not in st.session_state or st.session_state.dati is None:
     st.session_state.dati = genera_dati()
+if 'analisi_fatta' not in st.session_state:
+    st.session_state.analisi_fatta = False
+if 'risultati_analisi' not in st.session_state:
+    st.session_state.risultati_analisi = {}
 
-IMG_HERO_PLAN = get_svg_url(SVG_PLAN)
-
-
-def md(html):
-    """Renderizza HTML in modo sicuro. Rimuove l'indentazione python."""
-    html_pulito = "\n".join([line.strip() for line in html.split("\n")])
-    st.markdown(html_pulito, unsafe_allow_html=True)
-
-header_block(
-    "Modulo 05 — Action Plan",
-    "CONSIGLIO FINALE",
-    "Protocollo operativo, proiezioni fisiologiche ed export report per la sessione odierna.",
-    IMG_HERO_PLAN, "Coach Protocol"
-)
-
-if not st.session_state.get('analisi_fatta', False):
-    st.warning("Completa prima il questionario nella pagina 'ANALISI STATO DI FORMA'.")
+# Chiamata sicura alla sidebar con controllo sul risultato
+sidebar_result = sidebar_comune()
+if sidebar_result and isinstance(sidebar_result, tuple) and len(sidebar_result) == 3:
+    df, df_full, filtro_tempo = sidebar_result
 else:
-    r = st.session_state.risultati_analisi
-    df_base = st.session_state.dati.copy()
+    df_full = st.session_state.dati.copy()
+    df = df_full
+    filtro_tempo = "Ultimi 30 giorni"
+
+# --- Da qui in poi continua il resto del codice della tua pagina ---
 
     # =========================================================
     # TOKEN DI DESIGN (High-Tech Sports Theme)
