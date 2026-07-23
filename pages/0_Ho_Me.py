@@ -14,15 +14,25 @@ carica_css()
 
 IMG_HERO_HOME = get_svg_url(SVG_HOME)
 
-if 'dati' not in st.session_state:
+if 'dati' not in st.session_state or st.session_state.dati is None:
     st.session_state.dati = genera_dati()
+if 'analisi_fatta' not in st.session_state:
     st.session_state.analisi_fatta = False
+if 'risultati_analisi' not in st.session_state:
     st.session_state.risultati_analisi = {}
+if 'device_connected' not in st.session_state:
     st.session_state.device_connected = False
+if 'diario_note' not in st.session_state:
     st.session_state.diario_note = []
 
-# Ora è sicuro chiamare la sidebar
-df, df_full, filtro_tempo = sidebar_comune()
+# Chiamata sicura alla sidebar con controllo di integrità del tuple
+sidebar_result = sidebar_comune()
+if sidebar_result and isinstance(sidebar_result, tuple) and len(sidebar_result) == 3:
+    df, df_full, filtro_tempo = sidebar_result
+else:
+    df_full = st.session_state.dati.copy()
+    df = df_full
+    filtro_tempo = "Ultimi 30 giorni"
 
 # =========================================================
 # CONTENUTO HOME
