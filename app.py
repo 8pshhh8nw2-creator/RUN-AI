@@ -1045,12 +1045,12 @@ elif pagina == "KPI DASHBOARD":
 # Serve per allineare il dataset ai 4 KPI proprietari della tesi
 # (SMA era già presente, qui aggiungiamo ISLR, IITR, IDET)
 # =========================================================
+df['Rischio Infortunio'] = np.where((df['RPE'] > 7) & (df['Ore Sonno'] < 6.5) & (df['FC Media'] > 155), 1, 0)
 
-    # --- Vento, necessario per IITR (non presente prima) ---
+    # --- Vento, necessario per IITR ---
     df['Vento (km/h)'] = np.round(np.random.uniform(0, 25, n), 1)
 
     # --- ISLR: Indice di Sforzo Lavorativo Residuo ---
-    # ISLR = (Ore Lavoro x Stress Lavoro) / Distanza
     df['ISLR'] = np.where(
         df['Distanza (km)'] > 0,
         (df['Ore Lavoro'] * df['Stress Lavoro']) / df['Distanza (km)'],
@@ -1058,7 +1058,6 @@ elif pagina == "KPI DASHBOARD":
     )
 
     # --- IITR: Indice di Impatto Termico e Resistenza ---
-    # IITR = (Temperatura x Vento) / Distanza
     df['IITR'] = np.where(
         df['Distanza (km)'] > 0,
         (df['Temp (°C)'] * df['Vento (km/h)']) / df['Distanza (km)'],
@@ -1066,7 +1065,6 @@ elif pagina == "KPI DASHBOARD":
     )
 
     # --- IDET: Indice di Degradazione Termica ---
-    # IDET = (FC Media x Temperatura) / Velocità
     df['IDET'] = np.where(
         df['Velocità (km/h)'] > 0,
         (df['FC Media'] * df['Temp (°C)']) / df['Velocità (km/h)'],
@@ -1074,15 +1072,15 @@ elif pagina == "KPI DASHBOARD":
     )
 
     # --- Session-RPE (Foster), usata come baseline di confronto ---
-    # Durata stimata in minuti = (Distanza / Velocità) x 60
     df['Durata (min)'] = np.where(
         df['Velocità (km/h)'] > 0,
         (df['Distanza (km)'] / df['Velocità (km/h)']) * 60,
         0
     )
     df['Session_RPE'] = df['RPE'] * df['Durata (min)']
-    return df
 
+    return df
+ 
 
 # =========================================================
 # PARTE 2 — SOSTITUISCE INTERAMENTE IL BLOCCO
