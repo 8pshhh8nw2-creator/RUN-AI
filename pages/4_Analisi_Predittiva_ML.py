@@ -175,11 +175,23 @@ with tabs[1]:
     st.markdown("Mentre la *Feature Importance* ci dice quali variabili sono importanti in generale, SHAP ci spiega **come** influenzano la singola predizione (es. 'Valori alti di SMA aumentano il rischio, valori bassi lo riducono').")
 
     @st.cache_resource
+    @st.cache_resource
     def get_shap_values(_model, _X):
         explainer = shap.TreeExplainer(_model)
         shap_vals = explainer.shap_values(_X)
-        return explainer, shap_vals[1] if isinstance(shap_vals, list) else shap_vals
-
+        
+        # Estrazione sicura per la classe positiva (1) indipendente dalla versione SHAP
+        if isinstance(shap_vals, list):
+            # Versioni SHAP legacy: restituisce una lista [array_classe_0, array_classe_1]
+            shap_target = shap_vals[1]
+        elif len(shap_vals.shape) == 3:
+            # Versioni SHAP recenti: restituisce un array 3D (samples, features, classes)
+            shap_target = shap_vals[:, :, 1]
+        else:
+            # Fallback se il modello nativamente restituisce già l'array 2D corretto
+            shap_target = shap_vals
+            
+        return explainer, shap_target
     explainer, shap_values = get_shap_values(rf_model, X_test)
 
     c_shap1, c_shap2 = st.columns(2)
