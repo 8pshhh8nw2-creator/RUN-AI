@@ -6,7 +6,6 @@ import plotly.graph_objects as go
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.cluster import KMeans
-from sklearn.metrics import confusion_matrix
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -62,7 +61,6 @@ def generate_thesis_data():
     
     # Base performance
     df['Tempo (min)'] = (df['Distanza (km)'] / df['Velocità (km/h)']) * 60
-    # Aggiungo un po' di rumore per rendere i grafici più realistici
     df['Tempo (min)'] += np.random.normal(0, 5, n) 
     
     # Calcolo KPI Proprietari
@@ -100,7 +98,7 @@ tab_kpi, tab_ml, tab_sim = st.tabs([
 ])
 
 # ============================================================================
-# TAB 1: I KPI PROPRIETARI (Come richiesto, mantenuto e pulito)
+# TAB 1: I KPI PROPRIETARI
 # ============================================================================
 with tab_kpi:
     st.header("L'Ingegnerizzazione delle Feature")
@@ -135,9 +133,7 @@ with tab_ml:
     st.header("Analisi dei Modelli Predittivi")
     st.markdown("Esplora come gli algoritmi apprendono dai dati. Apri le tendine sottostanti per analizzare ogni singolo modello.")
 
-    # ---------------------------------------------------------
     # 1. REGRESSIONE LINEARE
-    # ---------------------------------------------------------
     with st.expander("📈 1. Regressione Lineare (Linear Regression)", expanded=False):
         st.markdown("<div class='theory-box'><b>Fondamenti Teorici:</b> La regressione lineare modella la relazione tra una variabile dipendente continua (es. Tempo) e una variabile indipendente (es. Distanza), minimizzando la discrepanza tra i valori reali e la linea di tendenza.</div>", unsafe_allow_html=True)
         
@@ -161,9 +157,7 @@ with tab_ml:
             st.plotly_chart(fig_lr2, use_container_width=True)
             st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Questo grafico mostra di quanti minuti il modello si è sbagliato. Essendo centrato sullo zero (forma a campana), significa che il modello è sano e non ha bias evidenti.</div>", unsafe_allow_html=True)
 
-    # ---------------------------------------------------------
     # 2. REGRESSIONE LOGISTICA
-    # ---------------------------------------------------------
     with st.expander("🎯 2. Regressione Logistica (Logistic Regression)", expanded=False):
         st.markdown("<div class='theory-box'><b>Fondamenti Teorici:</b> Algoritmo di classificazione che stima la probabilità che una sessione appartenga a uno stato critico. Mappa la combinazione delle feature in uno spazio probabilistico tra 0 e 1 applicando la funzione logistica (Sigmoide).</div>", unsafe_allow_html=True)
         
@@ -191,9 +185,7 @@ with tab_ml:
             st.plotly_chart(fig_log2, use_container_width=True)
             st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> I boxplot mostrano quanto il modello sia sicuro. Le sessioni sicure (0) hanno probabilità schiacciate verso il basso, mentre quelle a rischio (1) sono concentrate verso l'alto.</div>", unsafe_allow_html=True)
 
-    # ---------------------------------------------------------
     # 3. RANDOM FOREST
-    # ---------------------------------------------------------
     with st.expander("🌳 3. Random Forest (Alberi Decisionali)", expanded=False):
         st.markdown("<div class='theory-box'><b>Fondamenti Teorici:</b> Opera combinando una moltitudine di alberi di decisione indipendenti. Gestisce nativamente le interazioni non lineari (es. poco sonno + alta FC) e calcola la <i>Feature Importance</i> per capire quale metrica pesa di più sulla fatica.</div>", unsafe_allow_html=True)
         
@@ -208,41 +200,36 @@ with tab_ml:
             st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Questa barra gerarchizza le tue metriche. Le feature in alto sono quelle che gli alberi decisionali usano più spesso per 'dividere' le sessioni sane da quelle in overtraining.</div>", unsafe_allow_html=True)
 
         with c2:
-            # Estraggo le due feature più importanti per uno scatter 
             top_2 = imp_df.tail(2)['Feature'].values
             fig_rf2 = px.scatter(df, x=top_2[0], y=top_2[1], color='Rischio Overload', 
-                                 title=f"Interazione delle Top 2 Feature",
-                                 color_discrete_map={0: '#3498db', 1: '#e74c3c'})
+                                   title=f"Interazione delle Top 2 Feature",
+                                   color_discrete_map={0: '#3498db', 1: '#e74c3c'})
             st.plotly_chart(fig_rf2, use_container_width=True)
             st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Il grafico incrocia le due variabili più forti. Noterai che i punti rossi (Overload) si concentrano in specifiche aree dello spazio, dimostrando l'interazione non-lineare catturata dalla Foresta.</div>", unsafe_allow_html=True)
 
-    # ---------------------------------------------------------
     # 4. K-MEANS CLUSTERING
-    # ---------------------------------------------------------
     with st.expander("🔍 4. Clustering K-Means (Segmentazione Non Supervisionata)", expanded=False):
         st.markdown("<div class='theory-box'><b>Fondamenti Teorici:</b> Raggruppa le sessioni sulla base delle loro similitudini geometriche nello spazio multidimensionale. L'algoritmo non sa in anticipo l'esito della sessione: raggruppa 'alla cieca' per scoprire pattern latenti.</div>", unsafe_allow_html=True)
         
-        km = KMeans(n_clusters=3, random_state=42).fit(df[['FC Media', 'ISLR']])
+        km = KMeans(n_clusters=3, random_state=42, n_init=10).fit(df[['FC Media', 'ISLR']])
         df['Cluster_ID'] = km.labels_
-        # Rinominiamo i cluster per chiarezza
         cluster_map = {0: 'Rigenerativo', 1: 'Elevato Stress', 2: 'Qualità / Misto'}
         df['Profilo_Corsa'] = df['Cluster_ID'].map(cluster_map)
 
         c1, c2 = st.columns(2)
         with c1:
             fig_km1 = px.scatter(df, x="ISLR", y="FC Media", color="Profilo_Corsa", 
-                                 title="Segmentazione Automatica delle Corse",
-                                 color_discrete_sequence=['#2ecc71', '#e74c3c', '#f1c40f'])
+                                   title="Segmentazione Automatica delle Corse",
+                                   color_discrete_sequence=['#2ecc71', '#e74c3c', '#f1c40f'])
             st.plotly_chart(fig_km1, use_container_width=True)
             st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Ogni colore rappresenta una 'famiglia' di allenamento scoperta dall'algoritmo calcolando i centri geometrici. Sessioni distanti fisicamente nel grafico hanno caratteristiche opposte.</div>", unsafe_allow_html=True)
 
         with c2:
             cluster_means = df.groupby('Profilo_Corsa')[['Ore Sonno', 'Tempo (min)', 'RPE']].mean().reset_index()
             fig_km2 = px.bar(cluster_means, x='Profilo_Corsa', y=['Ore Sonno', 'RPE'], barmode='group', 
-                             title="Cosa distingue i profili?")
+                                   title="Cosa distingue i profili?")
             st.plotly_chart(fig_km2, use_container_width=True)
             st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Questo grafico decodifica i Cluster. Ci mostra che, ad esempio, il gruppo 'Elevato Stress' è tipicamente associato a un RPE (sforzo) più alto e a un sonno minore rispetto agli altri gruppi.</div>", unsafe_allow_html=True)
-
 
 # ============================================================================
 # TAB 3: SIMULATORE PREDITTIVO
@@ -277,7 +264,7 @@ with tab_sim:
         sim_idet = (sim_fc * sim_temp) / sim_vel if sim_vel > 0 else 0
         sim_iitr = (sim_temp * sim_vento) / sim_dist if sim_dist > 0 else 0
         
-        # Il modello RF che abbiamo allenato sopra richiede questi 6 campi esatti
+        # Il modello RF richiede esattamente questi 6 campi
         input_data = pd.DataFrame([[sim_dist, sim_sonno, sim_sma, sim_islr, sim_idet, sim_iitr]], 
                                   columns=['Distanza (km)', 'Ore Sonno', 'SMA', 'ISLR', 'IDET', 'IITR'])
         
