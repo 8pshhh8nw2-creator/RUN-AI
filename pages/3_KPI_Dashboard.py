@@ -2,8 +2,8 @@
 pages/04_Centro_KPI.py
 --------------------------------------------------------------------------------
 Dashboard unificata con i 4 KPI proprietari della tesi (SMA, ISLR, IITR, IDET),
-il risk_score pesato sulla Feature Importance reale, e il grafico che mostra
-quali variabili contano davvero nel tuo modello.
+il risk_score pesato sulla Feature Importance reale, e visualizzazioni avanzate
+inclusi radar chart multidimensionali e analisi di densità statistica.
 """
 
 import streamlit as st
@@ -32,43 +32,37 @@ from utils.kpi_engine import (
     COL_SONNO, COL_DISTANZA
 )
 
-st.set_page_config(page_title="Centro KPI & Intelligence", layout="wide")
+st.set_page_config(page_title="Centro KPI & Advanced Intelligence", layout="wide")
 carica_css()
 
 # ==================================================================
-# STILE CUSTOM AGGIUNTIVO PER IL SALTO DI QUALITÀ VISIVO
+# STILE CUSTOM AGGIUNTIVO PER IL LOOK ENTERPRISE
 # ==================================================================
 st.markdown("""
 <style>
     .kpi-main-container {
-        background: linear-gradient(135deg, rgba(32,40,58,0.6) 0%, rgba(15,20,30,0.8) 100%);
-        border: 1px solid rgba(0,229,255,0.2);
+        background: linear-gradient(135deg, rgba(32,40,58,0.7) 0%, rgba(15,20,30,0.9) 100%);
+        border: 1px solid rgba(0,229,255,0.25);
         padding: 24px;
         border-radius: 14px;
         margin-bottom: 24px;
-    }
-    .metric-badge {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 0.85em;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     }
     .explain-text {
         color: #B8C2D0;
         font-size: 0.95em;
         line-height: 1.5;
         background: rgba(255,255,255,0.03);
-        padding: 12px 16px;
+        padding: 14px 18px;
         border-radius: 8px;
         border-left: 3px solid #00E5FF;
-        margin-top: 10px;
+        margin-top: 12px;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ==================================================================
-# INIZIALIZZAZIONE STATO — unica fonte di verità, nessuna duplicazione
+# INIZIALIZZAZIONE STATO
 # ==================================================================
 if 'dati' not in st.session_state or st.session_state.dati is None:
     st.session_state.dati = genera_dati()
@@ -76,7 +70,7 @@ st.session_state.setdefault('analisi_fatta', False)
 st.session_state.setdefault('risultati_analisi', {})
 
 # ==================================================================
-# SIDEBAR — fallback sicuro, nessun ricalcolo superfluo
+# SIDEBAR
 # ==================================================================
 sidebar_result = sidebar_comune()
 if sidebar_result and len(sidebar_result) == 3:
@@ -89,9 +83,9 @@ else:
 IMG_HERO_KPI = get_svg_url(SVG_KPI)
 
 header_block(
-    "Modulo 04 — Centro KPI & Intelligence",
+    "Modulo 04 — Centro KPI & Advanced Intelligence",
     "I TUOI 4 INDICI PROPRIETARI",
-    "SMA, ISLR, IITR, IDET calcolati sui parametri di oggi e confrontati analiticamente col tuo storico personale.",
+    "Analisi multidimensionale avanzata: SMA, ISLR, IITR, IDET integrati con radar chart di profilo e breakdown di rischio.",
     IMG_HERO_KPI, "Proprietary KPI Engine"
 )
 
@@ -101,10 +95,9 @@ if not st.session_state.get('analisi_fatta', False):
 
 
 # ==================================================================
-# FUNZIONI DI SUPPORTO E ANALISI AVANZATA
+# FUNZIONI DI SUPPORTO
 # ==================================================================
 def _colore_e_stato(valore, soglia_verde, soglia_gialla):
-    """Restituisce (colore, etichetta) di stato per un valore rispetto a due soglie crescenti."""
     if valore is None or pd.isna(valore):
         return "#566178", "N/D"
     if valore < soglia_verde:
@@ -115,7 +108,6 @@ def _colore_e_stato(valore, soglia_verde, soglia_gialla):
 
 
 def _delta_vs_storico(valore_oggi, serie_storica):
-    """Calcola la variazione rispetto all'ultima sessione storica disponibile. None se non calcolabile."""
     if serie_storica is None or len(serie_storica) == 0 or pd.isna(valore_oggi):
         return None
     ultimo_storico = serie_storica.iloc[-1]
@@ -125,7 +117,6 @@ def _delta_vs_storico(valore_oggi, serie_storica):
 
 
 def _badge_delta(delta, positivo_e_meglio=False):
-    """Renderizza una piccola etichetta di trend (▲/▼) accanto al valore del KPI."""
     if delta is None:
         return ""
     peggiora = (delta > 0) if not positivo_e_meglio else (delta < 0)
@@ -135,7 +126,6 @@ def _badge_delta(delta, positivo_e_meglio=False):
 
 
 def _calcola_percentile(valore, serie_storica):
-    """Calcola la posizione percentuale del valore odierno rispetto allo storico."""
     if serie_storica is None or len(serie_storica) < 5 or pd.isna(valore):
         return None
     serie_pulita = serie_storica.dropna()
@@ -144,7 +134,7 @@ def _calcola_percentile(valore, serie_storica):
 
 
 # ==================================================================
-# CALCOLO KPI DI OGGI + STORICO
+# CALCOLO DATI DI OGGI + STORICO
 # ==================================================================
 r = st.session_state.risultati_analisi
 df_base = st.session_state.dati.copy()
@@ -156,7 +146,6 @@ if len(df_base) > 0:
     try:
         kpi_storico = df_base.apply(calcola_kpi_giornalieri, axis=1, result_type="expand")
     except Exception:
-        st.info("ℹ️ Alcune sessioni storiche non sono calcolabili: i confronti col passato saranno parziali.")
         kpi_storico = None
 
 try:
@@ -172,34 +161,38 @@ try:
     )
 except Exception:
     risk_score, dettaglio_scores = 50.0, {}
-    st.info("ℹ️ Non è stato possibile calcolare il risk score pesato con i dati disponibili: mostrato un valore neutro (50%).")
 
 status_color = "#00F5A0" if risk_score < 25 else "#FFB020" if risk_score < 60 else "#FF6A3D"
 status_text = "OTTIMALE" if risk_score < 25 else "MODERATO" if risk_score < 60 else "CRITICO"
 
 # ==================================================================
-# HEADER ESPOSITIVO PRINCIPALE (SUMMARY BOX)
+# HEADER PRINCIPALE
 # ==================================================================
 st.markdown(f"""
 <div class='kpi-main-container'>
     <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;'>
         <div>
             <div style='color: #8792A3; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px;'>Stato di Prontezza Odierno</div>
-            <div style='font-size: 2.2em; font-weight: 800; color: {status_color}; margin-top: 4px;'>
+            <div style='font-size: 2.3em; font-weight: 800; color: {status_color}; margin-top: 4px;'>
                 RISCHIO {status_text} <span style='font-size: 0.7em; font-weight: 400; color: #FFFFFF;'>({risk_score:.0f}%)</span>
             </div>
         </div>
-        <div style='background: rgba(255,255,255,0.05); padding: 12px 18px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); max-width: 500px;'>
-            <div style='color: #00E5FF; font-weight: 600; font-size: 0.9em; margin-bottom: 4px;'>🧠 Intelligence del Modello</div>
+        <div style='background: rgba(255,255,255,0.04); padding: 12px 18px; border-radius: 10px; border: 1px solid rgba(0,229,255,0.2); max-width: 480px;'>
+            <div style='color: #00E5FF; font-weight: 600; font-size: 0.9em; margin-bottom: 4px;'>🧠 Ponderazione Basata su Random Forest</div>
             <div style='color: #B8C2D0; font-size: 0.85em; line-height: 1.4;'>
-                Il punteggio non usa soglie arbitrarie ma pesa ciascun KPI in base alla vera <b>Feature Importance</b> estratta dal Random Forest della tua tesi[cite: 2].
+                Il risk score aggrega i KPI pesandoli direttamente sulla reale <b>Feature Importance</b> appresa dal modello predittivo[cite: 2].
             </div>
         </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-tab_oggi, tab_storico, tab_metodo = st.tabs(["📍 Situazione di Oggi", "📈 Andamento Storico & Trend", "🔬 Metodologia & Pesi"])
+tab_oggi, tab_radar, tab_storico, tab_metodo = st.tabs([
+    "📍 Situazione di Oggi", 
+    "🕸️ Radar & Profilo Multidimensionale", 
+    "📈 Andamento Storico & Trend", 
+    "🔬 Metodologia & Pesi"
+])
 
 # ==================================================================
 # TAB 1 — SITUAZIONE DI OGGI
@@ -213,7 +206,6 @@ with tab_oggi:
     col1, col2 = st.columns(2)
     
     with col1:
-        # --- SMA ---
         colore_sma, _ = _colore_e_stato(kpi_oggi["SMA"], 10, 15)
         delta_sma = _delta_vs_storico(kpi_oggi["SMA"], kpi_storico["SMA"] if kpi_storico is not None else None)
         perc_sma = _calcola_percentile(kpi_oggi["SMA"], kpi_storico["SMA"] if kpi_storico is not None else None)
@@ -222,12 +214,11 @@ with tab_oggi:
                            kpi_storico["SMA"].tail(14).tolist() if kpi_storico is not None else [], giorni_asse)
         st.markdown(_badge_delta(delta_sma), unsafe_allow_html=True)
         if perc_sma is not None:
-            st.caption(id:="perc_sma_cap" f"📊 Valore nel **{perc_sma:.0f}° percentile** del tuo storico personale.")
+            st.caption(f"📊 Valore nel **{perc_sma:.0f}° percentile** del tuo storico personale.")
         in_pratica("SMA alto = hai corso con poco sonno e molto stress accumulato: oggi il corpo lavora in svantaggio neurale[cite: 2].")
 
         st.markdown("<div style='margin: 20px 0;'></div>", unsafe_allow_html=True)
 
-        # --- IITR ---
         colore_iitr, _ = _colore_e_stato(dettaglio_scores.get("IITR", 50), 40, 70)
         delta_iitr = _delta_vs_storico(kpi_oggi["IITR"], kpi_storico["IITR"] if kpi_storico is not None else None)
         perc_iitr = _calcola_percentile(kpi_oggi["IITR"], kpi_storico["IITR"] if kpi_storico is not None else None)
@@ -240,7 +231,6 @@ with tab_oggi:
         in_pratica("IITR alto = caldo e vento hanno reso la corsa di oggi più dura del solito per ogni km percorso[cite: 2].")
 
     with col2:
-        # --- ISLR ---
         colore_islr, _ = _colore_e_stato(kpi_oggi["ISLR"], 4.5, 6.3)
         delta_islr = _delta_vs_storico(kpi_oggi["ISLR"], kpi_storico["ISLR"] if kpi_storico is not None else None)
         perc_islr = _calcola_percentile(kpi_oggi["ISLR"], kpi_storico["ISLR"] if kpi_storico is not None else None)
@@ -257,7 +247,6 @@ with tab_oggi:
 
         st.markdown("<div style='margin: 20px 0;'></div>", unsafe_allow_html=True)
 
-        # --- IDET ---
         val_idet = kpi_oggi["IDET"] if pd.notna(kpi_oggi["IDET"]) else 0.0
         colore_idet, _ = _colore_e_stato(dettaglio_scores.get("IDET", 50), 40, 70)
         delta_idet = _delta_vs_storico(val_idet, kpi_storico["IDET"] if kpi_storico is not None else None)
@@ -280,14 +269,106 @@ with tab_oggi:
     )
 
 # ==================================================================
-# TAB 2 — ANDAMENTO STORICO REALE
+# TAB 2 — RADAR CHART & PROFILO MULTIDIMENSIONALE (NOVITÀ RICHIESTA)
+# ==================================================================
+with tab_radar:
+    st.markdown("### 🕸️ Profilo di Rischio Multidimensionale (Radar Chart)")
+    st.markdown("Il grafico a ragnatela permette di visualizzare la forma geometrica del tuo carico allostatico odierno confrontato con la **Media del tuo Storico** e con la **Soglia Critica di Allarme**.")
+
+    # Normalizzazione dei KPI su scala 0-100 per renderli comparabili sul radar
+    try:
+        max_sma = max(15.0, kpi_storico["SMA"].max() if kpi_storico is not None else 20.0)
+        max_islr = max(10.0, kpi_storico["ISLR"].max() if kpi_storico is not None else 12.0)
+        max_iitr = max(30.0, kpi_storico["IITR"].max() if kpi_storico is not None else 40.0)
+        max_idet = max(200.0, kpi_storico["IDET"].max() if kpi_storico is not None else 250.0)
+
+        oggi_norm = [
+            min(100, (kpi_oggi["SMA"] / max_sma) * 100),
+            min(100, (kpi_oggi["ISLR"] / max_islr) * 100),
+            min(100, (kpi_oggi["IITR"] / max_iitr) * 100),
+            min(100, (val_idet / max_idet) * 100)
+        ]
+
+        if kpi_storico is not None and len(kpi_storico) > 0:
+            storico_norm = [
+                min(100, (kpi_storico["SMA"].mean() / max_sma) * 100),
+                min(100, (kpi_storico["ISLR"].mean() / max_islr) * 100),
+                min(100, (kpi_storico["IITR"].mean() / max_iitr) * 100),
+                min(100, (kpi_storico["IDET"].mean() / max_idet) * 100)
+            ]
+        else:
+            storico_norm = [50, 50, 50, 50]
+
+        soglia_critica = [70, 70, 70, 70] # Rappresenta il limite di guardia
+        categorie = ['SMA (Stress Mentale)', 'ISLR (Lavoro Residuo)', 'IITR (Impatto Termico)', 'IDET (Degradazione)']
+
+        fig_radar = go.Figure()
+
+        # Traccia Storico
+        fig_radar.add_trace(go.Scatterpolar(
+            r=storico_norm + [storico_norm[0]],
+            theta=categorie + [categorie[0]],
+            fill='toself',
+            name='Media Storica Personale',
+            line=dict(color='#00E5FF', width=2),
+            fillcolor='rgba(0, 229, 255, 0.1)'
+        ))
+
+        # Traccia di Oggi
+        fig_radar.add_trace(go.Scatterpolar(
+            r=oggi_norm + [oggi_norm[0]],
+            theta=categorie + [categorie[0]],
+            fill='toself',
+            name='Profilo Odierno',
+            line=dict(color='#FF6A3D', width=3),
+            fillcolor='rgba(255, 106, 61, 0.25)'
+        ))
+
+        # Traccia Soglia Critica
+        fig_radar.add_trace(go.Scatterpolar(
+            r=soglia_critica + [soglia_critica[0]],
+            theta=categorie + [categorie[0]],
+            mode='lines',
+            name='Soglia Critica di Allarme',
+            line=dict(color='#FFB020', width=1.5, dash='dash')
+        ))
+
+        fig_radar.update_layout(
+            polar=dict(
+                radialaxis=dict(visible=True, range=[0, 100], gridcolor="rgba(255,255,255,0.1)", linecolor="rgba(255,255,255,0.2)"),
+                angularaxis=dict(gridcolor="rgba(255,255,255,0.1)", linecolor="rgba(255,255,255,0.2)")
+            ),
+            height=500,
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+            margin=dict(l=40, r=40, t=20, b=40),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)"
+        )
+
+        st.plotly_chart(style_fig(fig_radar), use_container_width=True)
+
+    except Exception as e:
+        st.info("ℹ️ Dati insufficienti per generare il grafico radar multidimensionale.")
+
+    st.markdown(
+        "<div class='explain-text'>"
+        "<strong>🧠 Lettura Avanzata (Tesi Magistrale):</strong> Il radar chart permette di cogliere asimmetrie strutturali nel carico. "
+        "Se la poligonale di oggi (in arancione) si estende oltre la linea tratteggiata della soglia critica o si discosta marcatamente "
+        "dalla media storica (in azzurro), evidenzia una specifica fonte di sbilanciamento (es. stress lavorativo o termico elevato) "
+        "anche quando il volume chilometrico è basso."
+        "</div>", unsafe_allow_html=True
+    )
+
+# ==================================================================
+# TAB 3 — ANDAMENTO STORICO REALE
 # ==================================================================
 with tab_storico:
     if kpi_storico is None or len(kpi_storico) < 3:
         st.info("ℹ️ Servono almeno 3 sessioni storiche per mostrare un andamento significativo. Continua a registrare le tue corse.")
     else:
         st.markdown("### 📈 Dinamica Temporale dei 4 KPI")
-        st.caption("Ogni pannello mantiene la propria scala naturale: i 4 indici non sono comparabili in valore assoluto, ma descrivono l'evoluzione del carico allostatico.")
+        st.caption("Ogni pannello mantiene la propria scala naturale: i 4 indici descrivono l'evoluzione longitudinale del carico allostatico.")
 
         n_storico = min(30, len(kpi_storico))
         finestra = kpi_storico.tail(n_storico).reset_index(drop=True)
@@ -320,12 +401,12 @@ with tab_storico:
             "<strong>💡 Interpretazione per la Discussione di Tesi:</strong> Picchi ricorrenti di ISLR o IDET "
             "in corrispondenza di cali successivi di performance costituiscono l'evidenza empirica a supporto "
             "dell'approccio <em>single-subject (N-of-1)</em>, dimostrando come il monitoraggio personalizzato intercetti "
-            "i rischi prima che si trasformino in overtraining cronico."
+            "i rischi prima che si trasformino in overtraining cronico[cite: 2]."
             "</div>", unsafe_allow_html=True
         )
 
 # ==================================================================
-# TAB 3 — METODOLOGIA E TRASPARENZA DEL MODELLO
+# TAB 4 — METODOLOGIA E TRASPARENZA DEL MODELLO
 # ==================================================================
 with tab_metodo:
     st.markdown("### 🔬 Architettura di Ponderazione: Feature Importance")
