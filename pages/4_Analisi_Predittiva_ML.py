@@ -65,7 +65,6 @@ def generate_safe_data():
     df['IDET'] = (df['FC Media'] * df['Temp (°C)']) / df['Velocità (km/h)']
     
     # Logica per l'Overload (Target 0/1)
-    # Alto ISLR, basso sonno e alto IDET aumentano drasticamente il rischio
     risk_score = (df['ISLR'] * 0.4) + (df['IDET'] * 0.01) - (df['Ore Sonno'] * 0.5)
     df['Rischio Overload'] = (risk_score > risk_score.quantile(0.65)).astype(int)
     
@@ -117,7 +116,7 @@ tab_kpi, tab_models, tab_sim = st.tabs([
 ])
 
 # ----------------------------------------------------------------------------
-# TAB 1: I KPI PROPRIETARI (Il Tuo Core)
+# TAB 1: I KPI PROPRIETARI
 # ----------------------------------------------------------------------------
 with tab_kpi:
     st.markdown("### L'Ingegnerizzazione delle Feature (I Pilastri della Tesi)")
@@ -172,7 +171,7 @@ with tab_kpi:
     st.plotly_chart(fig_kpi, use_container_width=True)
 
 # ----------------------------------------------------------------------------
-# TAB 2: MACHINE LEARNING (Pulito, Funzionante, Professionale)
+# TAB 2: MACHINE LEARNING
 # ----------------------------------------------------------------------------
 with tab_models:
     st.markdown("### L'Applicazione Pratica del Machine Learning")
@@ -184,10 +183,18 @@ with tab_models:
         st.markdown("#### 📈 1. Regressione Lineare")
         st.markdown("*Obiettivo: Modellare la relazione tra volumi di allenamento e tempi[cite: 2].*")
         
+        # Calcolo manuale della trendline OLS tramite scikit-learn
+        X_lr = df[['Distanza (km)']].values
+        y_lr = df['Tempo (min)'].values
+        lr_model = LinearRegression().fit(X_lr, y_lr)
+        x_line = np.array([df['Distanza (km)'].min(), df['Distanza (km)'].max()]).reshape(-1, 1)
+        y_line = lr_model.predict(x_line)
+        
         fig_lr = px.scatter(
-            df, x="Distanza (km)", y="Tempo (min)", trendline="ols",
+            df, x="Distanza (km)", y="Tempo (min)",
             color_discrete_sequence=['#00E5FF']
         )
+        fig_lr.add_trace(go.Scatter(x=x_line.flatten(), y=y_line, mode='lines', name='Trendline (OLS)', line_color='#FF6A3D'))
         fig_lr.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10))
         st.plotly_chart(fig_lr, use_container_width=True)
 
@@ -196,7 +203,6 @@ with tab_models:
         st.markdown("#### 🎯 2. Regressione Logistica")
         st.markdown("*Obiettivo: Classificazione dicotomica per prevedere lo stato di Overload[cite: 2].*")
         
-        # Prep veloce per la sigmoide
         X_log = df[['ISLR']].values
         y_log = df['Rischio Overload'].values
         clf = LogisticRegression().fit(X_log, y_log)
@@ -241,7 +247,7 @@ with tab_models:
 
 
 # ----------------------------------------------------------------------------
-# TAB 3: SIMULATORE WHAT-IF (Sicuro e Immediato)
+# TAB 3: SIMULATORE WHAT-IF 
 # ----------------------------------------------------------------------------
 with tab_sim:
     st.markdown("### 🎮 Simulatore dell'Allenamento")
@@ -261,7 +267,6 @@ with tab_sim:
         sim_rpe = st.slider("RPE Atteso (1-10)", 1.0, 10.0, 6.0, 1.0)
         sim_fc = st.slider("FC Media Stimata", 120.0, 180.0, 145.0, 1.0)
         
-    # Variabili fisse per il calcolo IDET
     sim_temp = 25.0
     sim_vel = 12.0
         
@@ -270,8 +275,6 @@ with tab_sim:
     sim_islr = (sim_lavoro * sim_stress) / sim_dist if sim_dist > 0 else 0
     sim_idet = (sim_fc * sim_temp) / sim_vel if sim_vel > 0 else 0
     
-    # Preparazione array predizione
-    # Deve combaciare con rf_features: ['Distanza (km)', 'Ore Sonno', 'SMA', 'ISLR', 'IDET']
     input_df = pd.DataFrame([[sim_dist, sim_sonno, sim_sma, sim_islr, sim_idet]], 
                             columns=['Distanza (km)', 'Ore Sonno', 'SMA', 'ISLR', 'IDET'])
     
@@ -279,7 +282,6 @@ with tab_sim:
     
     st.markdown("---")
     
-    # Risultato Visivo
     res_text = "OTTIMALE" if prob_rischio < 35 else "ATTENZIONE" if prob_rischio < 65 else "PERICOLO OVERLOAD"
     res_color = "#00E5FF" if prob_rischio < 35 else "#FFB020" if prob_rischio < 65 else "#FF6A3D"
     
