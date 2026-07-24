@@ -72,13 +72,20 @@ st.markdown("""
         font-size: 0.95rem;
     }
 
-    /* Stile Expander */
-    .streamlit-expanderHeader {
-        background-color: #111827 !important;
-        border: 1px solid #374151 !important;
-        border-radius: 10px !important;
-        font-weight: 600 !important;
-        color: #f3f4f6 !important;
+    /* Sezioni Modelli */
+    .model-container {
+        background-color: #111827;
+        border: 1px solid #374151;
+        border-radius: 16px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .model-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #f9fafb;
+        margin-bottom: 15px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -130,7 +137,7 @@ def apply_dark_theme(fig):
     return fig
 
 # ============================================================================
-# HERO HEADER
+# HERO HEADER & INTRODUZIONE AL MACHINE LEARNING
 # ============================================================================
 st.markdown("""
 <div class='hero-box'>
@@ -139,124 +146,164 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+### 🧠 Cos'è il Machine Learning nello Sport?
+Il **Machine Learning** rappresenta il superamento definitivo delle limitazioni dei metodi di allenamento tradizionali e puramente descrittivi. 
+Invece di affidarsi unicamente a tabelle statiche o soglie fisse, gli algoritmi analizzano simultaneamente centinaia di variabili (biometriche, ambientali e di carico psicofisico) per riconoscere pattern nascosti, stimare la performance attesa e anticipare i rischi di sovraccarico (overtraining) in modo **proattivo**.
+""")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
 # Tabs di navigazione principali
 tab_ml, tab_sim = st.tabs([
-    "🧠 Suite Algoritmica (Tendine Machine Learning)", 
+    "🧠 Suite Modelli Machine Learning", 
     "🎮 Centrale Operativa Simulatore What-If"
 ])
 
 # ============================================================================
-# TAB 1: MODELLI ML IN TENDINE (EXPANDERS)
+# TAB 1: MODELLI ML DISPOSTI CHIARAMENTE (TITOLO -> SPIEGAZIONE -> GRAFICI DI LATO)
 # ============================================================================
 with tab_ml:
-    st.markdown("### Analisi dei Modelli Predittivi")
-    st.markdown("Esplora come gli algoritmi apprendono dai dati storici. Apri le tendine sottostanti per visualizzare la teoria, i grafici interattivi e la guida alla lettura.")
+    st.markdown("### Analisi Approfondita dei Modelli Predittivi")
+    st.markdown("Ciascun modulo algoritmico implementato nella suite risponde a una specifica esigenza analitica della tesi.")
 
+    # ---------------------------------------------------------
     # 1. REGRESSIONE LINEARE
-    with st.expander("📈 1. Regressione Lineare (OLS Trend Prediction)", expanded=True):
-        st.markdown("<div class='tech-box-theory'><b>Fondamenti Teorici:</b> La regressione lineare modella la relazione tra una variabile dipendente continua (es. Tempo) e una indipendente (es. Distanza), minimizzando la discrepanza tra i valori reali e la linea di tendenza.</div>", unsafe_allow_html=True)
-        
-        X_lr = df[['Distanza (km)']].values
-        y_lr = df['Tempo (min)'].values
-        lr_model = LinearRegression().fit(X_lr, y_lr)
-        df['Tempo_Predetto'] = lr_model.predict(X_lr)
-        df['Errore (Residuo)'] = df['Tempo (min)'] - df['Tempo_Predetto']
+    # ---------------------------------------------------------
+    st.markdown("""
+    <div class='model-container'>
+        <div class='model-title'>📈 1. Regressione Lineare (OLS Trend Prediction)</div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<div class='tech-box-theory'><b>Fondamenti Teorici:</b> La regressione lineare modella la relazione tra una variabile dipendente continua (es. Tempo) e una indipendente (es. Distanza), minimizzando la discrepanza tra i valori reali e la linea di tendenza (Minimi Quadrati Ordinari).</div>", unsafe_allow_html=True)
 
-        c1, c2 = st.columns(2)
-        with c1:
-            fig_lr1 = go.Figure()
-            fig_lr1.add_trace(go.Scatter(x=df['Distanza (km)'], y=df['Tempo (min)'], mode='markers', name='Dati Reali', marker=dict(color='#0ea5e9', opacity=0.6)))
-            fig_lr1.add_trace(go.Scatter(x=df['Distanza (km)'], y=df['Tempo_Predetto'], mode='lines', name='Trend Ottimale (OLS)', line=dict(color='#f43f5e', width=3)))
-            apply_dark_theme(fig_lr1)
-            fig_lr1.update_layout(title="Relazione Distanza - Tempo", xaxis_title="Distanza (km)", yaxis_title="Tempo (min)")
-            st.plotly_chart(fig_lr1, use_container_width=True)
-            st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> La linea rossa rappresenta il trend calcolato dall'algoritmo OLS per stimare i minuti attesi in base ai chilometri.</div>", unsafe_allow_html=True)
+    X_lr = df[['Distanza (km)']].values
+    y_lr = df['Tempo (min)'].values
+    lr_model = LinearRegression().fit(X_lr, y_lr)
+    df['Tempo_Predetto'] = lr_model.predict(X_lr)
+    df['Errore (Residuo)'] = df['Tempo (min)'] - df['Tempo_Predetto']
 
-        with c2:
-            fig_lr2 = px.histogram(df, x="Errore (Residuo)", nbins=20, title="Distribuzione degli Errori di Previsione", color_discrete_sequence=['#a855f7'])
-            apply_dark_theme(fig_lr2)
-            st.plotly_chart(fig_lr2, use_container_width=True)
-            st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> L'istogramma degli errori centrato sullo zero attesta la bontà e l'assenza di bias sistematici nel modello.</div>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        fig_lr1 = go.Figure()
+        fig_lr1.add_trace(go.Scatter(x=df['Distanza (km)'], y=df['Tempo (min)'], mode='markers', name='Dati Reali', marker=dict(color='#0ea5e9', opacity=0.6)))
+        fig_lr1.add_trace(go.Scatter(x=df['Distanza (km)'], y=df['Tempo_Predetto'], mode='lines', name='Trend Ottimale (OLS)', line=dict(color='#f43f5e', width=3)))
+        apply_dark_theme(fig_lr1)
+        fig_lr1.update_layout(title="Relazione Distanza - Tempo", xaxis_title="Distanza (km)", yaxis_title="Tempo (min)")
+        st.plotly_chart(fig_lr1, use_container_width=True)
+        st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> La linea rossa rappresenta il trend calcolato dall'algoritmo OLS per stimare i minuti attesi in base ai chilometri percorsi.</div>", unsafe_allow_html=True)
 
+    with c2:
+        fig_lr2 = px.histogram(df, x="Errore (Residuo)", nbins=20, title="Distribuzione degli Errori di Previsione", color_discrete_sequence=['#a855f7'])
+        apply_dark_theme(fig_lr2)
+        st.plotly_chart(fig_lr2, use_container_width=True)
+        st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> L'istogramma degli errori centrato sullo zero attesta la bontà e l'assenza di bias sistematici nel modello.</div>", unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ---------------------------------------------------------
     # 2. REGRESSIONE LOGISTICA
-    with st.expander("🎯 2. Regressione Logistica (Sigmoid Classification)", expanded=False):
-        st.markdown("<div class='tech-box-theory'><b>Fondamenti Teorici:</b> Algoritmo di classificazione che stima la probabilità che una sessione appartenga a uno stato critico, mappando le feature in uno spazio [0, 1] tramite funzione logistica.</div>", unsafe_allow_html=True)
-        
-        X_log = df[['ISLR']].values
-        y_log = df['Rischio Overload'].values
-        log_model = LogisticRegression().fit(X_log, y_log)
-        
-        x_range = np.linspace(df['ISLR'].min(), df['ISLR'].max(), 300).reshape(-1, 1)
-        y_prob = log_model.predict_proba(x_range)[:, 1]
-        df['Probabilità_Overload'] = log_model.predict_proba(X_log)[:, 1]
+    # ---------------------------------------------------------
+    st.markdown("""
+    <div class='model-container'>
+        <div class='model-title'>🎯 2. Regressione Logistica (Sigmoid Classification)</div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<div class='tech-box-theory'><b>Fondamenti Teorici:</b> Algoritmo di classificazione che stima la probabilità che una sessione appartenga a uno stato critico, mappando le feature in uno spazio [0, 1] tramite funzione logistica (Sigmoide).</div>", unsafe_allow_html=True)
 
-        c1, c2 = st.columns(2)
-        with c1:
-            fig_log1 = go.Figure()
-            fig_log1.add_trace(go.Scatter(x=df['ISLR'], y=df['Rischio Overload'], mode='markers', name='Osservazioni', marker=dict(color='#64748b', opacity=0.5)))
-            fig_log1.add_trace(go.Scatter(x=x_range.flatten(), y=y_prob, mode='lines', name='Curva Sigmoide', line=dict(color='#f59e0b', width=3)))
-            fig_log1.add_hline(y=0.5, line_dash="dash", line_color="#ef4444", annotation_text="Soglia Decisionale (50%)")
-            apply_dark_theme(fig_log1)
-            fig_log1.update_layout(title="Transizione verso l'Overload", xaxis_title="ISLR", yaxis_title="Probabilità Predetta")
-            st.plotly_chart(fig_log1, use_container_width=True)
-            st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> La curva a 'S' mostra l'impennata del rischio quando l'indice di sforzo supera la soglia critica del 50%.</div>", unsafe_allow_html=True)
+    X_log = df[['ISLR']].values
+    y_log = df['Rischio Overload'].values
+    log_model = LogisticRegression().fit(X_log, y_log)
+    
+    x_range = np.linspace(df['ISLR'].min(), df['ISLR'].max(), 300).reshape(-1, 1)
+    y_prob = log_model.predict_proba(x_range)[:, 1]
+    df['Probabilità_Overload'] = log_model.predict_proba(X_log)[:, 1]
 
-        with c2:
-            fig_log2 = px.box(df, x="Rischio Overload", y="Probabilità_Overload", color="Rischio Overload", 
-                              color_discrete_map={0: '#0ea5e9', 1: '#f43f5e'}, title="Separabilità delle Classi")
-            apply_dark_theme(fig_log2)
-            st.plotly_chart(fig_log2, use_container_width=True)
-            st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> I boxplot confermano la netta separazione tra le sessioni sicure (0) e quelle classificate a rischio (1).</div>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        fig_log1 = go.Figure()
+        fig_log1.add_trace(go.Scatter(x=df['ISLR'], y=df['Rischio Overload'], mode='markers', name='Osservazioni', marker=dict(color='#64748b', opacity=0.5)))
+        fig_log1.add_trace(go.Scatter(x=x_range.flatten(), y=y_prob, mode='lines', name='Curva Sigmoide', line=dict(color='#f59e0b', width=3)))
+        fig_log1.add_hline(y=0.5, line_dash="dash", line_color="#ef4444", annotation_text="Soglia Decisionale (50%)")
+        apply_dark_theme(fig_log1)
+        fig_log1.update_layout(title="Transizione verso l'Overload", xaxis_title="ISLR", yaxis_title="Probabilità Predetta")
+        st.plotly_chart(fig_log1, use_container_width=True)
+        st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> La curva a 'S' mostra l'impennata del rischio quando l'indice di sforzo supera la soglia critica del 50%.</div>", unsafe_allow_html=True)
 
+    with c2:
+        fig_log2 = px.box(df, x="Rischio Overload", y="Probabilità_Overload", color="Rischio Overload", 
+                          color_discrete_map={0: '#0ea5e9', 1: '#f43f5e'}, title="Separabilità delle Classi")
+        apply_dark_theme(fig_log2)
+        st.plotly_chart(fig_log2, use_container_width=True)
+        st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> I boxplot confermano la netta separazione tra le sessioni sicure (0) e quelle classificate a rischio (1).</div>", unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ---------------------------------------------------------
     # 3. RANDOM FOREST
-    with st.expander("🌳 3. Random Forest Classifier (Ensemble Decision Trees)", expanded=False):
-        st.markdown("<div class='tech-box-theory'><b>Fondamenti Teorici:</b> Opera combinando alberi di decisione multipli. Gestisce le interazioni non lineari e calcola la Feature Importance per identificare i fattori critici di stress.</div>", unsafe_allow_html=True)
-        
-        rf_features = ['Distanza (km)', 'Ore Sonno', 'SMA', 'ISLR', 'IDET', 'IITR']
-        rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(df[rf_features], df['Rischio Overload'])
-        imp_df = pd.DataFrame({'Feature': rf_features, 'Importanza': rf.feature_importances_}).sort_values('Importanza')
+    # ---------------------------------------------------------
+    st.markdown("""
+    <div class='model-container'>
+        <div class='model-title'>🌳 3. Random Forest Classifier (Ensemble Decision Trees)</div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<div class='tech-box-theory'><b>Fondamenti Teorici:</b> Opera combinando alberi di decisione multipli. Gestisce le interazioni non lineari e calcola la Feature Importance per identificare i fattori critici di stress.</div>", unsafe_allow_html=True)
 
-        c1, c2 = st.columns(2)
-        with c1:
-            fig_rf1 = px.bar(imp_df, x='Importanza', y='Feature', orientation='h', title="Feature Importance Globale", color='Importanza', color_continuous_scale="Teal")
-            apply_dark_theme(fig_rf1)
-            st.plotly_chart(fig_rf1, use_container_width=True)
-            st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> Classificazione gerarchica delle metriche che incidono maggiormente sul rischio di sovraccarico.</div>", unsafe_allow_html=True)
+    rf_features = ['Distanza (km)', 'Ore Sonno', 'SMA', 'ISLR', 'IDET', 'IITR']
+    rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(df[rf_features], df['Rischio Overload'])
+    imp_df = pd.DataFrame({'Feature': rf_features, 'Importanza': rf.feature_importances_}).sort_values('Importanza')
 
-        with c2:
-            top_2 = imp_df.tail(2)['Feature'].values
-            fig_rf2 = px.scatter(df, x=top_2[0], y=top_2[1], color='Rischio Overload', 
-                                   title=f"Interazione Top 2 Feature",
-                                   color_discrete_map={0: '#0ea5e9', 1: '#f43f5e'})
-            apply_dark_theme(fig_rf2)
-            st.plotly_chart(fig_rf2, use_container_width=True)
-            st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> Mappatura bidimensionale delle aree critiche individuate dall'ensemble di alberi decisionali.</div>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        fig_rf1 = px.bar(imp_df, x='Importanza', y='Feature', orientation='h', title="Feature Importance Globale", color='Importanza', color_continuous_scale="Teal")
+        apply_dark_theme(fig_rf1)
+        st.plotly_chart(fig_rf1, use_container_width=True)
+        st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> Classificazione gerarchica delle metriche che incidono maggiormente sul rischio di sovraccarico.</div>", unsafe_allow_html=True)
 
+    with c2:
+        top_2 = imp_df.tail(2)['Feature'].values
+        fig_rf2 = px.scatter(df, x=top_2[0], y=top_2[1], color='Rischio Overload', 
+                               title=f"Interazione Top 2 Feature",
+                               color_discrete_map={0: '#0ea5e9', 1: '#f43f5e'})
+        apply_dark_theme(fig_rf2)
+        st.plotly_chart(fig_rf2, use_container_width=True)
+        st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> Mappatura bidimensionale delle aree critiche individuate dall'ensemble di alberi decisionali.</div>", unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ---------------------------------------------------------
     # 4. K-MEANS CLUSTERING
-    with st.expander("🔍 4. Clustering K-Means (Unsupervised Segmentation)", expanded=False):
-        st.markdown("<div class='tech-box-theory'><b>Fondamenti Teorici:</b> Raggruppa le sessioni in base a similitudini geometriche multidimensionali senza etichette preliminari, scoprendo cluster latenti nei dati.</div>", unsafe_allow_html=True)
-        
-        km = KMeans(n_clusters=3, random_state=42, n_init=10).fit(df[['FC Media', 'ISLR']])
-        df['Cluster_ID'] = km.labels_
-        cluster_map = {0: 'Rigenerativo', 1: 'Elevato Stress', 2: 'Qualità / Misto'}
-        df['Profilo_Corsa'] = df['Cluster_ID'].map(cluster_map)
+    # ---------------------------------------------------------
+    st.markdown("""
+    <div class='model-container'>
+        <div class='model-title'>🔍 4. Clustering K-Means (Unsupervised Segmentation)</div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<div class='tech-box-theory'><b>Fondamenti Teorici:</b> Raggruppa le sessioni in base a similitudini geometriche multidimensionali senza etichette preliminari, scoprendo cluster latenti nei dati.</div>", unsafe_allow_html=True)
 
-        c1, c2 = st.columns(2)
-        with c1:
-            fig_km1 = px.scatter(df, x="ISLR", y="FC Media", color="Profilo_Corsa", 
-                                   title="Segmentazione Automatica delle Sessioni",
-                                   color_discrete_sequence=['#10b981', '#f43f5e', '#f59e0b'])
-            apply_dark_theme(fig_km1)
-            st.plotly_chart(fig_km1, use_container_width=True)
-            st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> Ogni colore rappresenta una famiglia di allenamento distinta scoperta dai centroidi geometrici.</div>", unsafe_allow_html=True)
+    km = KMeans(n_clusters=3, random_state=42, n_init=10).fit(df[['FC Media', 'ISLR']])
+    df['Cluster_ID'] = km.labels_
+    cluster_map = {0: 'Rigenerativo', 1: 'Elevato Stress', 2: 'Qualità / Misto'}
+    df['Profilo_Corsa'] = df['Cluster_ID'].map(cluster_map)
 
-        with c2:
-            cluster_means = df.groupby('Profilo_Corsa')[['Ore Sonno', 'Tempo (min)', 'RPE']].mean().reset_index()
-            fig_km2 = px.bar(cluster_means, x='Profilo_Corsa', y=['Ore Sonno', 'RPE'], barmode='group', 
-                                   title="Profiler Comportamentale dei Cluster")
-            apply_dark_theme(fig_km2)
-            st.plotly_chart(fig_km2, use_container_width=True)
-            st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> Decodifica delle caratteristiche medie di sonno e sforzo per ciascun cluster identificato.</div>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        fig_km1 = px.scatter(df, x="ISLR", y="FC Media", color="Profilo_Corsa", 
+                               title="Segmentazione Automatica delle Sessioni",
+                               color_discrete_sequence=['#10b981', '#f43f5e', '#f59e0b'])
+        apply_dark_theme(fig_km1)
+        st.plotly_chart(fig_km1, use_container_width=True)
+        st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> Ogni colore rappresenta una famiglia di allenamento distinta scoperta dai centroidi geometrici.</div>", unsafe_allow_html=True)
+
+    with c2:
+        cluster_means = df.groupby('Profilo_Corsa')[['Ore Sonno', 'Tempo (min)', 'RPE']].mean().reset_index()
+        fig_km2 = px.bar(cluster_means, x='Profilo_Corsa', y=['Ore Sonno', 'RPE'], barmode='group', 
+                               title="Profiler Comportamentale dei Cluster")
+        apply_dark_theme(fig_km2)
+        st.plotly_chart(fig_km2, use_container_width=True)
+        st.markdown("<div class='tech-box-explanation'><b>Guida alla lettura:</b> Decodifica delle caratteristiche medie di sonno e sforzo per ciascun cluster identificato.</div>", unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ============================================================================
 # TAB 2: SIMULATORE WHAT-IF
