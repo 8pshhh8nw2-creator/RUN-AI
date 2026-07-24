@@ -8,8 +8,15 @@ def sidebar_comune():
     Disegna la sidebar comune (logo, device, filtro temporale)
     e restituisce i dati filtrati da usare in ogni pagina.
     """
+    # Inizializzazione sicura di tutte le variabili di stato
     if 'dati' not in st.session_state or st.session_state.dati is None:
         st.session_state.dati = genera_dati()
+    if 'analisi_fatta' not in st.session_state:
+        st.session_state.analisi_fatta = False
+    if 'risultati_analisi' not in st.session_state:
+        st.session_state.risultati_analisi = {}
+    if 'device_connected' not in st.session_state:
+        st.session_state.device_connected = False
 
     with st.sidebar:
         st.markdown("""
@@ -30,10 +37,10 @@ def sidebar_comune():
         if st.button("CONNETTI DISPOSITIVO", use_container_width=True):
             st.session_state.device_connected = True
             st.session_state.device_info = {
-                'nome': device_scelto, 
-                'fc': int(np.random.randint(60, 80)), 
+                'nome': device_scelto,
+                'fc': int(np.random.randint(60, 80)),
                 'battery': int(np.random.randint(70, 100)),
-                'steps': int(np.random.randint(2000, 5000)), 
+                'steps': int(np.random.randint(2000, 5000)),
                 'calories': int(np.random.randint(150, 300)),
                 'sync_time': pd.Timestamp.now().strftime('%H:%M:%S')
             }
@@ -54,10 +61,10 @@ def sidebar_comune():
                 </div>
             </div>
             """.format(
-                st.session_state.device_info['nome'], 
-                st.session_state.device_info['fc'], 
+                st.session_state.device_info['nome'],
+                st.session_state.device_info['fc'],
                 st.session_state.device_info['battery'],
-                st.session_state.device_info['steps'], 
+                st.session_state.device_info['steps'],
                 st.session_state.device_info['calories']
             ), unsafe_allow_html=True)
 
@@ -78,13 +85,3 @@ def sidebar_comune():
         df = df_full
 
     return df, df_full, filtro_tempo
-def sidebar_comune():
-    # Inizializzazione sicura di tutte le variabili di stato
-    if 'dati' not in st.session_state or st.session_state.dati is None:
-        st.session_state.dati = genera_dati()
-    if 'analisi_fatta' not in st.session_state:
-        st.session_state.analisi_fatta = False
-    if 'risultati_analisi' not in st.session_state:
-        st.session_state.risultati_analisi = {}
-    if 'device_connected' not in st.session_state:
-        st.session_state.device_connected = False
