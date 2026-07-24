@@ -10,7 +10,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # ============================================================================
-# CONFIGURAZIONE INIZIALE E STILI
+# CONFIGURAZIONE INIZIALE E DESIGN SYSTEM (UI/UX REFINED)
 # ============================================================================
 st.set_page_config(
     page_title="Advanced ML Suite | Tesi Magistrale",
@@ -21,20 +21,63 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    .hero {
-        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-        padding: 30px; border-radius: 12px; margin-bottom: 30px; color: white;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    /* Styling generale e font moderno */
+    .stApp {
+        background-color: #0d1117;
+        color: #c9d1d9;
     }
+    
+    /* Hero Title Refined */
+    .hero-container {
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        border: 1px solid #374151;
+        padding: 40px;
+        border-radius: 16px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        text-align: center;
+    }
+    .hero-title {
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(90deg, #60a5fa, #38bdf8, #34d399);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 10px;
+    }
+    .hero-subtitle {
+        font-size: 1.2rem;
+        color: #9ca3af;
+        font-weight: 400;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    /* Box informativi e teorici */
     .explanation-box {
-        background-color: rgba(0, 229, 255, 0.05);
-        border-left: 4px solid #00E5FF;
-        padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0;
+        background-color: rgba(56, 189, 248, 0.08);
+        border-left: 4px solid #38bdf8;
+        padding: 16px;
+        margin: 15px 0;
+        border-radius: 0 8px 8px 0;
+        color: #e2e8f0;
     }
     .theory-box {
-        background-color: rgba(255, 176, 32, 0.05);
-        border-left: 4px solid #FFB020;
-        padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0;
+        background-color: rgba(251, 191, 36, 0.08);
+        border-left: 4px solid #fbbf24;
+        padding: 16px;
+        margin: 15px 0;
+        border-radius: 0 8px 8px 0;
+        color: #e2e8f0;
+    }
+    
+    /* Miglioramento visivo degli expander */
+    .streamlit-expanderHeader {
+        background-color: #1f2937 !important;
+        border-radius: 8px !important;
+        border: 1px solid #374151 !important;
+        font-weight: 600 !important;
+        color: #f3f4f6 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -59,11 +102,11 @@ def generate_thesis_data():
         'Vento (km/h)': np.random.uniform(0, 25, n)
     })
     
-    # Base performance
+    # Performance di base
     df['Tempo (min)'] = (df['Distanza (km)'] / df['Velocità (km/h)']) * 60
     df['Tempo (min)'] += np.random.normal(0, 5, n) 
     
-    # Calcolo KPI Proprietari
+    # Calcolo KPI Proprietari di supporto nascosti/integrati nei modelli
     df['SMA'] = (df['Stress Lavoro'] * df['RPE']) / df['Ore Sonno']
     df['ISLR'] = (df['Ore Lavoro'] * df['Stress Lavoro']) / df['Distanza (km)']
     df['IITR'] = (df['Temp (°C)'] * df['Vento (km/h)']) / df['Distanza (km)']
@@ -78,64 +121,33 @@ def generate_thesis_data():
 df = generate_thesis_data()
 
 # ============================================================================
-# INTRODUZIONE
+# TITOLO ED HEADER REFINED
 # ============================================================================
 st.markdown("""
-<div class='hero'>
-    <h1 style='margin-top: 0; font-size: 2.5em;'>L'Era Data-Driven nello Sport</h1>
-    <h3 style='font-weight: 300;'>Ottimizzazione prestazionale attraverso intelligenza predittiva</h3>
+<div class='hero-container'>
+    <div class='hero-title'>Advanced Machine Learning Suite</div>
+    <div class='hero-subtitle'>Framework predittivo di tesi magistrale per l'analisi dei carichi atletici, stima della performance e mitigazione proattiva del sovraccarico.</div>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-Il **Machine Learning** rappresenta il superamento definitivo delle limitazioni dei metodi di allenamento convenzionali. Non ci limitiamo più a osservare parametri fisici isolati, ma integriamo una moltitudine di segnali per creare algoritmi predittivi complessi capaci di imparare dallo storico dell'atleta. L'obiettivo è passare da un approccio *reattivo* (curare l'affaticamento) a uno *proattivo* (anticipare le necessità dell'atleta calcolando il rischio in tempo reale).
-""")
-
-tab_kpi, tab_ml, tab_sim = st.tabs([
-    "📍 1. I KPI Proprietari", 
-    "🧠 2. Suite Machine Learning (Spiegata)", 
-    "🎮 3. Simulatore Predittivo"
+# Definiamo i tab principali puliti (senza la tab separata dei KPI)
+tab_ml, tab_sim = st.tabs([
+    "🧠 Suite Algoritmica & Modelli ML (Tendine)", 
+    "🎮 Simulatore Predittivo What-If"
 ])
 
 # ============================================================================
-# TAB 1: I KPI PROPRIETARI
-# ============================================================================
-with tab_kpi:
-    st.header("L'Ingegnerizzazione delle Feature")
-    st.markdown("Questi quattro KPI superano l'approccio puramente meccanico, integrando il carico allostatico complessivo dell'atleta (stress vitale, lavoro, clima).")
-    
-    k1, k2 = st.columns(2)
-    with k1:
-        st.info("**SMA (Stress Mentale dell'Allenamento)**\n\nQuantifica l'impatto psicofisico della sessione.")
-        st.latex(r"SMA = \frac{\text{Stress Giornata} \times \text{RPE}}{\text{Ore Sonno}}")
-        
-        st.warning("**ISLR (Indice di Sforzo Lavorativo Residuo)**\n\nMisura la competizione tra carico lavorativo e risorse energetiche.")
-        st.latex(r"ISLR = \frac{\text{Ore Lavoro} \times \text{Stress Mentale}}{\text{Distanza (km)}}")
-
-    with k2:
-        st.error("**IITR (Indice Impatto Termico e Resistenza)**\n\nStandardizza lo stress climatico subito dall'atleta per chilometro.")
-        st.latex(r"IITR = \frac{\text{Temp (C)} \times \text{Vento (km/h)}}{\text{Distanza (km)}}")
-        
-        st.success("**IDET (Indice di Degradazione Termica)**\n\nMappa la deriva cardiaca estiva per prevenire falsi allarmi di calo forma.")
-        st.latex(r"IDET = \frac{\text{FC Media} \times \text{Temp (C)}}{\text{Velocità (km/h)}}")
-
-    st.divider()
-    scelta_kpi = st.selectbox("Seleziona un KPI per visualizzarne la distribuzione nel dataset:", ['SMA', 'ISLR', 'IITR', 'IDET'])
-    fig_kpi = px.histogram(df, x=scelta_kpi, color='Rischio Overload', nbins=30, barmode="overlay",
-                           color_discrete_map={0: '#3498db', 1: '#e74c3c'},
-                           title=f"Sovrapposizione {scelta_kpi}: Sessioni Sicure (Blu) vs Overload (Rosso)")
-    st.plotly_chart(fig_kpi, use_container_width=True)
-
-# ============================================================================
-# TAB 2: MACHINE LEARNING - ESPANDIBILI
+# TAB 1: MODELLI MACHINE LEARNING INTERAMENTE A TENDINA (EXPANDER)
 # ============================================================================
 with tab_ml:
-    st.header("Analisi dei Modelli Predittivi")
-    st.markdown("Esplora come gli algoritmi apprendono dai dati. Apri le tendine sottostanti per analizzare ogni singolo modello.")
+    st.markdown("### Esplora l'Architettura dei Modelli Predittivi")
+    st.markdown("Seleziona e apri i singoli moduli sottostanti per analizzare la matematica sottostante, le visualizzazioni grafiche interattive e l'interpretazione dei risultati.")
 
+    # ---------------------------------------------------------
     # 1. REGRESSIONE LINEARE
-    with st.expander("📈 1. Regressione Lineare (Linear Regression)", expanded=False):
-        st.markdown("<div class='theory-box'><b>Fondamenti Teorici:</b> La regressione lineare modella la relazione tra una variabile dipendente continua (es. Tempo) e una variabile indipendente (es. Distanza), minimizzando la discrepanza tra i valori reali e la linea di tendenza.</div>", unsafe_allow_html=True)
+    # ---------------------------------------------------------
+    with st.expander("📈 1. Regressione Lineare (OLS Trend Prediction)", expanded=True):
+        st.markdown("<div class='theory-box'><b>Fondamenti Teorici:</b> Modella la relazione continua tra distanza percorsa e tempo di esecuzione, minimizzando l'errore quadratico medio per stimare la prestazione attesa.</div>", unsafe_allow_html=True)
         
         X_lr = df[['Distanza (km)']].values
         y_lr = df['Tempo (min)'].values
@@ -146,20 +158,23 @@ with tab_ml:
         c1, c2 = st.columns(2)
         with c1:
             fig_lr1 = go.Figure()
-            fig_lr1.add_trace(go.Scatter(x=df['Distanza (km)'], y=df['Tempo (min)'], mode='markers', name='Dati Reali', marker=dict(color='#3498db', opacity=0.6)))
-            fig_lr1.add_trace(go.Scatter(x=df['Distanza (km)'], y=df['Tempo_Predetto'], mode='lines', name='Trend Ottimale (OLS)', line=dict(color='#e74c3c', width=3)))
-            fig_lr1.update_layout(title="Relazione Distanza - Tempo", xaxis_title="Distanza (km)", yaxis_title="Tempo (min)")
+            fig_lr1.add_trace(go.Scatter(x=df['Distanza (km)'], y=df['Tempo (min)'], mode='markers', name='Dati Reali', marker=dict(color='#38bdf8', opacity=0.7)))
+            fig_lr1.add_trace(go.Scatter(x=df['Distanza (km)'], y=df['Tempo_Predetto'], mode='lines', name='Trend OLS', line=dict(color='#f43f5e', width=3)))
+            fig_lr1.update_layout(title="Relazione Distanza - Tempo", xaxis_title="Distanza (km)", yaxis_title="Tempo (min)", template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_lr1, use_container_width=True)
-            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> La linea rossa rappresenta l'apprendimento del modello. L'algoritmo ha calcolato il coefficiente matematico perfetto che moltiplicato per i chilometri ci restituisce i minuti attesi.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> La linea rossa esprime il trend ottimale calcolato dall'algoritmo OLS.</div>", unsafe_allow_html=True)
 
         with c2:
-            fig_lr2 = px.histogram(df, x="Errore (Residuo)", nbins=20, title="Distribuzione degli Errori di Previsione", color_discrete_sequence=['#9b59b6'])
+            fig_lr2 = px.histogram(df, x="Errore (Residuo)", nbins=20, title="Distribuzione Residui / Errori", color_discrete_sequence=['#a78bfa'])
+            fig_lr2.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_lr2, use_container_width=True)
-            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Questo grafico mostra di quanti minuti il modello si è sbagliato. Essendo centrato sullo zero (forma a campana), significa che il modello è sano e non ha bias evidenti.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> La distribuzione gaussiana centrata sullo zero conferma l'assenza di bias sistematici nel modello.</div>", unsafe_allow_html=True)
 
+    # ---------------------------------------------------------
     # 2. REGRESSIONE LOGISTICA
-    with st.expander("🎯 2. Regressione Logistica (Logistic Regression)", expanded=False):
-        st.markdown("<div class='theory-box'><b>Fondamenti Teorici:</b> Algoritmo di classificazione che stima la probabilità che una sessione appartenga a uno stato critico. Mappa la combinazione delle feature in uno spazio probabilistico tra 0 e 1 applicando la funzione logistica (Sigmoide).</div>", unsafe_allow_html=True)
+    # ---------------------------------------------------------
+    with st.expander("🎯 2. Regressione Logistica (Sigmoid Classification)", expanded=False):
+        st.markdown("<div class='theory-box'><b>Fondamenti Teorici:</b> Mappa le variabili di sforzo in uno spazio di probabilità [0, 1] tramite funzione logistica, attivando la soglia di guardia al superamento del 50%.</div>", unsafe_allow_html=True)
         
         X_log = df[['ISLR']].values
         y_log = df['Rischio Overload'].values
@@ -172,22 +187,25 @@ with tab_ml:
         c1, c2 = st.columns(2)
         with c1:
             fig_log1 = go.Figure()
-            fig_log1.add_trace(go.Scatter(x=df['ISLR'], y=df['Rischio Overload'], mode='markers', name='Osservazioni', marker=dict(color='#7f8c8d', opacity=0.5)))
-            fig_log1.add_trace(go.Scatter(x=x_range.flatten(), y=y_prob, mode='lines', name='Curva Sigmoide', line=dict(color='#e67e22', width=3)))
-            fig_log1.add_hline(y=0.5, line_dash="dash", annotation_text="Soglia Decisionale (50%)")
-            fig_log1.update_layout(title="Transizione verso l'Overload", xaxis_title="Indice Sforzo Lavorativo Residuo (ISLR)", yaxis_title="Probabilità Predetta")
+            fig_log1.add_trace(go.Scatter(x=df['ISLR'], y=df['Rischio Overload'], mode='markers', name='Sessioni', marker=dict(color='#94a3b8', opacity=0.5)))
+            fig_log1.add_trace(go.Scatter(x=x_range.flatten(), y=y_prob, mode='lines', name='Curva Sigmoide', line=dict(color='#fbbf24', width=3)))
+            fig_log1.add_hline(y=0.5, line_dash="dash", line_color="#ef4444", annotation_text="Soglia Critica (50%)")
+            fig_log1.update_layout(title="Curva di Transizione all'Overload", xaxis_title="ISLR", yaxis_title="Probabilità Predetta", template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_log1, use_container_width=True)
-            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> La curva a 'S' (Sigmoide) converte lo stress in rischio. Appena il valore ISLR supera la linea tratteggiata del 50%, il modello scatta e classifica la sessione come 'Pericolosa'.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Oltrepassata la linea tratteggiata, la probabilità di sovraccarico cresce esponenzialmente.</div>", unsafe_allow_html=True)
 
         with c2:
             fig_log2 = px.box(df, x="Rischio Overload", y="Probabilità_Overload", color="Rischio Overload", 
-                              color_discrete_map={0: '#3498db', 1: '#e74c3c'}, title="Separabilità delle Classi")
+                              color_discrete_map={0: '#38bdf8', 1: '#f43f5e'}, title="Analisi di Separabilità")
+            fig_log2.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_log2, use_container_width=True)
-            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> I boxplot mostrano quanto il modello sia sicuro. Le sessioni sicure (0) hanno probabilità schiacciate verso il basso, mentre quelle a rischio (1) sono concentrate verso l'alto.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> I boxplot evidenziano la netta separazione tra classi sicure (0) e a rischio (1).</div>", unsafe_allow_html=True)
 
+    # ---------------------------------------------------------
     # 3. RANDOM FOREST
-    with st.expander("🌳 3. Random Forest (Alberi Decisionali)", expanded=False):
-        st.markdown("<div class='theory-box'><b>Fondamenti Teorici:</b> Opera combinando una moltitudine di alberi di decisione indipendenti. Gestisce nativamente le interazioni non lineari (es. poco sonno + alta FC) e calcola la <i>Feature Importance</i> per capire quale metrica pesa di più sulla fatica.</div>", unsafe_allow_html=True)
+    # ---------------------------------------------------------
+    with st.expander("🌳 3. Random Forest Classifier (Ensemble Decision Trees)", expanded=False):
+        st.markdown("<div class='theory-box'><b>Fondamenti Teorici:</b> Combina alberi decisionali multipli per valutare la feature importance e catturare interazioni complesse non lineari.</div>", unsafe_allow_html=True)
         
         rf_features = ['Distanza (km)', 'Ore Sonno', 'SMA', 'ISLR', 'IDET', 'IITR']
         rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(df[rf_features], df['Rischio Overload'])
@@ -195,21 +213,25 @@ with tab_ml:
 
         c1, c2 = st.columns(2)
         with c1:
-            fig_rf1 = px.bar(imp_df, x='Importanza', y='Feature', orientation='h', title="Cosa influenza maggiormente il Rischio?", color='Importanza', color_continuous_scale="Viridis")
+            fig_rf1 = px.bar(imp_df, x='Importanza', y='Feature', orientation='h', title="Feature Importance Globale", color='Importanza', color_continuous_scale="Teal")
+            fig_rf1.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_rf1, use_container_width=True)
-            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Questa barra gerarchizza le tue metriche. Le feature in alto sono quelle che gli alberi decisionali usano più spesso per 'dividere' le sessioni sane da quelle in overtraining.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Gerarchia delle variabili che guidano le decisioni dell'ensemble.</div>", unsafe_allow_html=True)
 
         with c2:
             top_2 = imp_df.tail(2)['Feature'].values
             fig_rf2 = px.scatter(df, x=top_2[0], y=top_2[1], color='Rischio Overload', 
-                                   title=f"Interazione delle Top 2 Feature",
-                                   color_discrete_map={0: '#3498db', 1: '#e74c3c'})
+                                   title=f"Spazio d'Interazione ({top_2[0]} vs {top_2[1]})",
+                                   color_discrete_map={0: '#38bdf8', 1: '#f43f5e'})
+            fig_rf2.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_rf2, use_container_width=True)
-            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Il grafico incrocia le due variabili più forti. Noterai che i punti rossi (Overload) si concentrano in specifiche aree dello spazio, dimostrando l'interazione non-lineare catturata dalla Foresta.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Gli alberi mappano regioni di rischio non lineari nello spazio bidimensionale.</div>", unsafe_allow_html=True)
 
+    # ---------------------------------------------------------
     # 4. K-MEANS CLUSTERING
-    with st.expander("🔍 4. Clustering K-Means (Segmentazione Non Supervisionata)", expanded=False):
-        st.markdown("<div class='theory-box'><b>Fondamenti Teorici:</b> Raggruppa le sessioni sulla base delle loro similitudini geometriche nello spazio multidimensionale. L'algoritmo non sa in anticipo l'esito della sessione: raggruppa 'alla cieca' per scoprire pattern latenti.</div>", unsafe_allow_html=True)
+    # ---------------------------------------------------------
+    with st.expander("🔍 4. Clustering K-Means (Unsupervised Profiling)", expanded=False):
+        st.markdown("<div class='theory-box'><b>Fondamenti Teorici:</b> Raggruppa le sessioni nello spazio multidimensionale in base a somiglianze geometriche, scoprendo pattern latenti senza etichette preliminari.</div>", unsafe_allow_html=True)
         
         km = KMeans(n_clusters=3, random_state=42, n_init=10).fit(df[['FC Media', 'ISLR']])
         df['Cluster_ID'] = km.labels_
@@ -219,36 +241,38 @@ with tab_ml:
         c1, c2 = st.columns(2)
         with c1:
             fig_km1 = px.scatter(df, x="ISLR", y="FC Media", color="Profilo_Corsa", 
-                                   title="Segmentazione Automatica delle Corse",
-                                   color_discrete_sequence=['#2ecc71', '#e74c3c', '#f1c40f'])
+                                   title="Cluster Spaziali delle Sessioni",
+                                   color_discrete_sequence=['#34d399', '#f43f5e', '#fbbf24'])
+            fig_km1.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_km1, use_container_width=True)
-            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Ogni colore rappresenta una 'famiglia' di allenamento scoperta dall'algoritmo calcolando i centri geometrici. Sessioni distanti fisicamente nel grafico hanno caratteristiche opposte.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> I centroidi identificano tre macro-famiglie di carico distinte.</div>", unsafe_allow_html=True)
 
         with c2:
             cluster_means = df.groupby('Profilo_Corsa')[['Ore Sonno', 'Tempo (min)', 'RPE']].mean().reset_index()
             fig_km2 = px.bar(cluster_means, x='Profilo_Corsa', y=['Ore Sonno', 'RPE'], barmode='group', 
-                                   title="Cosa distingue i profili?")
+                                   title="Caratteristiche Medie dei Cluster")
+            fig_km2.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_km2, use_container_width=True)
-            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Questo grafico decodifica i Cluster. Ci mostra che, ad esempio, il gruppo 'Elevato Stress' è tipicamente associato a un RPE (sforzo) più alto e a un sonno minore rispetto agli altri gruppi.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explanation-box'><b>Guida alla lettura:</b> Profilazione comportamentale dei gruppi identificati.</div>", unsafe_allow_html=True)
 
 # ============================================================================
-# TAB 3: SIMULATORE PREDITTIVO
+# TAB 2: SIMULATORE PREDITTIVO WHAT-IF
 # ============================================================================
 with tab_sim:
-    st.header("🎮 Centrale Operativa: Simulatore What-If")
-    st.markdown("Usa i cursori per simulare una sessione di allenamento. L'Intelligenza Artificiale (Random Forest) calcolerà istantaneamente il livello di rischio elaborando l'interazione tra i tuoi KPI proprietari e i dati ambientali.")
+    st.markdown("### 🎮 Centrale Operativa: Simulatore What-If")
+    st.markdown("Regola i cursori per simulare una sessione di allenamento in tempo reale. Il modello Random Forest calcolerà l'indice di rischio e fornirà un riscontro diagnostico immediato.")
     
     st.markdown("---")
     
-    col_input, col_output = st.columns([1, 1])
+    col_input, col_output = st.columns([1, 1], gap="large")
     
     with col_input:
-        st.subheader("Imposta i Parametri dell'Atleta")
+        st.markdown("#### Parametri di Carico & Recupero")
         sim_dist = st.slider("🏃 Distanza pianificata (km)", 5.0, 30.0, 10.0, 0.5)
-        sim_sonno = st.slider("🛌 Ore di Sonno stanotte", 3.0, 10.0, 7.5, 0.5)
+        sim_sonno = st.slider("🛌 Ore di Sonno", 3.0, 10.0, 7.5, 0.5)
         sim_stress = st.slider("🧠 Livello Stress Vita/Lavoro (1-10)", 1.0, 10.0, 5.0, 1.0)
-        sim_lavoro = st.slider("💼 Ore Lavorative oggi", 0.0, 12.0, 8.0, 0.5)
-        sim_rpe = st.slider("📈 Sforzo (RPE) che si intende sostenere", 1.0, 10.0, 6.0, 1.0)
+        sim_lavoro = st.slider("💼 Ore Lavorative giornaliere", 0.0, 12.0, 8.0, 0.5)
+        sim_rpe = st.slider("📈 Sforzo Percepito (RPE 1-10)", 1.0, 10.0, 6.0, 1.0)
         
         sim_fc = 145.0
         sim_temp = 25.0
@@ -256,37 +280,39 @@ with tab_sim:
         sim_vento = 5.0
         
     with col_output:
-        st.subheader("Elaborazione Algoritmica in Corso...")
+        st.markdown("#### Inferenza in Tempo Reale")
         
-        # Motore Matematico dei KPI
+        # Calcolo KPI interni per il modello
         sim_sma = (sim_stress * sim_rpe) / sim_sonno if sim_sonno > 0 else 0
         sim_islr = (sim_lavoro * sim_stress) / sim_dist if sim_dist > 0 else 0
         sim_idet = (sim_fc * sim_temp) / sim_vel if sim_vel > 0 else 0
         sim_iitr = (sim_temp * sim_vento) / sim_dist if sim_dist > 0 else 0
         
-        # Il modello RF richiede esattamente questi 6 campi
         input_data = pd.DataFrame([[sim_dist, sim_sonno, sim_sma, sim_islr, sim_idet, sim_iitr]], 
                                   columns=['Distanza (km)', 'Ore Sonno', 'SMA', 'ISLR', 'IDET', 'IITR'])
         
         prob_rischio = rf.predict_proba(input_data)[0][1] * 100
         
+        color_risk = "#38bdf8" if prob_rischio < 40 else "#fbbf24" if prob_rischio < 70 else "#f43f5e"
+        
         st.markdown(f"""
-        <div style='background-color: #1e272e; padding: 25px; border-radius: 12px; border: 1px solid #485460; text-align:center;'>
-            <p style='color: #808e9b; margin-bottom: 0;'>PROBABILITÀ DI OVERTRAINING (SOVRACCARICO)</p>
-            <h1 style='color: {"#00E5FF" if prob_rischio < 40 else "#f1c40f" if prob_rischio < 70 else "#e74c3c"}; font-size: 4em; margin: 10px 0;'>
+        <div style='background-color: #1f2937; padding: 30px; border-radius: 12px; border: 1px solid #374151; text-align:center; box-shadow: 0 4px 12px rgba(0,0,0,0.2);'>
+            <p style='color: #9ca3af; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;'>PROBABILITÀ DI OVERTRAINING STIMATA</p>
+            <h1 style='color: {color_risk}; font-size: 4.5rem; margin: 0; font-weight: 800;'>
                 {prob_rischio:.1f}%
             </h1>
         </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("### Diagnostica dei KPI Generati")
+        st.markdown("<br>", unsafe_allow_html=True)
         m1, m2 = st.columns(2)
-        m1.metric("Stress Mentale (SMA)", f"{sim_sma:.2f}")
-        m2.metric("Sforzo Lavorativo Residuo (ISLR)", f"{sim_islr:.2f}")
+        m1.metric("Indice SMA", f"{sim_sma:.2f}")
+        m2.metric("Indice ISLR", f"{sim_islr:.2f}")
         
+        st.markdown("<br>", unsafe_allow_html=True)
         if prob_rischio < 40:
-            st.success("🟢 **SEMAFORO VERDE**: I parametri rientrano nella norma fisiologica. Lo stress lavorativo inserito è ammortizzato efficacemente dalle ore di sonno e dal volume chilometrico previsto.")
+            st.success("🟢 **SEMAFORO VERDE**: Carico fisiologico ottimale. Le risorse energetiche e il riposo ammortizzano ampiamente lo stress imposto.")
         elif prob_rischio < 70:
-            st.warning("🟡 **ZONA DI ATTENZIONE**: L'algoritmo rileva una competizione tra le energie richieste per l'allenamento e l'affaticamento del sistema nervoso (poco sonno o alto stress). Cautela.")
+            st.warning("🟡 **ZONA DI ATTENZIONE**: L'algoritmo rileva segnali di affaticamento o competizione metabolica. Si consiglia cautela.")
         else:
-            st.error("🔴 **ALLARME CRITICO**: La combinazione inserita (es. alto stress lavorativo concentrato su pochi km, o riposo gravemente insufficiente) crea un picco anomalo nei KPI. Rischio infortunio imminente.")
+            st.error("🔴 **ALLARME CRITICO**: Combinazione di fattori a rischio elevato (es. stress elevato unito a scarso sonno). Rischio infortunio imminente.")
