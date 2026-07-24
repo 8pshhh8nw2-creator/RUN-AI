@@ -2,9 +2,8 @@
 pages/04_Centro_KPI.py
 --------------------------------------------------------------------------------
 Dashboard unificata con i 4 KPI proprietari della tesi (SMA, ISLR, IITR, IDET).
-Design High-Tech rigoroso, privo di emoji, con layout verticale a colonna intera
-per i testi, le formule e i parametri descrittivi, seguito da una griglia a 2x2
-per i grafici analitici sottostanti.
+Design High-Tech rigoroso, privo di emoji, con layout verticale esteso,
+cruscotto indicatore grafico a stanghetta/gauge per il rischio e griglia 2x2 sottostante.
 """
 
 import streamlit as st
@@ -128,7 +127,7 @@ def _colore_e_stato(valore, soglia_verde, soglia_gialla):
 def _delta_vs_storico(valore_oggi, serie_storica):
     if serie_storica is None or len(serie_storica) == 0 or pd.isna(valore_oggi):
         return None
-    ultimo_storico = serie_storica.iloc[-1]
+    ultimo_storico = serie_storico.iloc[-1]
     if pd.isna(ultimo_storico):
         return None
     return valore_oggi - ultimo_storico
@@ -183,26 +182,57 @@ status_color = "#00F5A0" if risk_score < 25 else "#FFB020" if risk_score < 60 el
 status_text = "OTTIMALE" if risk_score < 25 else "MODERATO" if risk_score < 60 else "CRITICO"
 
 # ==================================================================
-# HEADER PRINCIPALE
+# HEADER PRINCIPALE CON CRUSCOTTO GAUGE AFFIANCATO
 # ==================================================================
-st.markdown(f"""
-<div class='kpi-main-container'>
-    <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;'>
-        <div>
-            <div style='color: #8792A3; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1.5px;'>Stato di Prontezza Operativa</div>
-            <div style='font-size: 2.2em; font-weight: 800; color: {status_color}; margin-top: 4px;'>
-                INDICE DI RISCHIO {status_text} <span style='font-size: 0.65em; font-weight: 400; color: #FFFFFF;'>({risk_score:.0f}%)</span>
-            </div>
+col_head_testo, col_head_gauge = st.columns([1.3, 1], gap="large")
+
+with col_head_testo:
+    st.markdown(f"""
+    <div class='kpi-main-container' style='margin-bottom: 0;'>
+        <div style='color: #8792A3; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1.5px;'>Stato di Prontezza Operativa</div>
+        <div style='font-size: 2.2em; font-weight: 800; color: {status_color}; margin-top: 4px;'>
+            INDICE DI RISCHIO {status_text} <span style='font-size: 0.65em; font-weight: 400; color: #FFFFFF;'>({risk_score:.0f}%)</span>
         </div>
-        <div style='background: rgba(255,255,255,0.02); padding: 12px 18px; border-radius: 8px; border: 1px solid rgba(0,229,255,0.15); max-width: 480px;'>
-            <div style='color: #00E5FF; font-weight: 600; font-size: 0.85em; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px;'>Architettura di Ponderazione</div>
-            <div style='color: #B8C2D0; font-size: 0.8em; line-height: 1.4;'>
-                Il punteggio aggrega i vettori KPI pesandoli direttamente sulla reale Feature Importance estratta dal Random Forest.
-            </div>
+        <div style='color: #B8C2D0; font-size: 0.85em; line-height: 1.4; margin-top: 10px;'>
+            Il punteggio aggrega i vettori KPI pesandoli direttamente sulla reale Feature Importance estratta dal Random Forest.
         </div>
     </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
+with col_head_gauge:
+    # Creazione del cruscotto a stanghetta / gauge dinamico
+    fig_gauge = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=risk_score,
+        number={'suffix': "%", 'font': {'color': "#FFFFFF", 'size': 26}},
+        domain={'x': [0, 1], 'y': [0, 1]},
+        gauge={
+            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#8792A3"},
+            'bar': {'color': status_color, 'thickness': 0.6},
+            'bgcolor': "rgba(255,255,255,0.02)",
+            'borderwidth': 1,
+            'bordercolor': "rgba(0,229,255,0.2)",
+            'steps': [
+                {'range': [0, 25], 'color': "rgba(0,245,160,0.1)"},
+                {'range': [25, 60], 'color': "rgba(255,176,32,0.1)"},
+                {'range': [60, 100], 'color': "rgba(255,106,61,0.1)"}
+            ],
+            'threshold': {
+                'line': {'color': "#FFFFFF", 'width': 3},
+                'thickness': 0.75,
+                'value': risk_score
+            }
+        }
+    ))
+    fig_gauge.update_layout(
+        height=140,
+        margin=dict(l=20, r=20, t=10, b=10),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
+    )
+    st.plotly_chart(style_fig(fig_gauge), use_container_width=True)
+
+st.markdown("---")
 
 # TABS PRINCIPALI PER I 4 KPI E IL MACHINE LEARNING
 tab_sma, tab_islr, tab_iitr, tab_idet, tab_ml = st.tabs([
