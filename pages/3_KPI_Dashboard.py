@@ -1,9 +1,9 @@
 """
 pages/04_Centro_KPI.py
 --------------------------------------------------------------------------------
-Dashboard unificata con i 4 KPI proprietari della tesi (SMA, ISLR, IITR, IDET),
-tendine dettagliate per ciascun indice, grafici avanzati (Radar Chart, Breakdown)
-e l'integrazione finale con i modelli di Machine Learning.
+Dashboard unificata con i 4 KPI proprietari della tesi (SMA, ISLR, IITR, IDET).
+Ogni KPI ha la sua sezione dedicata con spiegazione teorica, formula, grafici
+dedicati e analisi visiva, culminando nell'ultima sezione di unione con il Machine Learning.
 """
 
 import streamlit as st
@@ -27,7 +27,7 @@ from utils.kpi_engine import (
     COL_SONNO, COL_DISTANZA
 )
 
-st.set_page_config(page_title="Centro KPI & ML Integration", layout="wide")
+st.set_page_config(page_title="Centro KPI & Masterclass Intelligence", layout="wide")
 carica_css()
 
 # ==================================================================
@@ -36,7 +36,7 @@ carica_css()
 st.markdown("""
 <style>
     .kpi-main-container {
-        background: linear-gradient(135deg, rgba(32,40,58,0.8) 0%, rgba(15,20,30,0.95) 100%);
+        background: linear-gradient(135deg, rgba(32,40,58,0.85) 0%, rgba(15,20,30,0.98) 100%);
         border: 1px solid rgba(0,229,255,0.3);
         padding: 24px;
         border-radius: 14px;
@@ -84,9 +84,9 @@ else:
 IMG_HERO_KPI = get_svg_url(SVG_KPI)
 
 header_block(
-    "Modulo 04 — Centro KPI & ML Integration",
+    "Modulo 04 — Centro KPI & Masterclass Intelligence",
     "I TUOI 4 INDICI PROPRIETARI",
-    "Analisi approfondita per singola tendina, profili radar multidimensionali e sinergia diretta con i modelli di Machine Learning.",
+    "Analisi dedicata per ciascun KPI con grafici avanzati, spiegazioni teoriche e unione finale con il Machine Learning predittivo.",
     IMG_HERO_KPI, "Proprietary KPI & AI Engine"
 )
 
@@ -178,218 +178,218 @@ st.markdown(f"""
             </div>
         </div>
         <div style='background: rgba(255,255,255,0.04); padding: 12px 18px; border-radius: 10px; border: 1px solid rgba(0,229,255,0.2); max-width: 480px;'>
-            <div style='color: #00E5FF; font-weight: 600; font-size: 0.9em; margin-bottom: 4px;'>🧠 Ponderazione Basata su Random Forest</div>
+            <div style='color: #00E5FF; font-weight: 600; font-size: 0.9em; margin-bottom: 4px;'>🧠 Architettura di Tesi</div>
             <div style='color: #B8C2D0; font-size: 0.85em; line-height: 1.4;'>
-                Il risk score aggrega i KPI pesandoli direttamente sulla reale <b>Feature Importance</b> appresa dal modello predittivo[cite: 2].
+                Esplora singolarmente ciascun KPI proprietario con grafici dedicati, per poi scoprire come convergono nell'algoritmo di Machine Learning.
             </div>
         </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# TABS PRINCIPALI
-tab_kpi_tendine, tab_radar, tab_storico, tab_ml_integration = st.tabs([
-    "📍 1. Tendine Dettaglio KPI", 
-    "🕸️ 2. Profilo Radar Multidimensionale", 
-    "📈 3. Andamento Storico & Trend", 
-    "🧠 4. Unione con Machine Learning"
+# TABS PRINCIPALI CON I 4 KPI E L'UNIONE FINALE CON IL ML
+tab_sma, tab_islr, tab_iitr, tab_idet, tab_ml = st.tabs([
+    "⭐ 1. SMA", 
+    "⭐ 2. ISLR", 
+    "⭐ 3. IITR", 
+    "⭐ 4. IDET", 
+    "🧠 5. Unione con Machine Learning"
 ])
 
+# Comune asse x per i grafici temporali individuali
+giorni_asse = df_base['Giorno'].tail(14).tolist() if (kpi_storico is not None and 'Giorno' in df_base.columns and len(df_base) >= 14) else list(range(14))
+
 # ==================================================================
-# TAB 1 — TENDINE APPROFONDITE PER OGNI KPI (NOVITÀ RICHIESTA)
+# TAB 1 — SMA (Stress Mentale dell'Allenamento)
 # ==================================================================
-with tab_kpi_tendine:
-    st.markdown("### 🔍 Analisi Approfondita dei Singoli Indicatori")
-    st.markdown("Espandi le sezioni sottostanti per esaminare la formulazione matematica, il razionale teorico, i valori odierni e l'interpretazione pratica di ciascun KPI proprietario[cite: 2].")
+with tab_sma:
+    st.markdown("### 🧠 SMA — Stress Mentale dell'Allenamento")
+    st.markdown("Analisi approfondita del primo indicatore proprietario focalizzato sulla vulnerabilità neurale e psicofisica.")
     
-    giorni_asse = df_base['Giorno'].tail(14).tolist() if (kpi_storico is not None and 'Giorno' in df_base.columns and len(df_base) >= 14) else list(range(14))
+    col_s1, col_s2 = st.columns([1, 1.2])
+    with col_s1:
+        colore_sma, _ = _colore_e_stato(kpi_oggi["SMA"], 10, 15)
+        delta_sma = _delta_vs_storico(kpi_oggi["SMA"], kpi_storico["SMA"] if kpi_storico is not None else None)
+        perc_sma = _calcola_percentile(kpi_oggi["SMA"], kpi_storico["SMA"] if kpi_storico is not None else None)
+        
+        st.markdown(f"**Valore Odierno:** <span style='color:{colore_sma}; font-size:1.8em; font-weight:bold;'>{kpi_oggi['SMA']:.2f}</span>", unsafe_allow_html=True)
+        st.markdown(_badge_delta(delta_sma), unsafe_allow_html=True)
+        if perc_sma is not None:
+            st.caption(f"📊 Posizione nel **{perc_sma:.0f}° percentile** del tuo storico personale.")
+        
+        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+        st.latex(r"SMA = \frac{\text{Stress Giornata} \times \text{RPE}}{\text{Ore Sonno}}")
+        in_pratica("SMA alto significa che hai affrontato la sessione con stanchezza cognitiva e sonno ridotto: il corpo lavora in svantaggio neurale[cite: 2].")
 
-    # --- TENDINA 1: SMA ---
-    colore_sma, _ = _colore_e_stato(kpi_oggi["SMA"], 10, 15)
-    delta_sma = _delta_vs_storico(kpi_oggi["SMA"], kpi_storico["SMA"] if kpi_storico is not None else None)
-    perc_sma = _calcola_percentile(kpi_oggi["SMA"], kpi_storico["SMA"] if kpi_storico is not None else None)
-    
-    with st.expander("⭐ SMA — Stress Mentale dell'Allenamento (Espandi per dettagli)", expanded=True):
-        c_t1, c_t2 = st.columns([1, 1.2])
-        with c_t1:
-            st.markdown(f"**Valore Odierno:** <span style='color:{colore_sma}; font-size:1.5em; font-weight:bold;'>{kpi_oggi['SMA']:.2f}</span>", unsafe_allow_html=True)
-            st.markdown(_badge_delta(delta_sma), unsafe_allow_html=True)
-            if perc_sma is not None:
-                st.caption(f"📊 Posizione nel **{perc_sma:.0f}° percentile** del tuo storico.")
-            st.latex(r"SMA = \frac{\text{Stress Giornata} \times \text{RPE}}{\text{Ore Sonno}}")
-        with c_t2:
-            st.markdown("""
-            <div class='theory-box'>
-            <b>Razionale Teorico (Tesi):</b> Quantifica l'impatto psicofisico integrando la stanchezza cognitiva accumulata durante il giorno e la percezione dello sforzo (RPE), rapportate al fattore di recupero notturno (ore di sonno al denominatore)[cite: 2]. Un valore elevato indica vulnerabilità neurale.
-            </div>
-            """, unsafe_allow_html=True)
-        in_pratica("SMA alto = hai corso con poco sonno e molto stress: oggi il sistema nervoso centrale lavora in forte svantaggio[cite: 2].")
-
-    # --- TENDINA 2: ISLR ---
-    colore_islr, _ = _colore_e_stato(kpi_oggi["ISLR"], 4.5, 6.3)
-    delta_islr = _delta_vs_storico(kpi_oggi["ISLR"], kpi_storico["ISLR"] if kpi_storico is not None else None)
-    perc_islr = _calcola_percentile(kpi_oggi["ISLR"], kpi_storico["ISLR"] if kpi_storico is not None else None)
-
-    with st.expander("⭐ ISLR — Indice di Sforzo Lavorativo Residuo (Espandi per dettagli)", expanded=False):
-        c_t1, c_t2 = st.columns([1, 1.2])
-        with c_t1:
-            st.markdown(f"**Valore Odierno:** <span style='color:{colore_islr}; font-size:1.5em; font-weight:bold;'>{kpi_oggi['ISLR']:.2f}</span>", unsafe_allow_html=True)
-            st.markdown(_badge_delta(delta_islr), unsafe_allow_html=True)
-            if perc_islr is not None:
-                st.caption(f"📊 Posizione nel **{perc_islr:.0f}° percentile** del tuo storico.")
-            st.latex(r"ISLR = \frac{\text{Ore Lavoro} \times \text{Stress Mentale}}{\text{Distanza (km)}}")
-        with c_t2:
-            st.markdown("""
-            <div class='theory-box'>
-            <b>Razionale Teorico (Tesi):</b> Dedicato all'atleta amatore (worker-athlete), isola lo stress occupazionale che compete con le risorse energetiche e neuromuscolari, rapportandolo al chilometraggio[cite: 2]. È la feature con la massima importanza nel modello di machine learning.
-            </div>
-            """, unsafe_allow_html=True)
-        in_pratica("ISLR sopra 6.3 = l'affaticamento lavorativo erode pesantemente le tue capacità di recupero atletico[cite: 2].")
-        if kpi_oggi["ISLR"] >= 6.3:
-            azione_consigliata("⚠️ Il carico lavorativo odierno rende rischiosa una sessione intensa: preferisci un lavoro breve o di scarico.")
-
-    # --- TENDINA 3: IITR ---
-    colore_iitr, _ = _colore_e_stato(dettaglio_scores.get("IITR", 50), 40, 70)
-    delta_iitr = _delta_vs_storico(kpi_oggi["IITR"], kpi_storico["IITR"] if kpi_storico is not None else None)
-    perc_iitr = _calcola_percentile(kpi_oggi["IITR"], kpi_storico["IITR"] if kpi_storico is not None else None)
-
-    with st.expander("⭐ IITR — Indice Impatto Termico e Resistenza (Espandi per dettagli)", expanded=False):
-        c_t1, c_t2 = st.columns([1, 1.2])
-        with c_t1:
-            st.markdown(f"**Valore Odierno:** <span style='color:{colore_iitr}; font-size:1.5em; font-weight:bold;'>{kpi_oggi['IITR']:.2f}</span>", unsafe_allow_html=True)
-            st.markdown(_badge_delta(delta_iitr), unsafe_allow_html=True)
-            if perc_iitr is not None:
-                st.caption(f"📊 Posizione nel **{perc_iitr:.0f}° percentile** del tuo storico.")
-            st.latex(r"IITR = \frac{\text{Temperatura} \times \text{Vento}}{\text{Distanza (km)}}")
-        with c_t2:
-            st.markdown("""
-            <div class='theory-box'>
-            <b>Razionale Teorico (Tesi):</b> Pesa la severità ambientale combinando le forze resistive esogene (calore e resistenza aerodinamica del vento) standardizzate per chilometro[cite: 2].
-            </div>
-            """, unsafe_allow_html=True)
-        in_pratica("IITR alto = l'ambiente estivo o ventoso aumenta esponenzialmente il costo energetico della sessione[cite: 2].")
-
-    # --- TENDINA 4: IDET ---
-    val_idet = kpi_oggi["IDET"] if pd.notna(kpi_oggi["IDET"]) else 0.0
-    colore_idet, _ = _colore_e_stato(dettaglio_scores.get("IDET", 50), 40, 70)
-    delta_idet = _delta_vs_storico(val_idet, kpi_storico["IDET"] if kpi_storico is not None else None)
-    perc_idet = _calcola_percentile(val_idet, kpi_storico["IDET"] if kpi_storico is not None else None)
-
-    with st.expander("⭐ IDET — Indice di Degradazione Termica (Espandi per dettagli)", expanded=False):
-        c_t1, c_t2 = st.columns([1, 1.2])
-        with c_t1:
-            st.markdown(f"**Valore Odierno:** <span style='color:{colore_idet}; font-size:1.5em; font-weight:bold;'>{val_idet:.2f}</span>", unsafe_allow_html=True)
-            st.markdown(_badge_delta(delta_idet), unsafe_allow_html=True)
-            if perc_idet is not None:
-                st.caption(f"📊 Posizione nel **{perc_idet:.0f}° percentile** del tuo storico.")
-            st.latex(r"IDET = \frac{\text{FC Media} \times \text{Temperatura}}{\text{Velocità (km/h)}}")
-        with c_t2:
-            st.markdown("""
-            <div class='theory-box'>
-            <b>Razionale Teorico (Tesi):</b> Mappa la deriva cardiaca estiva[cite: 2]. Evita che i modelli di Machine Learning interpretino l'innalzamento dei battiti dovuto al caldo come una perdita di forma fisica dell'atleta.
-            </div>
-            """, unsafe_allow_html=True)
-        in_pratica("IDET alto = la frequenza cardiaca è pompata dal caldo e non da un calo di condizione[cite: 2].")
-
-# ==================================================================
-# TAB 2 — RADAR CHART & PROFILO MULTIDIMENSIONALE
-# ==================================================================
-with tab_radar:
-    st.markdown("### 🕸️ Profilo di Rischio Multidimensionale (Radar Chart)")
-    st.markdown("Il grafico a ragnatela mostra geometricamente il tuo carico allostatico odierno confrontato con la **Media Storica** e la **Soglia Critica**.")
-
-    try:
-        max_sma = max(15.0, kpi_storico["SMA"].max() if kpi_storico is not None else 20.0)
-        max_islr = max(10.0, kpi_storico["ISLR"].max() if kpi_storico is not None else 12.0)
-        max_iitr = max(30.0, kpi_storico["IITR"].max() if kpi_storico is not None else 40.0)
-        max_idet = max(200.0, kpi_storico["IDET"].max() if kpi_storico is not None else 250.0)
-
-        oggi_norm = [
-            min(100, (kpi_oggi["SMA"] / max_sma) * 100),
-            min(100, (kpi_oggi["ISLR"] / max_islr) * 100),
-            min(100, (kpi_oggi["IITR"] / max_iitr) * 100),
-            min(100, (val_idet / max_idet) * 100)
-        ]
-
-        if kpi_storico is not None and len(kpi_storico) > 0:
-            storico_norm = [
-                min(100, (kpi_storico["SMA"].mean() / max_sma) * 100),
-                min(100, (kpi_storico["ISLR"].mean() / max_islr) * 100),
-                min(100, (kpi_storico["IITR"].mean() / max_iitr) * 100),
-                min(100, (kpi_storico["IDET"].mean() / max_idet) * 100)
-            ]
+    with col_s2:
+        st.markdown("#### 📈 Trend Storico Individuale (SMA)")
+        if kpi_storico is not None and 'SMA' in kpi_storico.columns:
+            fig_sma = go.Figure()
+            fig_sma.add_trace(go.Scatter(
+                x=giorni_asse, y=kpi_storico['SMA'].tail(14),
+                mode='lines+markers', line=dict(color='#00E5FF', width=3),
+                marker=dict(size=8)
+            ))
+            fig_sma.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(style_fig(fig_sma), use_container_width=True)
         else:
-            storico_norm = [50, 50, 50, 50]
+            st.info("Storico non disponibile per il grafico.")
 
-        soglia_critica = [70, 70, 70, 70]
-        categorie = ['SMA (Stress Mentale)', 'ISLR (Lavoro Residuo)', 'IITR (Impatto Termico)', 'IDET (Degradazione)']
-
-        fig_radar = go.Figure()
-        fig_radar.add_trace(go.Scatterpolar(
-            r=storico_norm + [storico_norm[0]], theta=categorie + [categorie[0]],
-            fill='toself', name='Media Storica Personale', line=dict(color='#00E5FF', width=2), fillcolor='rgba(0, 229, 255, 0.1)'
-        ))
-        fig_radar.add_trace(go.Scatterpolar(
-            r=oggi_norm + [oggi_norm[0]], theta=categorie + [categorie[0]],
-            fill='toself', name='Profilo Odierno', line=dict(color='#FF6A3D', width=3), fillcolor='rgba(255, 106, 61, 0.25)'
-        ))
-        fig_radar.add_trace(go.Scatterpolar(
-            r=soglia_critica + [soglia_critica[0]], theta=categorie + [categorie[0]],
-            mode='lines', name='Soglia Critica di Allarme', line=dict(color='#FFB020', width=1.5, dash='dash')
-        ))
-
-        fig_radar.update_layout(
-            polar=dict(radialaxis=dict(visible=True, range=[0, 100], gridcolor="rgba(255,255,255,0.1)")),
-            height=480, showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-            margin=dict(l=40, r=40, t=20, b=40), plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)"
-        )
-        st.plotly_chart(style_fig(fig_radar), use_container_width=True)
-    except Exception:
-        st.info("Impossibile generare il radar chart con i dati attuali.")
-
-    st.markdown("<div class='explain-text'><strong>Analisi geometrica:</strong> Eventuali sbilanciamenti verso l'esterno evidenziano quale fattore specifico stia saturando le risorse dell'atleta.</div>", unsafe_allow_html=True)
-
-# ==================================================================
-# TAB 3 — ANDAMENTO STORICO & TREND
-# ==================================================================
-with tab_storico:
-    if kpi_storico is None or len(kpi_storico) < 3:
-        st.info("ℹ️ Servono almeno 3 sessioni storiche per mostrare l'andamento temporale.")
-    else:
-        st.markdown("### 📈 Dinamica Longitudinale dei KPI")
-        n_storico = min(30, len(kpi_storico))
-        finestra = kpi_storico.tail(n_storico).reset_index(drop=True)
-        asse_x = df_base['Giorno'].tail(n_storico).tolist() if 'Giorno' in df_base.columns else list(range(n_storico))
-
-        fig = make_subplots(rows=2, cols=2, subplot_titles=("SMA", "ISLR", "IITR", "IDET"))
-        posizioni = {"SMA": (1, 1), "ISLR": (1, 2), "IITR": (2, 1), "IDET": (2, 2)}
-        colori_kpi = {"SMA": "#00E5FF", "ISLR": "#FF6A3D", "IITR": "#FFB020", "IDET": "#00F5A0"}
-
-        for kpi_nome, (riga, colonna) in posizioni.items():
-            if kpi_nome in finestra.columns:
-                fig.add_trace(go.Scatter(x=asse_x, y=finestra[kpi_nome], mode="lines+markers", name=kpi_nome, line=dict(color=colori_kpi[kpi_nome], width=2)), row=riga, col=colonna)
-
-        fig.update_layout(height=520, showlegend=False, margin=dict(l=20, r=20, t=40, b=20), plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(style_fig(fig), use_container_width=True)
-
-# ==================================================================
-# TAB 4 — UNIONE DEFINITIVA CON IL MACHINE LEARNING (RICHIESTA SPECIALE)
-# ==================================================================
-with tab_ml_integration:
-    st.markdown("### 🧠 Sinergia tra KPI Proprietari e Machine Learning")
     st.markdown("""
-    Questa sezione unisce i concetti chiave della tua tesi: i KPI non vivono isolati, ma alimentano direttamente il **Random Forest** e i modelli di classificazione per determinare la probabilità di overload[cite: 2].
+    <div class='explain-text'>
+    <b>Razionale Scientifico (Tesi):</b> L'indicatore SMA unisce la sfera cognitiva (stress lavorativo/giornaliero) e la percezione dello sforzo (RPE) come fattori moltiplicativi del carico interno, normalizzandoli per la quantità di sonno notturno (fattore di recupero)[cite: 2]. Questo impedisce ai modelli predittivi di trattare un allenamento come puramente meccanico.
+    </div>
+    """, unsafe_allow_html=True)
+
+# ==================================================================
+# TAB 2 — ISLR (Indice di Sforzo Lavorativo Residuo)
+# ==================================================================
+with tab_islr:
+    st.markdown("### 💼 ISLR — Indice di Sforzo Lavorativo Residuo")
+    st.markdown("Il KPI core della tesi, progettato specificamente per l'atleta amatore (*worker-athlete*).")
+
+    col_i1, col_i2 = st.columns([1, 1.2])
+    with col_i1:
+        colore_islr, _ = _colore_e_stato(kpi_oggi["ISLR"], 4.5, 6.3)
+        delta_islr = _delta_vs_storico(kpi_oggi["ISLR"], kpi_storico["ISLR"] if kpi_storico is not None else None)
+        perc_islr = _calcola_percentile(kpi_oggi["ISLR"], kpi_storico["ISLR"] if kpi_storico is not None else None)
+        
+        st.markdown(f"**Valore Odierno:** <span style='color:{colore_islr}; font-size:1.8em; font-weight:bold;'>{kpi_oggi['ISLR']:.2f}</span>", unsafe_allow_html=True)
+        st.markdown(_badge_delta(delta_islr), unsafe_allow_html=True)
+        if perc_islr is not None:
+            st.caption(f"📊 Posizione nel **{perc_islr:.0f}° percentile** del tuo storico personale.")
+        
+        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+        st.latex(r"ISLR = \frac{\text{Ore Lavoro} \times \text{Stress Mentale}}{\text{Distanza (km)}}")
+        in_pratica("ISLR misura quanta densità di stress non-atletico grava su ogni singolo chilometro percorso[cite: 2]. Sopra la soglia di 6.3, il rischio di sovraccarico impenna.")
+
+    with col_i2:
+        st.markdown("#### 📈 Trend Storico Individuale (ISLR)")
+        if kpi_storico is not None and 'ISLR' in kpi_storico.columns:
+            fig_islr = go.Figure()
+            fig_islr.add_trace(go.Scatter(
+                x=giorni_asse, y=kpi_storico['ISLR'].tail(14),
+                mode='lines+markers', line=dict(color='#FF6A3D', width=3),
+                marker=dict(size=8)
+            ))
+            fig_islr.add_hline(y=6.3, line_dash="dash", line_color="#FFB020", annotation_text="Soglia Critica (6.3)")
+            fig_islr.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(style_fig(fig_islr), use_container_width=True)
+        else:
+            st.info("Storico non disponibile per il grafico.")
+
+    if kpi_oggi["ISLR"] >= 6.3:
+        azione_consigliata("⚠️ Il carico lavorativo odierno sta 'mangiando' risorse preziose: valuta una sessione più corta o di scarico.")
+
+    st.markdown("""
+    <div class='explain-text'>
+    <b>Razionale Scientifico (Tesi):</b> Basato sul principio del <i>Total Life Stress</i>, l'ISLR riconosce che lo stress occupazionale compete direttamente con le risorse metaboliche e neuromuscolari necessarie alla supercompensazione sportiva[cite: 2]. Non a caso, risulta essere la variabile con il peso predittivo più alto nel Random Forest.
+    </div>
+    """, unsafe_allow_html=True)
+
+# ==================================================================
+# TAB 3 — IITR (Indice Impatto Termico e Resistenza)
+# ==================================================================
+with tab_iitr:
+    st.markdown("### 🌡️ IITR — Indice Impatto Termico e Resistenza")
+    st.markdown("Indicatore ambientale progettato per pesare le forze resistive esogene durante la sessione estiva.")
+
+    col_t1, col_t2 = st.columns([1, 1.2])
+    with col_t1:
+        colore_iitr, _ = _colore_e_stato(dettaglio_scores.get("IITR", 50), 40, 70)
+        delta_iitr = _delta_vs_storico(kpi_oggi["IITR"], kpi_storico["IITR"] if kpi_storico is not None else None)
+        perc_iitr = _calcola_percentile(kpi_oggi["IITR"], kpi_storico["IITR"] if kpi_storico is not None else None)
+        
+        st.markdown(f"**Valore Odierno:** <span style='color:{colore_iitr}; font-size:1.8em; font-weight:bold;'>{kpi_oggi['IITR']:.2f}</span>", unsafe_allow_html=True)
+        st.markdown(_badge_delta(delta_iitr), unsafe_allow_html=True)
+        if perc_iitr is not None:
+            st.caption(f"📊 Posizione nel **{perc_iitr:.0f}° percentile** del tuo storico personale.")
+        
+        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+        st.latex(r"IITR = \frac{\text{Temperatura} \times \text{Vento}}{\text{Distanza (km)}}")
+        in_pratica("IITR alto indica che il mix di calore e resistenza aerodinamica ha reso lo sforzo complessivo notevolmente più severo[cite: 2].")
+
+    with col_t2:
+        st.markdown("#### 📈 Trend Storico Individuale (IITR)")
+        if kpi_storico is not None and 'IITR' in kpi_storico.columns:
+            fig_iitr = go.Figure()
+            fig_iitr.add_trace(go.Scatter(
+                x=giorni_asse, y=kpi_storico['IITR'].tail(14),
+                mode='lines+markers', line=dict(color='#FFB020', width=3),
+                marker=dict(size=8)
+            ))
+            fig_iitr.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(style_fig(fig_iitr), use_container_width=True)
+        else:
+            st.info("Storico non disponibile per il grafico.")
+
+    st.markdown("""
+    <div class='explain-text'>
+    <b>Razionale Scientifico (Tesi):</b> Poiché la raccolta dati si è sviluppata nei mesi estivi, l'IITR consente di isolare la componente climatica, quantificando il costo energetico aggiuntivo imposto dalle condizioni atmosferiche avverse[cite: 2].
+    </div>
+    """, unsafe_allow_html=True)
+
+# ==================================================================
+# TAB 4 — IDET (Indice di Degradazione Termica)
+# ==================================================================
+with tab_idet:
+    st.markdown("### 💧 IDET — Indice di Degradazione Termica")
+    st.markdown("Indicatore chiave per mappare l'efficienza meccanica e prevenire falsi allarmi nei modelli.")
+
+    val_idet = kpi_oggi["IDET"] if pd.notna(kpi_oggi["IDET"]) else 0.0
+
+    col_d1, col_d2 = st.columns([1, 1.2])
+    with col_d1:
+        colore_idet, _ = _colore_e_stato(dettaglio_scores.get("IDET", 50), 40, 70)
+        delta_idet = _delta_vs_storico(val_idet, kpi_storico["IDET"] if kpi_storico is not None else None)
+        perc_idet = _calcola_percentile(val_idet, kpi_storico["IDET"] if kpi_storico is not None else None)
+        
+        st.markdown(f"**Valore Odierno:** <span style='color:{colore_idet}; font-size:1.8em; font-weight:bold;'>{val_idet:.2f}</span>", unsafe_allow_html=True)
+        st.markdown(_badge_delta(delta_idet), unsafe_allow_html=True)
+        if perc_idet is not None:
+            st.caption(f"📊 Posizione nel **{perc_idet:.0f}° percentile** del tuo storico personale.")
+        
+        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+        st.latex(r"IDET = \frac{\text{FC Media} \times \text{Temperatura}}{\text{Velocità (km/h)}}")
+        in_pratica("IDET alto evidenzia la 'deriva cardiaca': il cuore batte più forte per termoregolazione, non per un calo della tua forma fisica[cite: 2].")
+
+    with col_d2:
+        st.markdown("#### 📈 Trend Storico Individuale (IDET)")
+        if kpi_storico is not None and 'IDET' in kpi_storico.columns:
+            fig_idet = go.Figure()
+            fig_idet.add_trace(go.Scatter(
+                x=giorni_asse, y=kpi_storico['IDET'].tail(14),
+                mode='lines+markers', line=dict(color='#00F5A0', width=3),
+                marker=dict(size=8)
+            ))
+            fig_idet.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(style_fig(fig_idet), use_container_width=True)
+        else:
+            st.info("Storico non disponibile per il grafico.")
+
+    st.markdown("""
+    <div class='explain-text'>
+    <b>Razionale Scientifico (Tesi):</b> Basato sui principi di Galloway e Maughan (1997), l'IDET corregge i dati cardiaci in base al calore[cite: 2]. Senza questo indice, un modello di machine learning interpreterebbe erroneamente la sessione estiva come un sintomo di imminente overtraining.
+    </div>
+    """, unsafe_allow_html=True)
+
+# ==================================================================
+# TAB 5 — UNIONE DEFINITIVA CON IL MACHINE LEARNING (CAPOLAVORO FINALE)
+# ==================================================================
+with tab_ml:
+    st.markdown("### 🧠 Sinergia Finale: Dai KPI Proprietari al Machine Learning")
+    st.markdown("""
+    I quattro indicatori sviluppati non sono metriche passive, ma costituiscono le **features ingegnerizzate** d'eccellenza che alimentano gli algoritmi predittivi della tesi (Random Forest e regressioni)[cite: 2]. 
     """)
 
-    c_ml1, c_ml2 = st.columns(2)
-    with c_ml1:
-        st.markdown("#### 1. Feature Importance del Modello")
+    c_m1, c_m2 = st.columns(2)
+    with c_m1:
+        st.markdown("#### 1. Ponderazione nel Modello (Feature Importance)")
         st.plotly_chart(feature_importance_chart(style_fig), use_container_width=True)
-        st.markdown("<div class='explain-text'><strong>Il legame:</strong> L'ISLR (Sforzo Lavorativo Residuo) guida la predizione con oltre il 31% del peso. Il machine learning riconosce che lo stress lavorativo è il principale fattore di rischio per l'overtraining nell'amatore[cite: 2].</div>", unsafe_allow_html=True)
+        st.markdown("<div class='explain-text'><strong>Il legame predittivo:</strong> L'algoritmo apprende autonomamente che l'<b>ISLR</b> e il recupero notturno guidano il rischio di overload con oltre il 50% del peso decisionale complessivo[cite: 2].</div>", unsafe_allow_html=True)
 
-    with c_ml2:
-        st.markdown("#### 2. Breakdown del Rischio Odierno (Ponderato)")
+    with c_m2:
+        st.markdown("#### 2. Scomposizione Analitica del Rischio Odierno")
         if dettaglio_scores:
             nomi = list(dettaglio_scores.keys())
             valori = [dettaglio_scores[k] for k in nomi]
@@ -403,10 +403,10 @@ with tab_ml_integration:
                 margin=dict(l=20, r=20, t=20, b=20), plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(style_fig(fig_breakdown), use_container_width=True)
-            st.markdown("<div class='explain-text'><strong>Trasparenza Predittiva:</strong> Scomponendo l'output del modello ML, vediamo esattamente quale KPI sta spingendo il punteggio di rischio verso la soglia critica per la sessione di oggi[cite: 2].</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Trasparenza Algoritmica:</strong> Scomponendo l'output del modello ML, azzeriamo l'effetto 'scatola nera', mostrando esattamente quale KPI sta spingendo il punteggio di rischio per la sessione di oggi[cite: 2].</div>", unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("""
-    ### 🏆 Conclusione Metodologica per la Discussione di Tesi
-    L'integrazione tra la **Feature Engineering** (i 4 KPI proprietari) e il **Machine Learning** (Random Forest e regressioni) consente di superare l'era dei dati grezzi passivi[cite: 2]. La dashboard non si limita a registrare la fatica, ma la interpreta, offrendo all'atleta amatore un supporto decisionale proattivo di livello enterprise[cite: 2].
+    ### 🏆 Sintesi Metodologica per la Discussione di Tesi
+    L'unione strutturata tra l'ingegneria delle feature (SMA, ISLR, IITR, IDET) e il machine learning supervisionato trasforma la raccolta dati in un vero **sistema di supporto decisionale proattivo**[cite: 2]. L'atleta amatore ottiene così una panoramica scientificamente rigorosa ed estremamente intuitiva della propria prontezza atletica.
     """)
