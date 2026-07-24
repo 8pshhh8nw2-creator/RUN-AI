@@ -112,7 +112,7 @@ if not st.session_state.get('analisi_fatta', False):
 
 
 # ==================================================================
-# FUNZIONI DI SUPPORTO
+# FUNZIONI DI SUPPORTO (CORRETTE E RESE BULLETPROOF)
 # ==================================================================
 def _colore_e_stato(valore, soglia_verde, soglia_gialla):
     if valore is None or pd.isna(valore):
@@ -124,13 +124,17 @@ def _colore_e_stato(valore, soglia_verde, soglia_gialla):
     return "#FF6A3D", "CRITICO"
 
 
-def _delta_vs_storico(valore_oggi, serie_storica):
-    if serie_storica is None or len(serie_storica) == 0 or pd.isna(valore_oggi):
+def _delta_vs_storico(valore_oggi, serie):
+    """Calcola la differenza tra il valore di oggi e l'ultimo storico."""
+    if serie is None or len(serie) == 0 or pd.isna(valore_oggi):
         return None
-    ultimo_storico = serie_storico.iloc[-1]
-    if pd.isna(ultimo_storico):
+    try:
+        ultimo_storico = serie.iloc[-1]
+        if pd.isna(ultimo_storico):
+            return None
+        return float(valore_oggi - ultimo_storico)
+    except Exception:
         return None
-    return valore_oggi - ultimo_storico
 
 
 def _badge_delta(delta, positivo_e_meglio=False):
@@ -142,11 +146,17 @@ def _badge_delta(delta, positivo_e_meglio=False):
     return f"<span style='color:{colore}; font-size:0.9em; font-weight:600;'>{freccia} {abs(delta):.1f} vs ultima sessione</span>"
 
 
-def _calcola_percentile(valore, serie_storica):
-    if serie_storica is None or len(serie_storica) < 5 or pd.isna(valore):
+def _calcola_percentile(valore, serie):
+    """Calcola in che percentile si posiziona il dato odierno."""
+    if serie is None or len(serie) < 5 or pd.isna(valore):
         return None
-    serie_pulita = serie_storica.dropna()
-    return (serie_pulita < valore).mean() * 100
+    try:
+        serie_pulita = serie.dropna()
+        if len(serie_pulita) == 0:
+            return None
+        return float((serie_pulita < valore).mean() * 100)
+    except Exception:
+        return None
 
 
 # ==================================================================
