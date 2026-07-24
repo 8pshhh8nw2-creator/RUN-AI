@@ -1,8 +1,8 @@
 streamlit
 plotly
 pandas
-numpy
-mediapipe
-opencv-python-headless
+mediapipe==0.10.14
+opencv-python-headless==4.10.0.84
+numpy<2
 scikit-learn
 shap
