@@ -3,7 +3,7 @@ pages/04_Centro_KPI.py
 --------------------------------------------------------------------------------
 Dashboard unificata con i 4 KPI proprietari della tesi (SMA, ISLR, IITR, IDET).
 Design High-Tech rigoroso, privo di emoji, con layout verticale esteso,
-cruscotto indicatore grafico a stanghetta/gauge per il rischio e griglia 2x2 sottostante.
+cruscotto indicatore grafico a stanghetta/gauge ingrandito per il rischio e griglia 2x2 sottostante.
 """
 
 import streamlit as st
@@ -42,6 +42,10 @@ st.markdown("""
         border-radius: 10px;
         margin-bottom: 24px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
     .tech-box {
         background: rgba(0,229,255,0.02);
@@ -112,7 +116,7 @@ if not st.session_state.get('analisi_fatta', False):
 
 
 # ==================================================================
-# FUNZIONI DI SUPPORTO (CORRETTE E RESE BULLETPROOF)
+# FUNZIONI DI SUPPORTO
 # ==================================================================
 def _colore_e_stato(valore, soglia_verde, soglia_gialla):
     if valore is None or pd.isna(valore):
@@ -192,13 +196,13 @@ status_color = "#00F5A0" if risk_score < 25 else "#FFB020" if risk_score < 60 el
 status_text = "OTTIMALE" if risk_score < 25 else "MODERATO" if risk_score < 60 else "CRITICO"
 
 # ==================================================================
-# HEADER PRINCIPALE CON CRUSCOTTO GAUGE AFFIANCATO
+# HEADER PRINCIPALE CON CRUSCOTTO GAUGE INGRANDITO
 # ==================================================================
-col_head_testo, col_head_gauge = st.columns([1.3, 1], gap="large")
+col_head_testo, col_head_gauge = st.columns([1.2, 1.2], gap="large")
 
 with col_head_testo:
     st.markdown(f"""
-    <div class='kpi-main-container' style='margin-bottom: 0;'>
+    <div class='kpi-main-container'>
         <div style='color: #8792A3; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1.5px;'>Stato di Prontezza Operativa</div>
         <div style='font-size: 2.2em; font-weight: 800; color: {status_color}; margin-top: 4px;'>
             INDICE DI RISCHIO {status_text} <span style='font-size: 0.65em; font-weight: 400; color: #FFFFFF;'>({risk_score:.0f}%)</span>
@@ -210,33 +214,33 @@ with col_head_testo:
     """, unsafe_allow_html=True)
 
 with col_head_gauge:
-    # Creazione del cruscotto a stanghetta / gauge dinamico
+    # Cruscotto gauge ingrandito (altezza portata a 200px e font ridimensionati)
     fig_gauge = go.Figure(go.Indicator(
         mode="gauge+number",
         value=risk_score,
-        number={'suffix': "%", 'font': {'color': "#FFFFFF", 'size': 26}},
+        number={'suffix': "%", 'font': {'color': "#FFFFFF", 'size': 36}},
         domain={'x': [0, 1], 'y': [0, 1]},
         gauge={
-            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#8792A3"},
-            'bar': {'color': status_color, 'thickness': 0.6},
+            'axis': {'range': [0, 100], 'tickwidth': 2, 'tickcolor': "#8792A3", 'tickfont': {'size': 14}},
+            'bar': {'color': status_color, 'thickness': 0.65},
             'bgcolor': "rgba(255,255,255,0.02)",
             'borderwidth': 1,
-            'bordercolor': "rgba(0,229,255,0.2)",
+            'bordercolor': "rgba(0,229,255,0.25)",
             'steps': [
                 {'range': [0, 25], 'color': "rgba(0,245,160,0.1)"},
                 {'range': [25, 60], 'color': "rgba(255,176,32,0.1)"},
                 {'range': [60, 100], 'color': "rgba(255,106,61,0.1)"}
             ],
             'threshold': {
-                'line': {'color': "#FFFFFF", 'width': 3},
-                'thickness': 0.75,
+                'line': {'color': "#FFFFFF", 'width': 4},
+                'thickness': 0.8,
                 'value': risk_score
             }
         }
     ))
     fig_gauge.update_layout(
-        height=140,
-        margin=dict(l=20, r=20, t=10, b=10),
+        height=200,
+        margin=dict(l=10, r=10, t=10, b=10),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)"
     )
