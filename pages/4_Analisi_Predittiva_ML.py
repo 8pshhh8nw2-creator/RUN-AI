@@ -13,26 +13,30 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import accuracy_score, r2_score, roc_auc_score, silhouette_score
 
 # ============================================================================
-# CONFIG
+# PAGE CONFIG
 # ============================================================================
 st.set_page_config(
-    page_title="Advanced ML Suite | Interactive Thesis Dashboard",
+    page_title="Advanced ML Suite | Core Tesi Magistrale",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
+# ============================================================================
+# DESIGN TOKENS
+# ============================================================================
 COLORS = {
-    "bg": "#07111f",
+    "bg": "#06101d",
+    "bg2": "#091728",
     "surface": "#0f1b2d",
-    "surface_2": "#13233a",
-    "border": "#22344f",
+    "surface_2": "#13243b",
+    "border": "#233651",
     "text": "#f8fafc",
-    "muted": "#93a4b8",
+    "muted": "#94a3b8",
     "blue": "#38bdf8",
     "cyan": "#22d3ee",
-    "amber": "#f59e0b",
     "green": "#22c55e",
+    "amber": "#f59e0b",
     "red": "#ef4444",
     "purple": "#a855f7",
     "pink": "#ec4899"
@@ -41,7 +45,7 @@ COLORS = {
 RF_FEATURES = ["Distanza (km)", "Ore Sonno", "SMA", "ISLR", "IDET", "IITR"]
 
 # ============================================================================
-# STYLE
+# GLOBAL STYLE
 # ============================================================================
 st.markdown(f"""
 <style>
@@ -53,62 +57,96 @@ st.markdown(f"""
 
     .stApp {{
         background:
-            radial-gradient(circle at top right, rgba(56,189,248,0.10), transparent 20%),
-            radial-gradient(circle at left bottom, rgba(168,85,247,0.08), transparent 18%),
-            linear-gradient(180deg, {COLORS["bg"]} 0%, #08101a 100%);
+            radial-gradient(circle at 12% 18%, rgba(56,189,248,0.10), transparent 18%),
+            radial-gradient(circle at 88% 10%, rgba(168,85,247,0.10), transparent 20%),
+            radial-gradient(circle at 50% 100%, rgba(34,211,238,0.06), transparent 25%),
+            linear-gradient(180deg, {COLORS["bg"]} 0%, {COLORS["bg2"]} 100%);
         color: {COLORS["text"]};
     }}
 
     .block-container {{
-        max-width: 1500px;
-        padding-top: 2rem;
-        padding-bottom: 2rem;
+        max-width: 1550px;
+        padding-top: 1.8rem;
+        padding-bottom: 2.5rem;
     }}
 
     .hero {{
-        background: linear-gradient(135deg, {COLORS["surface"]} 0%, {COLORS["surface_2"]} 100%);
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(15,27,45,0.96) 0%, rgba(19,36,59,0.92) 100%);
         border: 1px solid {COLORS["border"]};
-        border-radius: 24px;
-        padding: 2rem 2rem 1.6rem 2rem;
+        border-radius: 26px;
+        padding: 2rem 2rem 1.7rem 2rem;
         margin-bottom: 1.2rem;
-        box-shadow: 0 16px 40px rgba(0,0,0,0.30);
+        box-shadow: 0 18px 45px rgba(0,0,0,0.32);
+    }}
+
+    .hero::after {{
+        content: "";
+        position: absolute;
+        top: -70px;
+        right: -60px;
+        width: 220px;
+        height: 220px;
+        background: radial-gradient(circle, rgba(56,189,248,0.18) 0%, rgba(56,189,248,0.00) 70%);
+        pointer-events: none;
     }}
 
     .hero-title {{
-        font-size: 2.4rem;
+        margin: 0;
+        font-size: 2.55rem;
+        line-height: 1.05;
+        letter-spacing: -0.04em;
         font-weight: 800;
         color: {COLORS["text"]};
-        margin: 0;
-        letter-spacing: -0.04em;
     }}
 
     .hero-subtitle {{
-        margin-top: 0.7rem;
+        margin-top: 0.8rem;
         color: {COLORS["muted"]};
-        font-size: 1.02rem;
-        max-width: 1000px;
-        line-height: 1.6;
+        font-size: 1.04rem;
+        line-height: 1.7;
+        max-width: 1050px;
     }}
 
-    .glass {{
-        background: rgba(15, 27, 45, 0.82);
+    .ml-simple-box {{
+        margin-top: 1rem;
+        background: rgba(34,211,238,0.07);
+        border: 1px solid rgba(34,211,238,0.18);
+        border-left: 4px solid {COLORS["cyan"]};
+        border-radius: 14px;
+        padding: 1rem 1.1rem;
+        color: #d9faff;
+    }}
+
+    .section-shell {{
+        background: rgba(15, 27, 45, 0.84);
         border: 1px solid {COLORS["border"]};
-        border-radius: 20px;
-        padding: 1.15rem 1.15rem 0.8rem 1.15rem;
+        border-radius: 22px;
+        padding: 1.2rem 1.2rem 0.9rem 1.2rem;
         margin-bottom: 1rem;
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.16);
     }}
 
-    .model-title {{
-        font-size: 1.45rem;
+    .section-title {{
+        font-size: 1.5rem;
         font-weight: 800;
         color: {COLORS["text"]};
-        margin-bottom: 0.2rem;
+        margin-bottom: 0.25rem;
     }}
 
-    .model-subtitle {{
+    .section-subtitle {{
         color: {COLORS["muted"]};
-        margin-bottom: 1rem;
+        margin-bottom: 0.9rem;
+        font-size: 0.98rem;
+    }}
+
+    .mini-title {{
+        color: {COLORS["text"]};
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 0.35rem;
     }}
 
     .theory-box {{
@@ -121,19 +159,19 @@ st.markdown(f"""
         color: #fde68a;
     }}
 
-    .explain-box {{
-        background: rgba(34, 211, 238, 0.08);
-        border: 1px solid rgba(34, 211, 238, 0.20);
-        border-left: 4px solid {COLORS["cyan"]};
+    .simple-box {{
+        background: rgba(56, 189, 248, 0.08);
+        border: 1px solid rgba(56, 189, 248, 0.20);
+        border-left: 4px solid {COLORS["blue"]};
         border-radius: 14px;
         padding: 1rem;
         margin: 0.8rem 0 1rem 0;
-        color: #cffafe;
+        color: #dbeafe;
     }}
 
     .insight-box {{
         background: rgba(168, 85, 247, 0.10);
-        border: 1px solid rgba(168, 85, 247, 0.20);
+        border: 1px solid rgba(168, 85, 247, 0.18);
         border-left: 4px solid {COLORS["purple"]};
         border-radius: 14px;
         padding: 1rem;
@@ -141,11 +179,26 @@ st.markdown(f"""
         color: #f3e8ff;
     }}
 
+    .warroom-box {{
+        background: linear-gradient(135deg, rgba(17,24,39,0.96), rgba(31,41,55,0.90));
+        border: 1px solid rgba(56,189,248,0.20);
+        border-radius: 24px;
+        padding: 1.3rem;
+        margin-top: 0.6rem;
+        box-shadow: 0 16px 35px rgba(0,0,0,0.28);
+    }}
+
+    .small-note {{
+        color: {COLORS["muted"]};
+        font-size: 0.92rem;
+    }}
+
     div[data-testid="stMetric"] {{
-        background: linear-gradient(180deg, {COLORS["surface"]}, {COLORS["surface_2"]});
+        background: linear-gradient(180deg, rgba(15,27,45,0.96), rgba(19,36,59,0.95));
         border: 1px solid {COLORS["border"]};
         padding: 1rem;
         border-radius: 18px;
+        box-shadow: 0 8px 18px rgba(0,0,0,0.12);
     }}
 
     div[data-testid="stMetricLabel"] {{
@@ -156,19 +209,14 @@ st.markdown(f"""
         color: {COLORS["text"]};
         font-weight: 800;
     }}
-
-    .small-note {{
-        color: {COLORS["muted"]};
-        font-size: 0.92rem;
-    }}
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# DATA
+# DATA GENERATION
 # ============================================================================
 @st.cache_data
-def generate_data(n=300, seed=42):
+def generate_data(n=320, seed=42):
     rng = np.random.default_rng(seed)
 
     df = pd.DataFrame({
@@ -180,10 +228,11 @@ def generate_data(n=300, seed=42):
         "Ore Lavoro": rng.uniform(0, 10, n),
         "RPE": rng.uniform(1, 10, n),
         "Temp (°C)": rng.uniform(10, 35, n),
-        "Vento (km/h)": rng.uniform(0, 25, n),
+        "Vento (km/h)": rng.uniform(0, 25, n)
     })
 
-    df["Tempo (min)"] = (df["Distanza (km)"] / df["Velocità (km/h)"]) * 60 + rng.normal(0, 5, n)
+    df["Tempo (min)"] = (df["Distanza (km)"] / df["Velocità (km/h)"]) * 60 + rng.normal(0, 4.5, n)
+
     df["SMA"] = (df["Stress Lavoro"] * df["RPE"]) / df["Ore Sonno"]
     df["ISLR"] = (df["Ore Lavoro"] * df["Stress Lavoro"]) / df["Distanza (km)"]
     df["IITR"] = (df["Temp (°C)"] * df["Vento (km/h)"]) / df["Distanza (km)"]
@@ -191,28 +240,37 @@ def generate_data(n=300, seed=42):
 
     risk_score = (df["ISLR"] * 0.5) + (df["IDET"] * 0.02) - (df["Ore Sonno"] * 0.6)
     df["Rischio Overload"] = (risk_score > np.quantile(risk_score, 0.70)).astype(int)
+
     return df
 
+# ============================================================================
+# TRAINING
+# ============================================================================
 @st.cache_resource
-def train_all(df):
+def train_models(df):
     out = {}
 
+    # Linear Regression
     X_lr = df[["Distanza (km)"]]
     y_lr = df["Tempo (min)"]
     lr = LinearRegression().fit(X_lr, y_lr)
     df["Tempo_Predetto"] = lr.predict(X_lr)
     df["Residuo"] = df["Tempo (min)"] - df["Tempo_Predetto"]
+    out["lr"] = lr
     out["lr_r2"] = r2_score(y_lr, df["Tempo_Predetto"])
 
+    # Logistic Regression
     X_log = df[["ISLR"]]
     y_log = df["Rischio Overload"]
     log = LogisticRegression().fit(X_log, y_log)
     df["Prob_Overload"] = log.predict_proba(X_log)[:, 1]
+    out["log"] = log
     out["log_acc"] = accuracy_score(y_log, log.predict(X_log))
     out["log_auc"] = roc_auc_score(y_log, df["Prob_Overload"])
     out["x_range"] = np.linspace(df["ISLR"].min(), df["ISLR"].max(), 300).reshape(-1, 1)
     out["y_prob_curve"] = log.predict_proba(out["x_range"])[:, 1]
 
+    # Random Forest
     rf = RandomForestClassifier(
         n_estimators=250,
         max_depth=6,
@@ -221,464 +279,383 @@ def train_all(df):
     ).fit(df[RF_FEATURES], df["Rischio Overload"])
     rf_pred = rf.predict(df[RF_FEATURES])
     rf_proba = rf.predict_proba(df[RF_FEATURES])[:, 1]
+    out["rf"] = rf
     out["rf_acc"] = accuracy_score(df["Rischio Overload"], rf_pred)
     out["rf_auc"] = roc_auc_score(df["Rischio Overload"], rf_proba)
-    out["rf"] = rf
     out["imp_df"] = pd.DataFrame({
         "Feature": RF_FEATURES,
         "Importanza": rf.feature_importances_
-    }).sort_values("Importanza", ascending=True)
+    }).sort_values("Importanza", ascending=True).reset_index(drop=True)
 
+    # KMeans
     km = KMeans(n_clusters=3, random_state=42, n_init=10).fit(df[["FC Media", "ISLR"]])
     df["Cluster_ID"] = km.labels_
+    out["km"] = km
     out["sil"] = silhouette_score(df[["FC Media", "ISLR"]], km.labels_)
+
     centroids = pd.DataFrame(km.cluster_centers_, columns=["FC Media", "ISLR"])
     order = centroids["ISLR"].sort_values().index.tolist()
     labels = ["Rigenerativo", "Qualità / Misto", "Elevato Stress"]
     cluster_map = {cluster_id: labels[i] for i, cluster_id in enumerate(order)}
     df["Profilo_Corsa"] = df["Cluster_ID"].map(cluster_map)
-
-    out["km"] = km
     out["cluster_map"] = cluster_map
+
     out["df"] = df
     return out
 
+# ============================================================================
+# HELPERS
+# ============================================================================
 def style_fig(fig):
     fig.update_layout(
         template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Inter", color=COLORS["muted"]),
-        margin=dict(t=50, l=20, r=20, b=20),
-        legend=dict(orientation="h", y=1.05, x=1, xanchor="right")
+        margin=dict(t=55, l=20, r=20, b=20),
+        legend=dict(orientation="h", y=1.06, x=1, xanchor="right")
     )
-    fig.update_xaxes(showgrid=False)
-    fig.update_yaxes(gridcolor="rgba(148,163,184,0.12)")
+    fig.update_xaxes(showgrid=False, zeroline=False)
+    fig.update_yaxes(gridcolor="rgba(148,163,184,0.12)", zeroline=False)
     return fig
 
-def model_header(title, subtitle):
+def open_section(title, subtitle):
     st.markdown(f"""
-    <div class="glass">
-        <div class="model-title">{title}</div>
-        <div class="model-subtitle">{subtitle}</div>
+    <div class="section-shell">
+        <div class="section-title">{title}</div>
+        <div class="section-subtitle">{subtitle}</div>
     """, unsafe_allow_html=True)
 
-def model_footer():
+def close_section():
     st.markdown("</div>", unsafe_allow_html=True)
 
+def traffic_color(prob):
+    if prob < 40:
+        return COLORS["green"], "Basso"
+    elif prob < 70:
+        return COLORS["amber"], "Moderato"
+    return COLORS["red"], "Alto"
+
 # ============================================================================
-# APP START
+# LOAD
 # ============================================================================
 df = generate_data()
-res = train_all(df)
+res = train_models(df)
 data = res["df"]
 
+# ============================================================================
+# HERO
+# ============================================================================
 st.markdown("""
 <div class="hero">
     <div class="hero-title">Advanced Machine Learning Suite</div>
     <div class="hero-subtitle">
-        Una dashboard interattiva in cui ogni algoritmo vive in una vista dedicata:
-        scegli orizzontalmente il modello che vuoi analizzare, osserva più grafici,
-        leggi la teoria, interpreta i risultati e trasforma i numeri in insight da tesi.
+        Framework interattivo per la stima della performance, la classificazione del rischio di overload,
+        l’analisi dei driver del sovraccarico e la scoperta di profili latenti di allenamento.
+        Questa dashboard non mostra solo risultati: accompagna il lettore dentro la logica della tesi.
+    </div>
+    <div class="ml-simple-box">
+        <b>Cos’è il Machine Learning, in modo semplice?</b><br>
+        È un insieme di algoritmi che imparano dai dati. Invece di seguire solo regole fisse,
+        osservano esempi reali, trovano schemi ricorrenti e li usano per fare previsioni,
+        classificare situazioni e supportare decisioni future.
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-a, b, c, d = st.columns(4)
-a.metric("Linear Regression", f"R² {res['lr_r2']:.2f}")
-b.metric("Logistic Regression", f"AUC {res['log_auc']:.2f}")
-c.metric("Random Forest", f"AUC {res['rf_auc']:.2f}")
-d.metric("K-Means", f"Silhouette {res['sil']:.2f}")
+# ============================================================================
+# KPI HEADER
+# ============================================================================
+k1, k2, k3, k4 = st.columns(4)
+k1.metric("Regressione Lineare", f"R² {res['lr_r2']:.2f}", "Baseline performance")
+k2.metric("Regressione Logistica", f"AUC {res['log_auc']:.2f}", f"ACC {res['log_acc']*100:.0f}%")
+k3.metric("Random Forest", f"AUC {res['rf_auc']:.2f}", f"ACC {res['rf_acc']*100:.0f}%")
+k4.metric("K-Means", f"Silhouette {res['sil']:.2f}", "3 profili")
 
+# ============================================================================
+# MODEL SELECTOR
+# ============================================================================
 model_view = st.segmented_control(
-    "Scegli il modello da esplorare",
+    "Esplora il cuore analitico della tesi",
     options=[
         "📈 Regressione Lineare",
         "🎯 Regressione Logistica",
         "🌳 Random Forest",
-        "🔍 K-Means"
+        "🔍 K-Means",
+        "🚀 Simulatore Finale"
     ],
     default="📈 Regressione Lineare"
 )
 
 # ============================================================================
-# VIEW 1
+# LINEAR REGRESSION
 # ============================================================================
 if model_view == "📈 Regressione Lineare":
-    model_header(
-        "📈 Regressione Lineare",
-        "Stimare il tempo atteso di performance a partire dalla distanza."
+    open_section(
+        "📈 Regressione Lineare | Dal chilometraggio al tempo atteso",
+        "Qui il modello impara una relazione semplice: all’aumentare della distanza, quanto cresce il tempo necessario per completare la sessione."
     )
 
-    o1, o2, o3 = st.columns(3)
-    o1.metric("R²", f"{res['lr_r2']:.2f}")
-    o2.metric("Tempo medio", f"{data['Tempo (min)'].mean():.1f} min")
-    o3.metric("Errore medio assoluto", f"{data['Residuo'].abs().mean():.1f} min")
+    a, b, c = st.columns(3)
+    a.metric("R²", f"{res['lr_r2']:.2f}")
+    b.metric("Tempo medio", f"{data['Tempo (min)'].mean():.1f} min")
+    c.metric("Errore assoluto medio", f"{data['Residuo'].abs().mean():.1f} min")
 
-    st.markdown(f"""
-    <div class="theory-box">
-        <b>Fondamento teorico.</b> La regressione lineare stima una relazione continua tra input e output.
-        Qui traduce i chilometri percorsi in una previsione del tempo finale, offrendo un modello semplice,
-        leggibile e molto utile come baseline interpretativa.
+    st.markdown("""
+    <div class="simple-box">
+        <b>Spiegazione semplice.</b> Questo algoritmo serve a stimare “quanto tempo potrei impiegare”.
+        È il punto di partenza ideale, perché traduce una relazione intuitiva in un modello misurabile.
     </div>
     """, unsafe_allow_html=True)
 
-    t1, t2 = st.tabs(["Overview", "Grafici avanzati"])
+    st.markdown("""
+    <div class="theory-box">
+        <b>Spiegazione tecnica.</b> La regressione lineare cerca la retta che minimizza gli errori complessivi
+        tra valori osservati e valori stimati. In questo modo costruisce una baseline quantitativa,
+        utile per confrontare successivamente modelli più complessi.
+    </div>
+    """, unsafe_allow_html=True)
 
-    with t1:
-        c1, c2 = st.columns(2)
+    c1, c2 = st.columns(2)
+    with c1:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=data["Distanza (km)"], y=data["Tempo (min)"],
+            mode="markers", name="Osservato",
+            marker=dict(color=COLORS["blue"], size=8, opacity=0.65)
+        ))
+        fig.add_trace(go.Scatter(
+            x=data["Distanza (km)"], y=data["Tempo_Predetto"],
+            mode="lines", name="Trend lineare",
+            line=dict(color=COLORS["pink"], width=3)
+        ))
+        fig.update_layout(title="Relazione tra distanza e tempo", xaxis_title="Distanza (km)", yaxis_title="Tempo (min)")
+        st.plotly_chart(style_fig(fig), use_container_width=True)
 
-        with c1:
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=data["Distanza (km)"],
-                y=data["Tempo (min)"],
-                mode="markers",
-                name="Dati reali",
-                marker=dict(color=COLORS["blue"], size=8, opacity=0.65)
-            ))
-            fig.add_trace(go.Scatter(
-                x=data["Distanza (km)"],
-                y=data["Tempo_Predetto"],
-                mode="lines",
-                name="Trend OLS",
-                line=dict(color=COLORS["pink"], width=3)
-            ))
-            fig.update_layout(title="Relazione distanza-tempo", xaxis_title="Distanza (km)", yaxis_title="Tempo (min)")
-            st.plotly_chart(style_fig(fig), use_container_width=True)
+    with c2:
+        fig = px.histogram(
+            data, x="Residuo", nbins=24,
+            title="Distribuzione dei residui",
+            color_discrete_sequence=[COLORS["purple"]]
+        )
+        st.plotly_chart(style_fig(fig), use_container_width=True)
 
-        with c2:
-            fig = px.histogram(
-                data,
-                x="Residuo",
-                nbins=24,
-                title="Distribuzione dei residui",
-                color_discrete_sequence=[COLORS["purple"]]
-            )
-            st.plotly_chart(style_fig(fig), use_container_width=True)
+    c3, c4 = st.columns(2)
+    with c3:
+        fig = px.scatter(
+            data, x="Tempo_Predetto", y="Tempo (min)",
+            trendline="ols",
+            title="Predetto vs osservato",
+            color_discrete_sequence=[COLORS["cyan"]]
+        )
+        st.plotly_chart(style_fig(fig), use_container_width=True)
 
-        st.markdown("""
-        <div class="explain-box">
-            <b>Come leggere questi grafici.</b> Il primo mostra la nuvola reale delle osservazioni e la linea ottimale calcolata dal modello.
-            Il secondo rivela quanto la previsione sbaglia e se l’errore è distribuito in modo equilibrato.
-        </div>
-        """, unsafe_allow_html=True)
+    with c4:
+        fig = px.scatter(
+            data, x="Distanza (km)", y="Residuo",
+            title="Residui rispetto alla distanza",
+            color_discrete_sequence=[COLORS["amber"]]
+        )
+        fig.add_hline(y=0, line_dash="dash", line_color=COLORS["red"])
+        st.plotly_chart(style_fig(fig), use_container_width=True)
 
-    with t2:
-        c1, c2 = st.columns(2)
+    st.markdown("""
+    <div class="insight-box">
+        <b>Interpretazione da tesi.</b> Questa sezione è importante perché introduce il lettore con un modello leggibile.
+        Mostra che il machine learning non parte subito da “scatole nere”, ma può cominciare da relazioni semplici e trasparenti.
+    </div>
+    """, unsafe_allow_html=True)
 
-        with c1:
-            fig = px.scatter(
-                data,
-                x="Tempo_Predetto",
-                y="Tempo (min)",
-                trendline="ols",
-                title="Predetto vs osservato",
-                color_discrete_sequence=[COLORS["cyan"]]
-            )
-            st.plotly_chart(style_fig(fig), use_container_width=True)
-
-        with c2:
-            fig = px.scatter(
-                data,
-                x="Distanza (km)",
-                y="Residuo",
-                title="Residui vs distanza",
-                color_discrete_sequence=[COLORS["amber"]]
-            )
-            fig.add_hline(y=0, line_dash="dash", line_color=COLORS["red"])
-            st.plotly_chart(style_fig(fig), use_container_width=True)
-
-        st.markdown("""
-        <div class="insight-box">
-            <b>Insight da tesi.</b> Questo modello è il più adatto quando vuoi mostrare una relazione intuitiva e facilmente discutibile.
-            Non coglie tutta la complessità fisiologica, ma è perfetto per aprire il percorso analitico con una baseline chiara.
-        </div>
-        """, unsafe_allow_html=True)
-
-    model_footer()
+    close_section()
 
 # ============================================================================
-# VIEW 2
+# LOGISTIC REGRESSION
 # ============================================================================
 elif model_view == "🎯 Regressione Logistica":
-    model_header(
-        "🎯 Regressione Logistica",
-        "Stimare la probabilità che una sessione entri in area di overload."
+    open_section(
+        "🎯 Regressione Logistica | Quando una sessione entra in area critica",
+        "Qui non prevediamo un tempo, ma la probabilità che una sessione sia classificata come potenzialmente a rischio overload."
     )
 
-    o1, o2, o3 = st.columns(3)
-    o1.metric("AUC", f"{res['log_auc']:.2f}")
-    o2.metric("Accuracy", f"{res['log_acc']*100:.0f}%")
-    o3.metric("Overload rate", f"{data['Rischio Overload'].mean()*100:.0f}%")
+    a, b, c = st.columns(3)
+    a.metric("AUC", f"{res['log_auc']:.2f}")
+    b.metric("Accuracy", f"{res['log_acc']*100:.0f}%")
+    c.metric("Sessioni a rischio", f"{data['Rischio Overload'].mean()*100:.0f}%")
 
     st.markdown("""
-    <div class="theory-box">
-        <b>Fondamento teorico.</b> La regressione logistica non predice un valore continuo, ma una probabilità compresa tra 0 e 1.
-        È ideale quando la domanda non è “quanto?”, ma “quanto è probabile che accada?”.
+    <div class="simple-box">
+        <b>Spiegazione semplice.</b> Questo modello risponde a una domanda chiave:
+        “quanto è probabile che questa seduta mi porti verso il sovraccarico?”.
+        Non dà solo un sì o un no, ma una probabilità.
     </div>
     """, unsafe_allow_html=True)
 
-    t1, t2 = st.tabs(["Overview", "Grafici avanzati"])
+    st.markdown("""
+    <div class="theory-box">
+        <b>Spiegazione tecnica.</b> La regressione logistica usa una funzione sigmoide per trasformare l’input
+        in una probabilità tra 0 e 1. Questo è molto utile quando l’obiettivo è classificare situazioni
+        in due stati: normale vs rischio.
+    </div>
+    """, unsafe_allow_html=True)
 
-    with t1:
-        c1, c2 = st.columns(2)
+    c1, c2 = st.columns(2)
+    with c1:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=data["ISLR"], y=data["Rischio Overload"],
+            mode="markers", name="Osservazioni",
+            marker=dict(color="#94a3b8", size=8, opacity=0.45)
+        ))
+        fig.add_trace(go.Scatter(
+            x=res["x_range"].flatten(), y=res["y_prob_curve"],
+            mode="lines", name="Curva sigmoide",
+            line=dict(color=COLORS["amber"], width=3)
+        ))
+        fig.add_hline(y=0.5, line_dash="dash", line_color=COLORS["red"])
+        fig.update_layout(title="Transizione verso il rischio", xaxis_title="ISLR", yaxis_title="Probabilità")
+        st.plotly_chart(style_fig(fig), use_container_width=True)
 
-        with c1:
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=data["ISLR"],
-                y=data["Rischio Overload"],
-                mode="markers",
-                name="Osservazioni",
-                marker=dict(color="#94a3b8", size=8, opacity=0.45)
-            ))
-            fig.add_trace(go.Scatter(
-                x=res["x_range"].flatten(),
-                y=res["y_prob_curve"],
-                mode="lines",
-                name="Curva sigmoide",
-                line=dict(color=COLORS["amber"], width=3)
-            ))
-            fig.add_hline(y=0.5, line_dash="dash", line_color=COLORS["red"])
-            fig.update_layout(title="Curva di transizione verso l'overload", xaxis_title="ISLR", yaxis_title="Probabilità")
-            st.plotly_chart(style_fig(fig), use_container_width=True)
+    with c2:
+        fig = px.box(
+            data, x="Rischio Overload", y="Prob_Overload",
+            color="Rischio Overload", title="Separabilità delle classi",
+            color_discrete_map={0: COLORS["blue"], 1: COLORS["red"]}
+        )
+        st.plotly_chart(style_fig(fig), use_container_width=True)
 
-        with c2:
-            fig = px.box(
-                data,
-                x="Rischio Overload",
-                y="Prob_Overload",
-                color="Rischio Overload",
-                title="Separabilità delle classi",
-                color_discrete_map={0: COLORS["blue"], 1: COLORS["red"]}
-            )
-            st.plotly_chart(style_fig(fig), use_container_width=True)
+    c3, c4 = st.columns(2)
+    with c3:
+        prob_bins = pd.cut(data["Prob_Overload"], bins=5, duplicates="drop")
+        calib = data.groupby(prob_bins, observed=False)["Rischio Overload"].mean().reset_index()
+        calib["Fascia"] = calib["Prob_Overload"].astype(str)
+        fig = px.bar(
+            calib, x="Fascia", y="Rischio Overload",
+            title="Rischio osservato per fascia di probabilità",
+            color_discrete_sequence=[COLORS["purple"]]
+        )
+        st.plotly_chart(style_fig(fig), use_container_width=True)
 
-        st.markdown("""
-        <div class="explain-box">
-            <b>Come leggere i risultati.</b> La curva sigmoide mostra il punto in cui l’aumento dell’indice ISLR fa impennare il rischio.
-            Il boxplot verifica se il modello distingue bene le sessioni sicure da quelle critiche.
-        </div>
-        """, unsafe_allow_html=True)
+    with c4:
+        fig = px.histogram(
+            data, x="Prob_Overload", color="Rischio Overload",
+            nbins=24, title="Distribuzione delle probabilità stimate",
+            color_discrete_map={0: COLORS["blue"], 1: COLORS["red"]}
+        )
+        st.plotly_chart(style_fig(fig), use_container_width=True)
 
-    with t2:
-        c1, c2 = st.columns(2)
+    st.markdown("""
+    <div class="insight-box">
+        <b>Interpretazione da tesi.</b> Qui il machine learning diventa decisionale:
+        non si limita a descrivere il passato, ma aiuta a identificare quando una sessione
+        merita cautela prima ancora che il problema si manifesti.
+    </div>
+    """, unsafe_allow_html=True)
 
-        with c1:
-            prob_bins = pd.cut(data["Prob_Overload"], bins=5)
-            calib = data.groupby(prob_bins)["Rischio Overload"].mean().reset_index()
-            calib["bin"] = calib["Prob_Overload"].astype(str)
-
-            fig = px.bar(
-                calib,
-                x="bin",
-                y="Rischio Overload",
-                title="Rischio osservato per fasce di probabilità",
-                color_discrete_sequence=[COLORS["purple"]]
-            )
-            st.plotly_chart(style_fig(fig), use_container_width=True)
-
-        with c2:
-            fig = px.histogram(
-                data,
-                x="Prob_Overload",
-                color="Rischio Overload",
-                nbins=25,
-                title="Distribuzione delle probabilità stimate",
-                color_discrete_map={0: COLORS["blue"], 1: COLORS["red"]}
-            )
-            st.plotly_chart(style_fig(fig), use_container_width=True)
-
-        st.markdown("""
-        <div class="insight-box">
-            <b>Insight da tesi.</b> Questo modello è ottimo quando vuoi trasformare un indice sintetico in una decisione binaria interpretabile.
-            È il ponte perfetto tra descrizione e decision making.
-        </div>
-        """, unsafe_allow_html=True)
-
-    model_footer()
+    close_section()
 
 # ============================================================================
-# VIEW 3
+# RANDOM FOREST
 # ============================================================================
 elif model_view == "🌳 Random Forest":
-    model_header(
-        "🌳 Random Forest",
-        "Spiegare il rischio di overload con una lettura multifattoriale."
+    open_section(
+        "🌳 Random Forest | Perché nasce il rischio",
+        "Qui il modello non usa un solo indicatore, ma combina più variabili per capire quali fattori pesano davvero nella comparsa del sovraccarico."
     )
 
-    o1, o2, o3 = st.columns(3)
-    o1.metric("AUC", f"{res['rf_auc']:.2f}")
-    o2.metric("Accuracy", f"{res['rf_acc']*100:.0f}%")
-    o3.metric("N. feature", f"{len(RF_FEATURES)}")
+    a, b, c = st.columns(3)
+    a.metric("AUC", f"{res['rf_auc']:.2f}")
+    b.metric("Accuracy", f"{res['rf_acc']*100:.0f}%")
+    c.metric("Feature usate", f"{len(RF_FEATURES)}")
 
     st.markdown("""
-    <div class="theory-box">
-        <b>Fondamento teorico.</b> Il Random Forest unisce molti alberi decisionali e sintetizza i loro voti.
-        Questo gli permette di cogliere interazioni non lineari tra variabili fisiologiche, ambientali e di recupero.
+    <div class="simple-box">
+        <b>Spiegazione semplice.</b> Se la logistica risponde “quanto rischio c’è?”,
+        il Random Forest aiuta a capire “da dove nasce quel rischio”.
+        Per questo è uno dei modelli più forti dell’intera suite.
     </div>
     """, unsafe_allow_html=True)
 
-    t1, t2 = st.tabs(["Overview", "Grafici avanzati"])
+    st.markdown("""
+    <div class="theory-box">
+        <b>Spiegazione tecnica.</b> Il modello costruisce molti alberi decisionali e poi combina le loro decisioni.
+        Questo approccio ensemble migliora robustezza, coglie relazioni non lineari
+        e permette di calcolare l’importanza relativa delle feature.
+    </div>
+    """, unsafe_allow_html=True)
 
-    with t1:
-        c1, c2 = st.columns(2)
+    c1, c2 = st.columns(2)
+    with c1:
+        fig = px.bar(
+            res["imp_df"], x="Importanza", y="Feature",
+            orientation="h", title="Feature importance globale",
+            color="Importanza",
+            color_continuous_scale=["#164e63", "#0891b2", "#67e8f9"]
+        )
+        st.plotly_chart(style_fig(fig), use_container_width=True)
 
-        with c1:
-            fig = px.bar(
-                res["imp_df"],
-                x="Importanza",
-                y="Feature",
-                orientation="h",
-                title="Feature importance",
-                color="Importanza",
-                color_continuous_scale=["#164e63", "#0891b2", "#67e8f9"]
-            )
-            st.plotly_chart(style_fig(fig), use_container_width=True)
+    with c2:
+        top2 = res["imp_df"].tail(2)["Feature"].tolist()
+        fig = px.scatter(
+            data, x=top2[0], y=top2[1],
+            color="Rischio Overload",
+            title=f"Interazione tra {top2[0]} e {top2[1]}",
+            color_discrete_map={0: COLORS["blue"], 1: COLORS["red"]}
+        )
+        st.plotly_chart(style_fig(fig), use_container_width=True)
 
-        with c2:
-            top2 = res["imp_df"].tail(2)["Feature"].tolist()
-            fig = px.scatter(
-                data,
-                x=top2[0],
-                y=top2[1],
-                color="Rischio Overload",
-                title=f"Interazione: {top2[0]} vs {top2[1]}",
-                color_discrete_map={0: COLORS["blue"], 1: COLORS["red"]}
-            )
-            st.plotly_chart(style_fig(fig), use_container_width=True)
+    c3, c4 = st.columns(2)
+    with c3:
+        rf_scores = res["rf"].predict_proba(data[RF_FEATURES])[:, 1]
+        fig = px.histogram(
+            x=rf_scores, nbins=24,
+            title="Distribuzione degli score Random Forest",
+            color_discrete_sequence=[COLORS["green"]]
+        )
+        fig.update_xaxes(title="Probabilità stimata")
+        st.plotly_chart(style_fig(fig), use_container_width=True)
 
-        st.markdown("""
-        <div class="explain-box">
-            <b>Come leggere i risultati.</b> La feature importance ordina i fattori che il modello giudica più utili per classificare il rischio.
-            Il grafico di interazione ti fa vedere dove le sessioni critiche si concentrano nello spazio delle due variabili più forti.
-        </div>
-        """, unsafe_allow_html=True)
+    with c4:
+        feature_means = data.groupby("Rischio Overload")[RF_FEATURES].mean().T.reset_index()
+        feature_means.columns = ["Feature", "Sicuro", "Rischio"]
+        melt_df = feature_means.melt(id_vars="Feature", var_name="Classe", value_name="Valore")
+        fig = px.bar(
+            melt_df, x="Feature", y="Valore", color="Classe", barmode="group",
+            title="Differenze medie tra sessioni sicure e a rischio",
+            color_discrete_map={"Sicuro": COLORS["blue"], "Rischio": COLORS["red"]}
+        )
+        st.plotly_chart(style_fig(fig), use_container_width=True)
 
-    with t2:
-        c1, c2 = st.columns(2)
+    st.markdown("""
+    <div class="insight-box">
+        <b>Interpretazione da tesi.</b> Questa è la sezione più esplicativa del progetto:
+        mostra che il sovraccarico non è il risultato di un singolo fattore, ma di una combinazione di carico,
+        recupero, stress e condizioni contestuali.
+    </div>
+    """, unsafe_allow_html=True)
 
-        with c1:
-            fig = px.histogram(
-                x=res["rf"].predict_proba(data[RF_FEATURES])[:, 1],
-                nbins=24,
-                title="Distribuzione score Random Forest",
-                color_discrete_sequence=[COLORS["green"]]
-            )
-            st.plotly_chart(style_fig(fig), use_container_width=True)
-
-        with c2:
-            feature_means = data.groupby("Rischio Overload")[RF_FEATURES].mean().T.reset_index()
-            feature_means.columns = ["Feature", "Sicuro", "Rischio"]
-            melt_df = feature_means.melt(id_vars="Feature", var_name="Classe", value_name="Valore")
-            fig = px.bar(
-                melt_df,
-                x="Feature",
-                y="Valore",
-                color="Classe",
-                barmode="group",
-                title="Profilo medio feature per classe",
-                color_discrete_map={"Sicuro": COLORS["blue"], "Rischio": COLORS["red"]}
-            )
-            st.plotly_chart(style_fig(fig), use_container_width=True)
-
-        st.markdown("""
-        <div class="insight-box">
-            <b>Insight da tesi.</b> Qui il racconto si fa davvero forte: non stai solo dicendo se c’è rischio,
-            ma stai mostrando quali combinazioni di fattori lo fanno emergere.
-        </div>
-        """, unsafe_allow_html=True)
-
-    model_footer()
+    close_section()
 
 # ============================================================================
-# VIEW 4
+# K-MEANS
 # ============================================================================
 elif model_view == "🔍 K-Means":
-    model_header(
-        "🔍 K-Means Clustering",
-        "Scoprire profili di allenamento ricorrenti senza etichette predefinite."
+    open_section(
+        "🔍 K-Means | I profili nascosti delle sessioni",
+        "Qui il modello non riceve etichette già note: osserva i dati e raggruppa automaticamente sessioni simili tra loro."
     )
 
-    o1, o2, o3 = st.columns(3)
-    o1.metric("Silhouette", f"{res['sil']:.2f}")
-    o2.metric("Cluster", "3")
-    o3.metric("Sessioni", f"{len(data)}")
+    a, b, c = st.columns(3)
+    a.metric("Silhouette", f"{res['sil']:.2f}")
+    b.metric("Numero cluster", "3")
+    c.metric("Sessioni", f"{len(data)}")
 
     st.markdown("""
-    <div class="theory-box">
-        <b>Fondamento teorico.</b> K-Means cerca gruppi naturali nei dati in base alla distanza dai centroidi.
-        È uno strumento eccellente per passare dalla logica predittiva alla logica esplorativa.
+    <div class="simple-box">
+        <b>Spiegazione semplice.</b> Questo algoritmo cerca famiglie di allenamento ricorrenti.
+        In pratica prova a capire se nei dati esistono tipi di sessione che si somigliano naturalmente.
     </div>
     """, unsafe_allow_html=True)
 
-    t1, t2 = st.tabs(["Overview", "Grafici avanzati"])
-
-    with t1:
-        c1, c2 = st.columns(2)
-
-        with c1:
-            fig = px.scatter(
-                data,
-                x="ISLR",
-                y="FC Media",
-                color="Profilo_Corsa",
-                title="Segmentazione dei profili di allenamento",
-                color_discrete_sequence=[COLORS["green"], COLORS["amber"], COLORS["red"]]
-            )
-            st.plotly_chart(style_fig(fig), use_container_width=True)
-
-        with c2:
-            cluster_means = data.groupby("Profilo_Corsa")[["Ore Sonno", "RPE", "Tempo (min)"]].mean().reset_index()
-            fig = px.bar(
-                cluster_means,
-                x="Profilo_Corsa",
-                y=["Ore Sonno", "RPE", "Tempo (min)"],
-                barmode="group",
-                title="Profilo medio dei cluster"
-            )
-            st.plotly_chart(style_fig(fig), use_container_width=True)
-
-        st.markdown("""
-        <div class="explain-box">
-            <b>Come leggere i risultati.</b> Il primo grafico ti fa vedere le famiglie di sessioni scoperte automaticamente.
-            Il secondo traduce quei gruppi in comportamento medio, così i cluster diventano leggibili anche a livello narrativo.
-        </div>
-        """, unsafe_allow_html=True)
-
-    with t2:
-        c1, c2 = st.columns(2)
-
-        with c1:
-            cluster_counts = data["Profilo_Corsa"].value_counts().reset_index()
-            cluster_counts.columns = ["Profilo", "Conteggio"]
-            fig = px.pie(
-                cluster_counts,
-                names="Profilo",
-                values="Conteggio",
-                title="Peso percentuale dei cluster",
-                color="Profilo",
-                color_discrete_sequence=[COLORS["green"], COLORS["amber"], COLORS["red"]]
-            )
-            st.plotly_chart(style_fig(fig), use_container_width=True)
-
-        with c2:
-            fig = px.box(
-                data,
-                x="Profilo_Corsa",
-                y="ISLR",
-                color="Profilo_Corsa",
-                title="Distribuzione ISLR per cluster",
-                color_discrete_sequence=[COLORS["green"], COLORS["amber"], COLORS["red"]]
-            )
-            st.plotly_chart(style_fig(fig), use_container_width=True)
-
-        st.markdown("""
-        <div class="insight-box">
-            <b>Insight da tesi.</b> Questa sezione è potentissima perché mostra che nei dati esistono archetipi ricorrenti di allenamento.
-            È la parte più “scoperta” e meno guidata da etichette, quindi visivamente colpisce molto.
-        </div>
-        """, unsafe_allow_html=True)
-
-    model_footer()
+    st.markdown("""
+    <div class="theory-box">
+        <b>Spiegazione tecnica.</b> K
