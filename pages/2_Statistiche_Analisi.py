@@ -1,12 +1,37 @@
-from utils.sidebar import sidebar_comune
-df, df_full, filtro_tempo = sidebar_comune()
 import streamlit as st
+import pandas as pd
 import numpy as np
+import plotly.express as px
 import plotly.graph_objects as go
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix
+import warnings
+import base64
+import tempfile
+import os
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import f1_score
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import roc_curve
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import silhouette_score
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import IsolationForest
+from sklearn.decomposition import PCA
+from cv_engine import analizza_running_video
 
-from utils.style import carica_css
-from utils.data import genera_dati
-from utils.components import header_block, style_fig, get_svg_url, SVG_KPI
+warnings.filterwarnings('ignore')
+try:
+    import shap
+    SHAP_AVAILABLE = True
+except ImportError:
+    SHAP_AVAILABLE = False
+
 elif pagina == "STATISTICHE ANALISI":
     header_block(
         "Modulo 02 — Analytics Storico",
