@@ -13,7 +13,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import accuracy_score, r2_score, roc_auc_score, silhouette_score
 
 # ============================================================================
-# PAGE CONFIG
+# CONFIG
 # ============================================================================
 st.set_page_config(
     page_title="Advanced ML Suite | Core Tesi Magistrale",
@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 # ============================================================================
-# DESIGN TOKENS
+# DESIGN SYSTEM
 # ============================================================================
 COLORS = {
     "bg": "#06101d",
@@ -44,9 +44,6 @@ COLORS = {
 
 RF_FEATURES = ["Distanza (km)", "Ore Sonno", "SMA", "ISLR", "IDET", "IITR"]
 
-# ============================================================================
-# GLOBAL STYLE
-# ============================================================================
 st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -71,25 +68,12 @@ st.markdown(f"""
     }}
 
     .hero {{
-        position: relative;
-        overflow: hidden;
         background: linear-gradient(135deg, rgba(15,27,45,0.96) 0%, rgba(19,36,59,0.92) 100%);
         border: 1px solid {COLORS["border"]};
         border-radius: 26px;
-        padding: 2rem 2rem 1.7rem 2rem;
+        padding: 2rem;
         margin-bottom: 1.2rem;
         box-shadow: 0 18px 45px rgba(0,0,0,0.32);
-    }}
-
-    .hero::after {{
-        content: "";
-        position: absolute;
-        top: -70px;
-        right: -60px;
-        width: 220px;
-        height: 220px;
-        background: radial-gradient(circle, rgba(56,189,248,0.18) 0%, rgba(56,189,248,0.00) 70%);
-        pointer-events: none;
     }}
 
     .hero-title {{
@@ -140,13 +124,6 @@ st.markdown(f"""
         color: {COLORS["muted"]};
         margin-bottom: 0.9rem;
         font-size: 0.98rem;
-    }}
-
-    .mini-title {{
-        color: {COLORS["text"]};
-        font-weight: 700;
-        font-size: 1rem;
-        margin-bottom: 0.35rem;
     }}
 
     .theory-box {{
@@ -213,7 +190,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# DATA GENERATION
+# DATA
 # ============================================================================
 @st.cache_data
 def generate_data(n=320, seed=42):
@@ -232,7 +209,6 @@ def generate_data(n=320, seed=42):
     })
 
     df["Tempo (min)"] = (df["Distanza (km)"] / df["Velocità (km/h)"]) * 60 + rng.normal(0, 4.5, n)
-
     df["SMA"] = (df["Stress Lavoro"] * df["RPE"]) / df["Ore Sonno"]
     df["ISLR"] = (df["Ore Lavoro"] * df["Stress Lavoro"]) / df["Distanza (km)"]
     df["IITR"] = (df["Temp (°C)"] * df["Vento (km/h)"]) / df["Distanza (km)"]
@@ -244,30 +220,31 @@ def generate_data(n=320, seed=42):
     return df
 
 # ============================================================================
-# TRAINING
+# MODELS
 # ============================================================================
 @st.cache_resource
 def train_models(df):
     out = {}
+    work_df = df.copy()
 
     # Linear Regression
-    X_lr = df[["Distanza (km)"]]
-    y_lr = df["Tempo (min)"]
+    X_lr = work_df[["Distanza (km)"]]
+    y_lr = work_df["Tempo (min)"]
     lr = LinearRegression().fit(X_lr, y_lr)
-    df["Tempo_Predetto"] = lr.predict(X_lr)
-    df["Residuo"] = df["Tempo (min)"] - df["Tempo_Predetto"]
+    work_df["Tempo_Predetto"] = lr.predict(X_lr)
+    work_df["Residuo"] = work_df["Tempo (min)"] - work_df["Tempo_Predetto"]
     out["lr"] = lr
-    out["lr_r2"] = r2_score(y_lr, df["Tempo_Predetto"])
+    out["lr_r2"] = r2_score(y_lr, work_df["Tempo_Predetto"])
 
     # Logistic Regression
-    X_log = df[["ISLR"]]
-    y_log = df["Rischio Overload"]
+    X_log = work_df[["ISLR"]]
+    y_log = work_df["Rischio Overload"]
     log = LogisticRegression().fit(X_log, y_log)
-    df["Prob_Overload"] = log.predict_proba(X_log)[:, 1]
+    work_df["Prob_Overload"] = log.predict_proba(X_log)[:, 1]
     out["log"] = log
     out["log_acc"] = accuracy_score(y_log, log.predict(X_log))
-    out["log_auc"] = roc_auc_score(y_log, df["Prob_Overload"])
-    out["x_range"] = np.linspace(df["ISLR"].min(), df["ISLR"].max(), 300).reshape(-1, 1)
+    out["log_auc"] = roc_auc_score(y_log, work_df["Prob_Overload"])
+    out["x_range"] = np.linspace(work_df["ISLR"].min(), work_df["ISLR"].max(), 300).reshape(-1, 1)
     out["y_prob_curve"] = log.predict_proba(out["x_range"])[:, 1]
 
     # Random Forest
@@ -276,31 +253,35 @@ def train_models(df):
         max_depth=6,
         min_samples_leaf=4,
         random_state=42
-    ).fit(df[RF_FEATURES], df["Rischio Overload"])
-    rf_pred = rf.predict(df[RF_FEATURES])
-    rf_proba = rf.predict_proba(df[RF_FEATURES])[:, 1]
+    ).fit(work_df[RF_FEATURES], work_df["Rischio Overload"])
+    rf_pred = rf.predict(work_df[RF_FEATURES])
+    rf_proba = rf.predict_proba(work_df[RF_FEATURES])[:, 1]
     out["rf"] = rf
-    out["rf_acc"] = accuracy_score(df["Rischio Overload"], rf_pred)
-    out["rf_auc"] = roc_auc_score(df["Rischio Overload"], rf_proba)
-    out["imp_df"] = pd.DataFrame({
-        "Feature": RF_FEATURES,
-        "Importanza": rf.feature_importances_
-    }).sort_values("Importanza", ascending=True).reset_index(drop=True)
+    out["rf_acc"] = accuracy_score(work_df["Rischio Overload"], rf_pred)
+    out["rf_auc"] = roc_auc_score(work_df["Rischio Overload"], rf_proba)
+    out["imp_df"] = (
+        pd.DataFrame({
+            "Feature": RF_FEATURES,
+            "Importanza": rf.feature_importances_
+        })
+        .sort_values("Importanza", ascending=True)
+        .reset_index(drop=True)
+    )
 
     # KMeans
-    km = KMeans(n_clusters=3, random_state=42, n_init=10).fit(df[["FC Media", "ISLR"]])
-    df["Cluster_ID"] = km.labels_
+    km = KMeans(n_clusters=3, random_state=42, n_init=10).fit(work_df[["FC Media", "ISLR"]])
+    work_df["Cluster_ID"] = km.labels_
     out["km"] = km
-    out["sil"] = silhouette_score(df[["FC Media", "ISLR"]], km.labels_)
+    out["sil"] = silhouette_score(work_df[["FC Media", "ISLR"]], km.labels_)
 
     centroids = pd.DataFrame(km.cluster_centers_, columns=["FC Media", "ISLR"])
     order = centroids["ISLR"].sort_values().index.tolist()
     labels = ["Rigenerativo", "Qualità / Misto", "Elevato Stress"]
     cluster_map = {cluster_id: labels[i] for i, cluster_id in enumerate(order)}
-    df["Profilo_Corsa"] = df["Cluster_ID"].map(cluster_map)
+    work_df["Profilo_Corsa"] = work_df["Cluster_ID"].map(cluster_map)
     out["cluster_map"] = cluster_map
+    out["df"] = work_df
 
-    out["df"] = df
     return out
 
 # ============================================================================
@@ -352,7 +333,7 @@ st.markdown("""
     <div class="hero-subtitle">
         Framework interattivo per la stima della performance, la classificazione del rischio di overload,
         l’analisi dei driver del sovraccarico e la scoperta di profili latenti di allenamento.
-        Questa dashboard non mostra solo risultati: accompagna il lettore dentro la logica della tesi.
+        Questa dashboard accompagna il lettore dentro la logica della tesi, trasformando i dati in decisioni.
     </div>
     <div class="ml-simple-box">
         <b>Cos’è il Machine Learning, in modo semplice?</b><br>
@@ -364,16 +345,16 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# KPI HEADER
+# KPI SUMMARY
 # ============================================================================
 k1, k2, k3, k4 = st.columns(4)
-k1.metric("Regressione Lineare", f"R² {res['lr_r2']:.2f}", "Baseline performance")
+k1.metric("Regressione Lineare", f"R² {res['lr_r2']:.2f}", "Baseline")
 k2.metric("Regressione Logistica", f"AUC {res['log_auc']:.2f}", f"ACC {res['log_acc']*100:.0f}%")
 k3.metric("Random Forest", f"AUC {res['rf_auc']:.2f}", f"ACC {res['rf_acc']*100:.0f}%")
 k4.metric("K-Means", f"Silhouette {res['sil']:.2f}", "3 profili")
 
 # ============================================================================
-# MODEL SELECTOR
+# MODEL NAVIGATION
 # ============================================================================
 model_view = st.segmented_control(
     "Esplora il cuore analitico della tesi",
@@ -393,7 +374,7 @@ model_view = st.segmented_control(
 if model_view == "📈 Regressione Lineare":
     open_section(
         "📈 Regressione Lineare | Dal chilometraggio al tempo atteso",
-        "Qui il modello impara una relazione semplice: all’aumentare della distanza, quanto cresce il tempo necessario per completare la sessione."
+        "Il modello impara una relazione semplice: all’aumentare della distanza, cresce il tempo necessario per completare la sessione."
     )
 
     a, b, c = st.columns(3)
@@ -403,7 +384,7 @@ if model_view == "📈 Regressione Lineare":
 
     st.markdown("""
     <div class="simple-box">
-        <b>Spiegazione semplice.</b> Questo algoritmo serve a stimare “quanto tempo potrei impiegare”.
+        <b>Spiegazione semplice.</b> Questo algoritmo serve a stimare quanto tempo potrei impiegare.
         È il punto di partenza ideale, perché traduce una relazione intuitiva in un modello misurabile.
     </div>
     """, unsafe_allow_html=True)
@@ -444,8 +425,7 @@ if model_view == "📈 Regressione Lineare":
     with c3:
         fig = px.scatter(
             data, x="Tempo_Predetto", y="Tempo (min)",
-            trendline="ols",
-            title="Predetto vs osservato",
+            trendline="ols", title="Predetto vs osservato",
             color_discrete_sequence=[COLORS["cyan"]]
         )
         st.plotly_chart(style_fig(fig), use_container_width=True)
@@ -461,8 +441,8 @@ if model_view == "📈 Regressione Lineare":
 
     st.markdown("""
     <div class="insight-box">
-        <b>Interpretazione da tesi.</b> Questa sezione è importante perché introduce il lettore con un modello leggibile.
-        Mostra che il machine learning non parte subito da “scatole nere”, ma può cominciare da relazioni semplici e trasparenti.
+        <b>Interpretazione da tesi.</b> Questa sezione introduce il lettore con un modello leggibile.
+        Mostra che il machine learning non parte subito da scatole nere, ma può cominciare da relazioni semplici e trasparenti.
     </div>
     """, unsafe_allow_html=True)
 
@@ -485,7 +465,7 @@ elif model_view == "🎯 Regressione Logistica":
     st.markdown("""
     <div class="simple-box">
         <b>Spiegazione semplice.</b> Questo modello risponde a una domanda chiave:
-        “quanto è probabile che questa seduta mi porti verso il sovraccarico?”.
+        quanto è probabile che questa seduta mi porti verso il sovraccarico?
         Non dà solo un sì o un no, ma una probabilità.
     </div>
     """, unsafe_allow_html=True)
@@ -493,8 +473,8 @@ elif model_view == "🎯 Regressione Logistica":
     st.markdown("""
     <div class="theory-box">
         <b>Spiegazione tecnica.</b> La regressione logistica usa una funzione sigmoide per trasformare l’input
-        in una probabilità tra 0 e 1. Questo è molto utile quando l’obiettivo è classificare situazioni
-        in due stati: normale vs rischio.
+        in una probabilità tra 0 e 1. Questo è utile quando l’obiettivo è classificare situazioni
+        in due stati: normale contro rischio.
     </div>
     """, unsafe_allow_html=True)
 
@@ -518,7 +498,8 @@ elif model_view == "🎯 Regressione Logistica":
     with c2:
         fig = px.box(
             data, x="Rischio Overload", y="Prob_Overload",
-            color="Rischio Overload", title="Separabilità delle classi",
+            color="Rischio Overload",
+            title="Separabilità delle classi",
             color_discrete_map={0: COLORS["blue"], 1: COLORS["red"]}
         )
         st.plotly_chart(style_fig(fig), use_container_width=True)
@@ -528,6 +509,7 @@ elif model_view == "🎯 Regressione Logistica":
         prob_bins = pd.cut(data["Prob_Overload"], bins=5, duplicates="drop")
         calib = data.groupby(prob_bins, observed=False)["Rischio Overload"].mean().reset_index()
         calib["Fascia"] = calib["Prob_Overload"].astype(str)
+
         fig = px.bar(
             calib, x="Fascia", y="Rischio Overload",
             title="Rischio osservato per fascia di probabilità",
@@ -538,7 +520,8 @@ elif model_view == "🎯 Regressione Logistica":
     with c4:
         fig = px.histogram(
             data, x="Prob_Overload", color="Rischio Overload",
-            nbins=24, title="Distribuzione delle probabilità stimate",
+            nbins=24,
+            title="Distribuzione delle probabilità stimate",
             color_discrete_map={0: COLORS["blue"], 1: COLORS["red"]}
         )
         st.plotly_chart(style_fig(fig), use_container_width=True)
@@ -546,8 +529,8 @@ elif model_view == "🎯 Regressione Logistica":
     st.markdown("""
     <div class="insight-box">
         <b>Interpretazione da tesi.</b> Qui il machine learning diventa decisionale:
-        non si limita a descrivere il passato, ma aiuta a identificare quando una sessione
-        merita cautela prima ancora che il problema si manifesti.
+        non si limita a descrivere il passato, ma aiuta a identificare quando una sessione merita cautela
+        prima ancora che il problema si manifesti.
     </div>
     """, unsafe_allow_html=True)
 
@@ -559,7 +542,7 @@ elif model_view == "🎯 Regressione Logistica":
 elif model_view == "🌳 Random Forest":
     open_section(
         "🌳 Random Forest | Perché nasce il rischio",
-        "Qui il modello non usa un solo indicatore, ma combina più variabili per capire quali fattori pesano davvero nella comparsa del sovraccarico."
+        "Qui il modello combina più variabili per capire quali fattori pesano davvero nella comparsa del sovraccarico."
     )
 
     a, b, c = st.columns(3)
@@ -569,8 +552,8 @@ elif model_view == "🌳 Random Forest":
 
     st.markdown("""
     <div class="simple-box">
-        <b>Spiegazione semplice.</b> Se la logistica risponde “quanto rischio c’è?”,
-        il Random Forest aiuta a capire “da dove nasce quel rischio”.
+        <b>Spiegazione semplice.</b> Se la logistica risponde a quanto rischio c’è,
+        il Random Forest aiuta a capire da dove nasce quel rischio.
         Per questo è uno dei modelli più forti dell’intera suite.
     </div>
     """, unsafe_allow_html=True)
@@ -618,6 +601,7 @@ elif model_view == "🌳 Random Forest":
         feature_means = data.groupby("Rischio Overload")[RF_FEATURES].mean().T.reset_index()
         feature_means.columns = ["Feature", "Sicuro", "Rischio"]
         melt_df = feature_means.melt(id_vars="Feature", var_name="Classe", value_name="Valore")
+
         fig = px.bar(
             melt_df, x="Feature", y="Valore", color="Classe", barmode="group",
             title="Differenze medie tra sessioni sicure e a rischio",
@@ -658,4 +642,220 @@ elif model_view == "🔍 K-Means":
 
     st.markdown("""
     <div class="theory-box">
-        <b>Spiegazione tecnica.</b> K
+        <b>Spiegazione tecnica.</b> K-Means minimizza la distanza dei punti dai centroidi del proprio gruppo.
+        Qui viene usato per scoprire profili latenti di sessione in base a FC media e ISLR.
+    </div>
+    """, unsafe_allow_html=True)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        fig = px.scatter(
+            data, x="ISLR", y="FC Media",
+            color="Profilo_Corsa",
+            title="Segmentazione dei profili di allenamento",
+            color_discrete_sequence=[COLORS["green"], COLORS["amber"], COLORS["red"]]
+        )
+        st.plotly_chart(style_fig(fig), use_container_width=True)
+
+    with c2:
+        cluster_means = data.groupby("Profilo_Corsa")[["Ore Sonno", "RPE", "Tempo (min)"]].mean().reset_index()
+        fig = px.bar(
+            cluster_means,
+            x="Profilo_Corsa",
+            y=["Ore Sonno", "RPE", "Tempo (min)"],
+            barmode="group",
+            title="Profilo medio dei cluster"
+        )
+        st.plotly_chart(style_fig(fig), use_container_width=True)
+
+    c3, c4 = st.columns(2)
+    with c3:
+        cluster_counts = data["Profilo_Corsa"].value_counts().reset_index()
+        cluster_counts.columns = ["Profilo", "Conteggio"]
+
+        fig = px.pie(
+            cluster_counts,
+            names="Profilo",
+            values="Conteggio",
+            title="Peso percentuale dei cluster",
+            color="Profilo",
+            color_discrete_sequence=[COLORS["green"], COLORS["amber"], COLORS["red"]]
+        )
+        st.plotly_chart(style_fig(fig), use_container_width=True)
+
+    with c4:
+        fig = px.box(
+            data,
+            x="Profilo_Corsa",
+            y="ISLR",
+            color="Profilo_Corsa",
+            title="Distribuzione ISLR per cluster",
+            color_discrete_sequence=[COLORS["green"], COLORS["amber"], COLORS["red"]]
+        )
+        st.plotly_chart(style_fig(fig), use_container_width=True)
+
+    st.markdown("""
+    <div class="insight-box">
+        <b>Interpretazione da tesi.</b> K-Means aggiunge una lettura esplorativa:
+        non ti dice solo cosa accadrà, ma mostra come i dati si organizzano spontaneamente in archetipi di allenamento.
+    </div>
+    """, unsafe_allow_html=True)
+
+    close_section()
+
+# ============================================================================
+# FINAL SIMULATOR
+# ============================================================================
+else:
+    st.markdown("""
+    <div class="warroom-box">
+        <div class="section-title">🚀 Simulatore Finale | Decision Room della Tesi</div>
+        <div class="section-subtitle">
+            Qui convergono tutti i modelli. Imposti una sessione ipotetica e il sistema ti restituisce
+            tempo previsto, probabilità di overload, lettura rapida logistica e profilo K-Means più vicino.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    left, right = st.columns([1, 1], gap="large")
+
+    with left:
+        st.markdown("""
+        <div class="simple-box">
+            <b>Come funziona.</b> Inserisci i parametri della sessione. Quando premi il pulsante,
+            il simulatore attiva insieme i diversi modelli della tesi e li trasforma in una valutazione unica.
+        </div>
+        """, unsafe_allow_html=True)
+
+        with st.form("simulator_form"):
+            sim_dist = st.slider("Distanza pianificata (km)", 5.0, 30.0, 10.0, 0.5)
+            sim_sleep = st.slider("Ore di sonno", 3.0, 10.0, 7.5, 0.5)
+            sim_stress = st.slider("Stress lavoro (1-10)", 1.0, 10.0, 5.0, 1.0)
+            sim_work = st.slider("Ore lavoro", 0.0, 12.0, 8.0, 0.5)
+            sim_rpe = st.slider("RPE previsto", 1.0, 10.0, 6.0, 1.0)
+
+            submitted = st.form_submit_button("Simula la sessione")
+
+    with right:
+        if submitted:
+            sim_fc = 145.0
+            sim_temp = 25.0
+            sim_vel = 12.0
+            sim_vento = 5.0
+
+            sim_sma = (sim_stress * sim_rpe) / sim_sleep
+            sim_islr = (sim_work * sim_stress) / sim_dist
+            sim_idet = (sim_fc * sim_temp) / sim_vel
+            sim_iitr = (sim_temp * sim_vento) / sim_dist
+
+            input_df = pd.DataFrame([{
+                "Distanza (km)": sim_dist,
+                "Ore Sonno": sim_sleep,
+                "SMA": sim_sma,
+                "ISLR": sim_islr,
+                "IDET": sim_idet,
+                "IITR": sim_iitr
+            }])
+
+            tempo_pred = float(
+                res["lr"].predict(pd.DataFrame({"Distanza (km)": [sim_dist]}))[0]
+            )
+            prob_rf = float(
+                res["rf"].predict_proba(input_df)[0, 1] * 100
+            )
+            prob_log = float(
+                res["log"].predict_proba(pd.DataFrame({"ISLR": [sim_islr]}))[0, 1] * 100
+            )
+
+            sim_point = np.array([[sim_fc, sim_islr]])
+            dists = np.linalg.norm(res["km"].cluster_centers_ - sim_point, axis=1)
+            nearest_cluster = int(np.argmin(dists))
+            nearest_profile = res["cluster_map"][nearest_cluster]
+
+            color, level = traffic_color(prob_rf)
+
+            st.markdown(f"""
+            <div style="
+                background: linear-gradient(180deg, rgba(15,27,45,0.98), rgba(19,36,59,0.96));
+                border: 1px solid {COLORS["border"]};
+                border-radius: 22px;
+                padding: 1.35rem;
+                text-align: center;
+                box-shadow: 0 16px 35px rgba(0,0,0,0.28);
+            ">
+                <div style="color: {COLORS['muted']}; font-size: 0.82rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700;">
+                    Esito finale simulazione
+                </div>
+                <div style="font-size: 4rem; font-weight: 900; line-height: 1; margin-top: 0.35rem; color: {color};">
+                    {prob_rf:.1f}%
+                </div>
+                <div style="color: {COLORS['text']}; font-size: 1.05rem; margin-top: 0.35rem; font-weight: 700;">
+                    Rischio overload: {level}
+                </div>
+                <div style="color: {COLORS['muted']}; margin-top: 0.45rem;">
+                    Tempo stimato: {tempo_pred:.1f} min · Prob. logistica: {prob_log:.1f}%
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            m1, m2, m3 = st.columns(3)
+            m1.metric("SMA", f"{sim_sma:.2f}")
+            m2.metric("ISLR", f"{sim_islr:.2f}")
+            m3.metric("Profilo vicino", nearest_profile)
+
+            st.markdown(f"""
+            <div class="insight-box">
+                <b>Lettura finale.</b> La sessione simulata assomiglia di più al profilo <b>{nearest_profile}</b>.
+                Il Random Forest stima un rischio del <b>{prob_rf:.1f}%</b>, mentre la regressione logistica
+                fornisce una lettura rapida di <b>{prob_log:.1f}%</b>. Il tempo previsto dalla regressione lineare
+                è <b>{tempo_pred:.1f} minuti</b>.
+            </div>
+            """, unsafe_allow_html=True)
+
+            fig = go.Figure()
+            fig.add_trace(go.Indicator(
+                mode="gauge+number",
+                value=prob_rf,
+                title={"text": "Rischio overload"},
+                gauge={
+                    "axis": {"range": [0, 100]},
+                    "bar": {"color": color},
+                    "steps": [
+                        {"range": [0, 40], "color": "rgba(34,197,94,0.25)"},
+                        {"range": [40, 70], "color": "rgba(245,158,11,0.25)"},
+                        {"range": [70, 100], "color": "rgba(239,68,68,0.25)"}
+                    ]
+                }
+            ))
+            fig.update_layout(
+                height=320,
+                margin=dict(t=40, b=20, l=20, r=20),
+                paper_bgcolor="rgba(0,0,0,0)",
+                font=dict(color=COLORS["text"])
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            compare_df = pd.DataFrame({
+                "Indicatore": ["Tempo previsto (min)", "Probabilità Logistica", "Probabilità Random Forest"],
+                "Valore": [tempo_pred, prob_log, prob_rf]
+            })
+
+            fig = px.bar(
+                compare_df,
+                x="Indicatore",
+                y="Valore",
+                color="Indicatore",
+                title="Lettura sintetica della simulazione",
+                color_discrete_sequence=[COLORS["cyan"], COLORS["amber"], COLORS["pink"]]
+            )
+            st.plotly_chart(style_fig(fig), use_container_width=True)
+
+        else:
+            st.markdown("""
+            <div class="warroom-box">
+                <div class="simple-box">
+                    <b>Simulatore finale pronto.</b> Premi “Simula la sessione” per ottenere
+                    il verdetto completo del cuore predittivo della tesi.
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
