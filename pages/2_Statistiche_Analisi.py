@@ -32,6 +32,10 @@ try:
 except ImportError:
     SHAP_AVAILABLE = False
 
+
+# [ ... INSERISCI QUI IL CODICE PRECEDENTE (es. pagina == "HOME" e pagina == "ANALISI STATO DI FORMA") ... ]
+
+
 elif pagina == "STATISTICHE ANALISI":
     header_block(
         "Modulo 02 — Analytics Storico",
