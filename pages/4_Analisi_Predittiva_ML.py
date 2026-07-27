@@ -974,4 +974,4 @@ with tab_sim:
         elif prob_rischio < 70:
             st.warning("🟡 **ZONA DI ATTENZIONE**: L'algoritmo rileva una competizione energetica tra lavoro e recupero. Cautela.")
         else:
-            st.error("🔴 **ALLARME CRITICO**: Combinazione anomala di fattori di stress e scarso sonno. Rischio di sovraccarico elevato.")  MIGLIORAMELO E METTI UNA PAGINA DA CLICCARE NELLA TENDA  PER OGNI ML CON LE VARIE SPIEGAZIONI E GRAFICI E PER IL SIMULATORE METTI ANCHE DEI GRAFICI BELLI . TOGLI EMOJI OVUNQUE
+            st.error("🔴 **ALLARME CRITICO**: Combinazione anomala di fattori di stress e scarso sonno. Rischio di sovraccarico elevato.")  
