@@ -1,5 +1,5 @@
 """
-Advanced Machine Learning Suite — Dashboard interattiva per tesi magistrale.
+Advanced Machine Learning Suite - Dashboard interattiva per tesi magistrale.
 File unico. Avvio: streamlit run app.py
 """
 
@@ -49,11 +49,11 @@ COLORS = {
     "blue": "#38bdf8", "cyan": "#22d3ee", "green": "#34d399", "amber": "#fbbf24",
     "red": "#f87171", "purple": "#a78bfa", "pink": "#f472b6",
 }
-QUALITATIVE = [COLORS["blue"], COLORS["purple"], COLORS["cyan"], COLORS["amber"], COLORS["pink"], COLORS["green"]]
-CLASS_COLORS = {"Nessun rischio": COLORS["blue"], "Rischio overload": COLORS["red"]}
-SPLIT_COLORS = {"Train": COLORS["blue"], "Test": COLORS["amber"]}
+QUALITATIVE = [COLORS['blue'], COLORS['purple'], COLORS['cyan'], COLORS['amber'], COLORS['pink'], COLORS['green']]
+CLASS_COLORS = {"Nessun rischio": COLORS['blue'], "Rischio overload": COLORS['red']}
+SPLIT_COLORS = {"Train": COLORS['blue'], "Test": COLORS['amber']}
 SEQUENTIAL = ["#0e3a52", "#0e7490", "#22d3ee", "#a5f3fc"]
-CLUSTER_COLORS = {"Rigenerativo": COLORS["green"], "Qualità / Misto": COLORS["amber"], "Elevato Stress": COLORS["red"]}
+CLUSTER_COLORS = {"Rigenerativo": COLORS['green'], "Qualità / Misto": COLORS['amber'], "Elevato Stress": COLORS['red']}
 CLUSTER_LABELS = ["Rigenerativo", "Qualità / Misto", "Elevato Stress"]
 
 TARGET = "Rischio Overload"
@@ -64,15 +64,15 @@ LR_FEATURES = ["Distanza (km)"]
 LOG_FEATURES = ["ISLR"]
 
 GLOSSARY = {
-    "SMA": "Stress Metabolico Apparente — (Stress lavoro × RPE) / Ore di sonno.",
-    "ISLR": "Indice di Stress Lavoro-Relativo — (Ore lavoro × Stress) / Distanza.",
-    "IDET": "Indice di Domanda Emodinamico-Termica — (FC media × Temperatura) / Velocità.",
-    "IITR": "Indice di Interferenza Termo-Ventosa — (Temperatura × Vento) / Distanza.",
+    "SMA": "Stress Metabolico Apparente - (Stress lavoro × RPE) / Ore di sonno.",
+    "ISLR": "Indice di Stress Lavoro-Relativo - (Ore lavoro × Stress) / Distanza.",
+    "IDET": "Indice di Domanda Emodinamico-Termica - (FC media × Temperatura) / Velocità.",
+    "IITR": "Indice di Interferenza Termo-Ventosa - (Temperatura × Vento) / Distanza.",
     "RPE": "Rating of Perceived Exertion: percezione soggettiva dello sforzo (1-10).",
     TARGET: "Etichetta binaria: 1 se la sessione ricade in area di sovraccarico.",
 }
 
-RISK_BANDS = ((40.0, "Basso", COLORS["green"]), (70.0, "Moderato", COLORS["amber"]), (101.0, "Alto", COLORS["red"]))
+RISK_BANDS = ((40.0, "Basso", COLORS['green']), (70.0, "Moderato", COLORS['amber']), (101.0, "Alto", COLORS['red']))
 
 
 def risk_band(prob: float) -> tuple[str, str]:
@@ -113,13 +113,13 @@ def register_plotly_template():
     tpl = go.layout.Template()
     tpl.layout = go.Layout(
         colorway=QUALITATIVE, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter, sans-serif", color=COLORS["text_soft"], size=13),
-        title=dict(font=dict(size=17, color=COLORS["text"]), x=0.01, xanchor="left", y=0.96),
+        font=dict(family="Inter, sans-serif", color=COLORS['text_soft'], size=13),
+        title=dict(font=dict(size=17, color=COLORS['text']), x=0.01, xanchor="left", y=0.96),
         margin=dict(t=64, l=16, r=16, b=16),
-        hoverlabel=dict(bgcolor=COLORS["surface_2"], bordercolor=COLORS["border"], font=dict(family="Inter", color=COLORS["text"], size=12)),
+        hoverlabel=dict(bgcolor=COLORS['surface_2'], bordercolor=COLORS['border'], font=dict(family="Inter", color=COLORS['text'], size=12)),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, x=1, xanchor="right", bgcolor="rgba(0,0,0,0)", font=dict(size=12), title_text=""),
-        xaxis=dict(showgrid=False, zeroline=False, linecolor=COLORS["border_soft"], ticks="outside", tickcolor=COLORS["border_soft"], title=dict(font=dict(size=12, color=COLORS["muted"]))),
-        yaxis=dict(gridcolor="rgba(148,163,184,0.10)", zeroline=False, linecolor="rgba(0,0,0,0)", title=dict(font=dict(size=12, color=COLORS["muted"]))),
+        xaxis=dict(showgrid=False, zeroline=False, linecolor=COLORS['border_soft'], ticks="outside", tickcolor=COLORS['border_soft'], title=dict(font=dict(size=12, color=COLORS['muted']))),
+        yaxis=dict(gridcolor="rgba(148,163,184,0.10)", zeroline=False, linecolor="rgba(0,0,0,0)", title=dict(font=dict(size=12, color=COLORS['muted']))),
         colorscale=dict(sequential=[[0, "#0e3a52"], [0.5, "#0e7490"], [1, "#a5f3fc"]]),
     )
     pio.templates[PLOTLY_TEMPLATE] = tpl
