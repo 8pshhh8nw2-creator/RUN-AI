@@ -5,7 +5,7 @@ from utils.data import genera_dati
 
 def sidebar_comune():
     """
-    Disegna la sidebar comune (logo, filtro temporale, device)
+    Disegna la sidebar comune (logo, device, filtro temporale)
     e restituisce i dati filtrati da usare in ogni pagina.
     """
     # Inizializzazione sicura di tutte le variabili di stato
@@ -99,7 +99,7 @@ def sidebar_comune():
             </style>
         """, unsafe_allow_html=True)
 
-        # ---------- HEADER / LOGO ----------
+        # ---------- HEADER / LOGO (in cima) ----------
         st.markdown("""
             <div style='display:flex; align-items:center; gap:10px; margin-bottom:2px;'>
                 <div style='width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg, #00E5FF, #00F5A0); display:flex; align-items:center; justify-content:center; font-family:"Space Grotesk",sans-serif; font-weight:800; color:#04121a; font-size:1.1em;'>R</div>
@@ -108,17 +108,7 @@ def sidebar_comune():
         """, unsafe_allow_html=True)
         st.markdown("<p style='color: #566178; font-size: 0.78em; margin-top: 2px; margin-bottom: 26px; font-family:\"JetBrains Mono\",monospace; letter-spacing:0.1em; text-transform:uppercase;'>Performance Intelligence System</p>", unsafe_allow_html=True)
 
-        # ---------- FILTRO TEMPORALE (era in fondo, ora in cima) ----------
-        st.markdown("<p class='runai-label'>Intervallo Analisi</p>", unsafe_allow_html=True)
-        filtro_tempo = st.selectbox(
-            "Intervallo Analisi:",
-            ["Ultimi 30 giorni", "Ultimi 60 giorni", "Ultimi 90 giorni (Tutto)"],
-            label_visibility="collapsed"
-        )
-
-        st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
-
-        # ---------- DISPOSITIVO (era in cima, ora in fondo) ----------
+        # ---------- DISPOSITIVO (subito sotto il logo) ----------
         st.markdown("<p class='runai-label'>Dispositivo</p>", unsafe_allow_html=True)
         device_scelto = st.selectbox(
             "Seleziona dispositivo:",
@@ -168,6 +158,36 @@ def sidebar_comune():
                 steps=info['steps'],
                 calories=info['calories']
             ), unsafe_allow_html=True)
+
+        st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
+
+        # ---------- FILTRO TEMPORALE (sotto Dispositivo) ----------
+        st.markdown("<p class='runai-label'>Intervallo Analisi</p>", unsafe_allow_html=True)
+        filtro_tempo = st.selectbox(
+            "Intervallo Analisi:",
+            ["Ultimi 30 giorni", "Ultimi 60 giorni", "Ultimi 90 giorni (Tutto)"],
+            label_visibility="collapsed"
+        )
+
+        # ---------- NAVIGAZIONE PAGINE (in fondo a tutto) ----------
+        # NOTA: se l'app usa la cartella "pages/", Streamlit disegna la lista
+        # delle pagine automaticamente IN CIMA alla sidebar, prima di qualsiasi
+        # contenuto custom — è per questo che finora "le pagine" non si
+        # spostavano in fondo, indipendentemente da come riordinavo il resto.
+        # Qui nascondo quella nav automatica e la ridisegno a mano in fondo,
+        # stile sport-tech. Va aggiornata con i nomi reali delle tue pagine.
+        st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
+        st.markdown("<p class='runai-label'>Navigazione</p>", unsafe_allow_html=True)
+        st.markdown("""
+            <style>
+            div[data-testid="stSidebarNav"] { display: none; }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # Sostituisci i path/etichette con le pagine reali della tua app
+        st.page_link("app.py", label="Home")
+        # st.page_link("pages/analisi_predittiva.py", label="Analisi Predittiva ML")
+        # st.page_link("pages/altra_pagina.py", label="Altra Pagina")
 
     df_full = st.session_state.dati.copy()
     if filtro_tempo == "Ultimi 30 giorni":
