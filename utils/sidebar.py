@@ -6,7 +6,7 @@ from utils.data import genera_dati
 def sidebar_comune():
     """
     Disegna la sidebar comune (logo, device, filtro temporale) in alto
-    e la navigazione delle pagine in basso.
+    e la navigazione delle pagine ancorata in basso.
     """
     if 'dati' not in st.session_state or st.session_state.dati is None:
         st.session_state.dati = genera_dati()
@@ -21,13 +21,17 @@ def sidebar_comune():
         # ---------- STILE GLOBALE SIDEBAR ----------
         st.markdown("""
             <style>
+            /* Il primo div diretto figlio della sidebar è il container scrollabile:
+               lo trasformiamo in flex-column a tutta altezza per poter ancorare
+               la navigazione in fondo con margin-top:auto */
+            section[data-testid="stSidebar"] > div:first-child {
+                display: flex;
+                flex-direction: column;
+                min-height: 100vh;
+            }
             section[data-testid="stSidebar"] {
                 background: #070B12;
                 border-right: 1px solid #161D2B;
-            }
-            /* Nasconde la navigazione nativa automatica di Streamlit se presente */
-            [data-testid="stSidebarNav"] {
-                display: none;
             }
             section[data-testid="stSidebar"] .stSelectbox > div > div {
                 background-color: #0E1420;
@@ -98,6 +102,42 @@ def sidebar_comune():
             .runai-row span:last-child {
                 color: #E8ECF2;
                 font-weight: 600;
+            }
+
+            /* ---------- NAVIGAZIONE (st.page_link) ---------- */
+            /* Contenitore che spinge il blocco nav in fondo alla sidebar */
+            .runai-nav-anchor {
+                margin-top: auto;
+            }
+            section[data-testid="stSidebar"] [data-testid="stPageLink"] {
+                margin: 2px 0 !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stPageLink"] a,
+            section[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] {
+                display: flex !important;
+                align-items: center !important;
+                gap: 8px !important;
+                width: 100% !important;
+                padding: 9px 10px !important;
+                border-radius: 8px !important;
+                text-decoration: none !important;
+                color: #8792A3 !important;
+                font-family: "Inter", sans-serif !important;
+                font-size: 0.9em !important;
+                font-weight: 500 !important;
+                transition: background 0.15s ease, color 0.15s ease !important;
+                border: 1px solid transparent !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stPageLink"] a p {
+                color: inherit !important;
+                font-size: inherit !important;
+                font-family: inherit !important;
+                margin: 0 !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stPageLink"] a:hover {
+                background: #12192a !important;
+                border: 1px solid #1c2333 !important;
+                color: #E8ECF2 !important;
             }
             </style>
         """, unsafe_allow_html=True)
@@ -172,17 +212,19 @@ def sidebar_comune():
             label_visibility="collapsed"
         )
 
-        # ---------- NAVIGAZIONE PAGINE (IN FONDO) ----------
+        # ---------- NAVIGAZIONE PAGINE (ancorata in fondo, sempre visibile) ----------
+        st.markdown("<div class='runai-nav-anchor'>", unsafe_allow_html=True)
         st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
         st.markdown("<p class='runai-label'>Navigazione</p>", unsafe_allow_html=True)
-        
-        st.page_link("app.py", label="Home")
-        st.page_link("pages/1_Stato_Forma.py", label="Stato Forma")
-        st.page_link("pages/2_Statistiche_Analisi.py", label="Statistiche Analisi")
-        st.page_link("pages/3_KPI_Dashboard.py", label="KPI Dashboard")
-        st.page_link("pages/4_Analisi_Predittiva_ML.py", label="Analisi Predittiva ML")
-        st.page_link("pages/5_Consiglio_Finale.py", label="Consiglio Finale")
-        st.page_link("pages/6_ComputerVision.py", label="Computer Vision")
+
+        st.page_link("app.py", label="Home", icon="🏠")
+        st.page_link("pages/1_Stato_Forma.py", label="Stato Forma", icon="📈")
+        st.page_link("pages/2_Statistiche_Analisi.py", label="Statistiche Analisi", icon="📊")
+        st.page_link("pages/3_KPI_Dashboard.py", label="KPI Dashboard", icon="🧭")
+        st.page_link("pages/4_Analisi_Predittiva_ML.py", label="Analisi Predittiva ML", icon="🤖")
+        st.page_link("pages/5_Consiglio_Finale.py", label="Consiglio Finale", icon="💡")
+        st.page_link("pages/6_ComputerVision.py", label="Computer Vision", icon="👁️")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     df_full = st.session_state.dati.copy()
     if filtro_tempo == "Ultimi 30 giorni":
