@@ -31,33 +31,30 @@ warnings.filterwarnings("ignore")
 # CONFIGURAZIONE PAGINA
 # ============================================================================
 st.set_page_config(
-    page_title="Sport ML Suite",
+    page_title="RUN AI - Sport ML Suite",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 # ============================================================================
-# COSTANTI E COLORI
+# COSTANTI E COLORI (STILE IMMAGINE)
 # ============================================================================
-APP_TITLE = "Advanced Machine Learning Suite"
-APP_SUBTITLE = "Dashboard Analitica per la valutazione del rischio e della performance."
-
 COLORS = {
-    "bg": "#030712", "bg2": "#0b1221", "surface": "#111827", "surface_2": "#1f2937",
-    "border": "#374151", "border_soft": "rgba(55, 65, 81, 0.5)",
-    "text": "#f9fafb", "text_soft": "#9ca3af", "muted": "#6b7280",
-    "blue": "#3b82f6", "cyan": "#06b6d4", "green": "#10b981", "amber": "#f59e0b",
-    "red": "#ef4444", "purple": "#8b5cf6", "pink": "#ec4899",
+    "bg": "#0a0e17", "bg2": "#111827", "surface": "#162032", "surface_2": "#1e293b",
+    "border": "#334155", "border_soft": "rgba(51, 65, 85, 0.5)",
+    "text": "#f8fafc", "text_soft": "#cbd5e1", "muted": "#94a3b8",
+    "cyan": "#00e5ff", "cyan_dim": "rgba(0, 229, 255, 0.1)",
+    "green": "#a3e635", "amber": "#fbbf24", "red": "#f87171", "purple": "#a78bfa"
 }
-QUALITATIVE = [COLORS['cyan'], COLORS['purple'], COLORS['blue'], COLORS['amber'], COLORS['pink'], COLORS['green']]
-CLUSTER_COLORS = {0: COLORS['cyan'], 1: COLORS['purple'], 2: COLORS['blue'], 3: COLORS['pink']}
+QUALITATIVE = [COLORS['cyan'], COLORS['purple'], COLORS['amber'], COLORS['green'], COLORS['red'], COLORS['text']]
+CLUSTER_COLORS = {0: COLORS['cyan'], 1: COLORS['purple'], 2: COLORS['amber'], 3: COLORS['green']}
 
 TARGET = "Rischio Overload"
 TIME_TARGET = "Tempo (min)"
 RF_FEATURES = ["Distanza (km)", "Ore Sonno", "SMA", "ISLR", "IDET", "IITR", "RPE"]
 CLUSTER_FEATURES = ["FC Media", "ISLR", "SMA"]
 
-RISK_BANDS = ((40.0, "Basso", COLORS['green']), (70.0, "Moderato", COLORS['amber']), (101.0, "Alto", COLORS['red']))
+RISK_BANDS = ((40.0, "Basso (Sicuro)", COLORS['green']), (70.0, "Moderato (Attenzione)", COLORS['amber']), (101.0, "Alto (Pericolo)", COLORS['red']))
 
 def risk_band(prob: float) -> tuple[str, str]:
     for thr, label, color in RISK_BANDS:
@@ -77,7 +74,7 @@ class Settings:
 # ============================================================================
 # CSS & THEME PLOTLY
 # ============================================================================
-PLOTLY_TEMPLATE = "ml_suite_tech"
+PLOTLY_TEMPLATE = "runai_tech"
 
 def register_plotly_template():
     if PLOTLY_TEMPLATE in pio.templates:
@@ -85,10 +82,9 @@ def register_plotly_template():
     tpl = go.layout.Template()
     tpl.layout = go.Layout(
         colorway=QUALITATIVE, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="SF Pro Display, Inter, sans-serif", color=COLORS['text_soft'], size=13),
-        title=dict(font=dict(size=16, color=COLORS['text']), x=0.01, xanchor="left", y=0.96),
+        font=dict(family="Inter, sans-serif", color=COLORS['text_soft'], size=13),
+        title=dict(font=dict(size=16, color=COLORS['text'], family="Inter"), x=0.01, xanchor="left", y=0.96),
         margin=dict(t=50, l=10, r=10, b=30),
-        hoverlabel=dict(bgcolor=COLORS['surface_2'], bordercolor=COLORS['border'], font=dict(color=COLORS['text'], size=12)),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, x=1, xanchor="right", bgcolor="rgba(0,0,0,0)"),
         xaxis=dict(showgrid=True, gridcolor=COLORS['border_soft'], zeroline=False, linecolor=COLORS['border'], ticks="outside"),
         yaxis=dict(showgrid=True, gridcolor=COLORS['border_soft'], zeroline=False, linecolor=COLORS['border']),
@@ -99,46 +95,105 @@ def register_plotly_template():
 def inject_css():
     st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
-    :root {{
-        --bg:{COLORS['bg']}; --bg2:{COLORS['bg2']}; --surface:{COLORS['surface']};
-        --border:{COLORS['border']}; --text:{COLORS['text']}; --cyan:{COLORS['cyan']};
-        --purple:{COLORS['purple']};
-    }}
-    html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); }}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
     
-    /* Hide Sidebar & Defaults */
+    :root {{
+        --bg: {COLORS['bg']}; --surface: {COLORS['surface']}; --cyan: {COLORS['cyan']};
+    }}
+    
+    html, body, [class*="css"] {{
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg);
+        color: {COLORS['text']};
+    }}
+    
+    /* Sfondo generale scuro simile all'immagine */
+    .stApp {{ background-color: var(--bg); }}
     [data-testid="collapsedControl"] {{ display: none !important; }}
     #MainMenu, footer, header {{ visibility: hidden; }}
-    .stApp {{ background: radial-gradient(circle at 50% 0%, var(--bg2) 0%, var(--bg) 100%); }}
     
-    /* Headers & Typography */
-    h1, h2, h3 {{ font-family: 'Inter', sans-serif; font-weight: 800; letter-spacing: -0.03em; }}
-    .kicker {{ font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.15em; }}
+    /* Stile Hero Card (il riquadro principale con riga verde sopra) */
+    .hero-card {{
+        background: {COLORS['surface']};
+        border-radius: 12px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        border-top: 3px solid {COLORS['green']};
+        border-left: 1px solid {COLORS['border']};
+        border-right: 1px solid {COLORS['border']};
+        border-bottom: 1px solid {COLORS['border']};
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }}
     
-    /* Tech Menu Styling */
+    .hero-kicker {{
+        color: {COLORS['cyan']};
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }}
+    
+    .hero-title {{
+        font-size: 2.8rem;
+        font-weight: 900;
+        margin: 0 0 1rem 0;
+        color: #ffffff;
+        line-height: 1.1;
+    }}
+    
+    /* Info Box (Riquadro azzurro laterale) */
+    .info-box {{
+        background: {COLORS['cyan_dim']};
+        border-left: 4px solid {COLORS['cyan']};
+        border-radius: 4px 8px 8px 4px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+        color: {COLORS['text_soft']};
+        font-size: 1rem;
+        line-height: 1.6;
+    }}
+    
+    .info-box strong {{ color: #ffffff; }}
+    
+    /* Menu Orizzontale Tech */
     div.row-widget.stRadio > div {{
-        display: flex; flex-direction: row; flex-wrap: wrap; gap: 0;
-        background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+        display: flex; gap: 0; background: {COLORS['surface']}; 
+        border: 1px solid {COLORS['border']}; border-radius: 8px; overflow: hidden;
     }}
     div.row-widget.stRadio > div > label {{
-        padding: 14px 20px; cursor: pointer; border-right: 1px solid var(--border); background: transparent; transition: all 0.2s;
+        padding: 12px 24px; border-right: 1px solid {COLORS['border']}; cursor: pointer;
     }}
-    div.row-widget.stRadio > div > label:hover {{ background: rgba(6, 182, 212, 0.1); }}
-    div.row-widget.stRadio > div > label[data-checked="true"] {{ background: rgba(6, 182, 212, 0.15); box-shadow: inset 0 -3px 0 var(--cyan); }}
-    div.row-widget.stRadio p {{ font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700; margin: 0; color: var(--text); }}
+    div.row-widget.stRadio > div > label[data-checked="true"] {{
+        background: {COLORS['cyan_dim']};
+        box-shadow: inset 0 -3px 0 {COLORS['cyan']};
+    }}
+    div.row-widget.stRadio p {{
+        font-weight: 800; font-size: 0.85rem; text-transform: uppercase; margin: 0; color: {COLORS['text']};
+    }}
     
-    /* Callouts & Explanations */
-    .theory-box {{ background: var(--surface); border-left: 4px solid var(--cyan); padding: 1.5rem; margin: 1.5rem 0; border-radius: 4px 8px 8px 4px; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }}
-    .theory-box h4 {{ margin-top: 0; color: var(--cyan); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; text-transform: uppercase; }}
-    .theory-box p {{ line-height: 1.7; color: var(--text_soft); font-size: 0.95rem; margin-bottom: 0; }}
+    /* Titoli Sezioni */
+    .section-title {{
+        font-size: 1.8rem; font-weight: 800; margin-top: 1.5rem; margin-bottom: 0.5rem; color: #ffffff;
+    }}
     
-    .chart-desc {{ background: rgba(255,255,255,0.02); padding: 1rem; border: 1px dashed var(--border); border-radius: 6px; font-size: 0.85rem; color: var(--text_soft); margin-top: 10px; }}
+    /* Box Spiegazioni sotto i grafici */
+    .coach-insight {{
+        background: {COLORS['surface_2']};
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid {COLORS['border']};
+        font-size: 0.9rem;
+        color: {COLORS['text_soft']};
+        margin-top: -10px;
+        margin-bottom: 20px;
+    }}
+    .coach-insight span {{ color: {COLORS['cyan']}; font-weight: 800; text-transform: uppercase; font-size: 0.75rem; display: block; margin-bottom: 4px; }}
     </style>
     """, unsafe_allow_html=True)
 
 # ============================================================================
-# DATA GENERATOR (DA SOSTITUIRE IN FUTURO)
+# DATA GENERATOR (DA SOSTITUIRE IN FUTURO CON df = pd.read_csv("dati.csv"))
 # ============================================================================
 @st.cache_data
 def generate_synthetic_data(n: int, seed: int) -> pd.DataFrame:
@@ -210,215 +265,205 @@ def render_ui():
     inject_css()
     cfg = Settings()
     
-    st.markdown(f"<div class='kicker'>Master Thesis Analytical Core</div><h1 style='margin-top:0;'>{APP_TITLE}</h1>", unsafe_allow_html=True)
-    
     # ---------------------------------------------------------
-    # INTRODUZIONE TEORICA
+    # HEADER (STILE IMMAGINE)
     # ---------------------------------------------------------
-    st.markdown("""
-    <div class="theory-box">
-        <h4>Introduzione al Machine Learning nello Sport</h4>
-        <p>Il Machine Learning applicato alla Sport Science segna il passaggio dall'analisi descrittiva (cosa è successo) all'analisi predittiva (cosa succederà). Storicamente, i preparatori atletici si basavano su soglie fisse e intuizione. Oggi, gli algoritmi processano relazioni non lineari tra carico esterno (es. chilometri percorsi, velocità) e carico interno (es. frequenza cardiaca, fatica percepita, qualità del sonno).<br><br>
-        In questa suite analizziamo il rischio di sovraccarico (Overload) e il calo prestativo. L'obiettivo non è sostituire il giudizio umano, ma fornire un <b>supporto decisionale oggettivo</b> capace di pesare decine di variabili simultaneamente per individuare modelli di infortunio o fatica latente invisibili all'occhio umano.</p>
+    st.markdown(f"""
+    <div class="hero-card">
+        <div class="hero-kicker">● PERFORMANCE INTELLIGENCE SYSTEM</div>
+        <h1 class="hero-title">SPORT MACHINE LEARNING<br>& INJURY PREDICTION</h1>
+        <p style="color: {COLORS['text_soft']}; font-size: 1.1rem; max-width: 800px;">
+        Questa piattaforma analizza i dati di allenamento per prevedere il rischio di sovraccarico (Overload) e valutare il calo della performance. L'Intelligenza Artificiale impara dallo storico dell'atleta per fornire indicazioni pratiche al coach.
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
-    # ---------------------------------------------------------
-    # CARICAMENTO DATI
-    # ---------------------------------------------------------
-    # QUANDO SARAI PRONTO A USARE I TUOI DATI REALI, SOSTITUISCI LA RIGA SEGUENTE CON:
-    # df = pd.read_csv("nome_del_tuo_file.csv")
     df = generate_synthetic_data(cfg.n_sessions, cfg.seed)
-    
-    # Addestramento modelli
     rf, lr, reg, kmeans, scaler, X_train, X_test, y_train, y_test, X_train_scaled, X_test_scaled, X_test_r, y_test_r = train_models(df, cfg)
 
     # ---------------------------------------------------------
-    # MENU ORIZZONTALE TECH
+    # MENU ORIZZONTALE
     # ---------------------------------------------------------
-    st.write("")
     sezioni = [
-        "REGRESSIONE LINEARE", 
-        "REGRESSIONE LOGISTICA", 
-        "RANDOM FOREST", 
-        "CLUSTERING", 
-        "SIMULATORE WHAT-IF"
+        "1. STIMA PERFORMANCE", 
+        "2. RISCHIO BASE (LOGISTICA)", 
+        "3. RISCHIO AVANZATO (AI)", 
+        "4. PROFILAZIONE ATLETA", 
+        "5. SIMULATORE COACH"
     ]
-    scelta = st.radio("MODULI", sezioni, horizontal=True, label_visibility="collapsed")
+    scelta = st.radio("Seleziona Analisi", sezioni, horizontal=True, label_visibility="collapsed")
 
     # ==============================================================
-    # 1. REGRESSIONE LINEARE
+    # 1. REGRESSIONE LINEARE (STIMA PERFORMANCE)
     # ==============================================================
     if scelta == sezioni[0]:
-        st.markdown("<div class='kicker'>Stima della Performance</div><h2>Regressione Lineare Multipla</h2>", unsafe_allow_html=True)
-        st.markdown(r"""
-        <div class="theory-box">
-            <h4>Teoria del Modello</h4>
-            <p>La Regressione Lineare stima una variabile dipendente continua (in questo caso, il <b>Tempo di completamento</b> dell'allenamento) combinando linearmente diverse variabili indipendenti (Distanza, SMA, RPE). L'equazione matematica alla base è:<br><br>
-            $Y = \beta_0 + \beta_1X_1 + \beta_2X_2 + ... + \beta_nX_n + \epsilon$<br><br>
-            Dove i coefficienti $\beta$ rappresentano il peso di ogni metrica. Questo algoritmo è essenziale per verificare se l'accumulo di fatica (Stress Metabolico Apparente) altera in modo statisticamente significativo il tempo atteso, indicando un calo della performance.</p>
+        st.markdown("<div class='section-title'>Analisi del Ritmo e della Fatica</div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div class="info-box">
+            <strong>Come ragiona l'algoritmo:</strong> Immagina questo modello come un cronometro intelligente. Non guarda solo i chilometri da percorrere, ma capisce quanto la stanchezza percepita (RPE) e lo stress fisico accumulato andranno a rallentare l'atleta. Risponde alla domanda del coach: <i>"Se il mio atleta è stanco oggi, quanto tempo in più ci metterà a finire il lavoro?"</i>
         </div>
         """, unsafe_allow_html=True)
         
         preds = reg.predict(X_test_r)
         
+        # Risultati Chiari
+        st.markdown("### Risultati per il Coach")
         c1, c2 = st.columns(2)
-        c1.metric("R-Squared (R²)", f"{r2_score(y_test_r, preds):.3f}")
-        c2.metric("Mean Absolute Error (MAE)", f"{mean_absolute_error(y_test_r, preds):.2f} min")
+        c1.metric("Affidabilità Previsione (R²)", f"{r2_score(y_test_r, preds)*100:.1f}%", "Più è alto, più il modello ci prende")
+        c2.metric("Errore Medio Cronometro (MAE)", f"{mean_absolute_error(y_test_r, preds):.1f} minuti", "Di quanto sbaglia in media")
 
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
         with g1:
-            fig1 = px.scatter(x=y_test_r, y=preds, opacity=0.6, color_discrete_sequence=[COLORS['cyan']], title="1. Reale vs Predetto")
-            fig1.add_shape(type="line", x0=y_test_r.min(), y0=y_test_r.min(), x1=y_test_r.max(), y1=y_test_r.max(), line=dict(dash="dash", color=COLORS['muted']))
+            fig1 = px.scatter(x=y_test_r, y=preds, opacity=0.6, color_discrete_sequence=[COLORS['cyan']], title="Tempo Reale vs Tempo Previsto")
+            fig1.add_shape(type="line", x0=y_test_r.min(), y0=y_test_r.min(), x1=y_test_r.max(), y1=y_test_r.max(), line=dict(dash="dash", color=COLORS['text_soft']))
+            fig1.update_layout(xaxis_title="Tempo Reale (Cosa è successo)", yaxis_title="Tempo Previsto (Cosa diceva l'IA)")
             st.plotly_chart(fig1, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Valuta la bontà del modello. Più i punti si allineano sulla diagonale tratteggiata, più le stime corrispondono alla realtà. Deviazioni ampie indicano outlier o fattori esterni non misurati.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>Se i punti sono vicini alla linea tratteggiata, l'algoritmo ha previsto correttamente il tempo di gara/allenamento in base alla stanchezza dell'atleta.</div>", unsafe_allow_html=True)
 
         with g2:
             residui = y_test_r - preds
-            fig2 = px.histogram(residui, nbins=30, color_discrete_sequence=[COLORS['purple']], title="2. Distribuzione dei Residui")
+            fig2 = px.histogram(residui, nbins=30, color_discrete_sequence=[COLORS['purple']], title="Frequenza degli Errori di Previsione")
+            fig2.update_layout(xaxis_title="Errore in Minuti", yaxis_title="Numero di Allenamenti")
             st.plotly_chart(fig2, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Un modello sano dovrebbe produrre errori distribuiti normalmente attorno allo zero. Se la distribuzione è asimmetrica, il modello tende a sovrastimare o sottostimare sistematicamente la prestazione.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>La maggior parte delle barre dovrebbe essere al centro (zero errori). Se ci sono barre a destra o sinistra, significa che a volte l'atleta crolla improvvisamente in modo imprevedibile.</div>", unsafe_allow_html=True)
 
         with g3:
-            fig3 = px.scatter(x=preds, y=residui, opacity=0.6, color_discrete_sequence=[COLORS['pink']], title="3. Omoschedasticità (Predetto vs Residui)")
-            fig3.add_hline(y=0, line_dash="dash", line_color=COLORS['muted'])
+            fig3 = px.scatter(x=preds, y=residui, opacity=0.6, color_discrete_sequence=[COLORS['amber']], title="Stabilità su Lunghe Distanze")
+            fig3.add_hline(y=0, line_dash="dash", line_color=COLORS['text_soft'])
+            fig3.update_layout(xaxis_title="Tempo Previsto", yaxis_title="Errore di Previsione")
             st.plotly_chart(fig3, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Verifica la varianza dell'errore. Se l'errore aumenta al crescere del tempo previsto (forma a cono), la relazione tra le variabili perde linearità sui lunghi chilometraggi.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>Se l'errore (asse verticale) diventa enorme quando il tempo previsto (asse orizzontale) è alto, significa che l'atleta non è prevedibile nelle sessioni molto lunghe (mancanza di resistenza di base).</div>", unsafe_allow_html=True)
 
         with g4:
-            coefs = pd.DataFrame({"Feature": X_test_r.columns, "Coef": reg.coef_}).sort_values("Coef")
-            fig4 = px.bar(coefs, x="Coef", y="Feature", orientation="h", color_discrete_sequence=[COLORS['amber']], title="4. Peso dei Coefficienti")
+            coefs = pd.DataFrame({"Fattore": X_test_r.columns, "Impatto sul Tempo": reg.coef_}).sort_values("Impatto sul Tempo")
+            fig4 = px.bar(coefs, x="Impatto sul Tempo", y="Fattore", orientation="h", color_discrete_sequence=[COLORS['green']], title="Cosa fa rallentare l'atleta?")
             st.plotly_chart(fig4, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Indica l'impatto di ogni singola unità. Ad esempio, a parità di distanza, un incremento unitario del RPE aumenterà il tempo finale proporzionalmente al coefficiente qui visualizzato.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>Mostra i 'pesi'. Ovviamente la Distanza aumenta il tempo, ma guarda le altre barre: ti dice esattamente quanti minuti aggiunge al cronometro un livello di RPE o di Stress elevato.</div>", unsafe_allow_html=True)
 
     # ==============================================================
-    # 2. REGRESSIONE LOGISTICA
+    # 2. REGRESSIONE LOGISTICA (RISCHIO BASE)
     # ==============================================================
     elif scelta == sezioni[1]:
-        st.markdown("<div class='kicker'>Baseline di Classificazione</div><h2>Regressione Logistica</h2>", unsafe_allow_html=True)
-        st.markdown(r"""
-        <div class="theory-box">
-            <h4>Teoria del Modello</h4>
-            <p>La Regressione Logistica è impiegata per prevedere un esito binario (1 = Rischio Overload, 0 = Nessun Rischio). Invece di prevedere un valore continuo, modella la probabilità che un'istanza appartenga a una determinata classe utilizzando la funzione logistica (sigmoide):<br><br>
-            $p(X) = \frac{1}{1 + e^{-(\beta_0 + \beta_1X_1 + ...)}}$<br><br>
-            Nello sport, funge da eccellente <i>baseline</i>. Poiché assume una relazione proporzionale diretta tra le features e la log-odds del rischio, ci permette di capire quali metriche (es. ISLR o mancanza di sonno) spingono l'atleta verso il sovraccarico in modo lineare.</p>
+        st.markdown("<div class='section-title'>Rischio Overload: Modello Semplice</div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div class="info-box">
+            <strong>Come ragiona l'algoritmo:</strong> Questo è il modello 'semaforo' classico. Traccia una linea dritta: da una parte gli allenamenti sicuri, dall'altra quelli a rischio infortunio (Overload). È utile per capire in modo diretto quali fattori (es. mancanza di sonno) spingono l'atleta oltre il limite in modo matematico e proporzionale.
         </div>
         """, unsafe_allow_html=True)
 
         y_pred = lr.predict(X_test_scaled)
         y_prob = lr.predict_proba(X_test_scaled)[:, 1]
 
+        st.markdown("### Risultati per il Coach")
         c1, c2, c3 = st.columns(3)
-        c1.metric("Accuracy", f"{accuracy_score(y_test, y_pred):.3f}")
-        c2.metric("F1-Score", f"{f1_score(y_test, y_pred):.3f}")
-        c3.metric("AUC-ROC", f"{roc_auc_score(y_test, y_prob):.3f}")
+        c1.metric("Allenamenti azzeccati", f"{accuracy_score(y_test, y_pred)*100:.1f}%")
+        c2.metric("Sensibilità agli Infortuni", f"{roc_auc_score(y_test, y_prob)*100:.1f}%")
+        c3.metric("Falsi Allarmi (100-Precision)", f"{(1-precision_score(y_test, y_pred))*100:.1f}%")
 
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
         with g1:
             fpr, tpr, _ = roc_curve(y_test, y_prob)
-            fig1 = px.line(x=fpr, y=tpr, title="1. Curva ROC", color_discrete_sequence=[COLORS['cyan']])
-            fig1.add_shape(type='line', line=dict(dash='dash', color=COLORS['muted']), x0=0, x1=1, y0=0, y1=1)
-            fig1.update_layout(xaxis_title="Falsi Positivi (FPR)", yaxis_title="Veri Positivi (TPR)")
+            fig1 = px.line(x=fpr, y=tpr, title="Curva di Efficacia (ROC)", color_discrete_sequence=[COLORS['cyan']])
+            fig1.add_shape(type='line', line=dict(dash='dash', color=COLORS['text_soft']), x0=0, x1=1, y0=0, y1=1)
+            fig1.update_layout(xaxis_title="Falsi Allarmi", yaxis_title="Infortuni Intercettati")
             st.plotly_chart(fig1, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Rappresenta il compromesso tra la capacità di individuare il sovraccarico (Sensibilità) e il rischio di generare falsi allarmi. Più l'area sotto la curva (AUC) è vicina a 1, migliore è il modello.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>Più la curva blu è 'gonfia' verso l'angolo in alto a sinistra, più il sistema è bravo a trovare gli allenamenti pericolosi senza bloccare l'atleta inutilmente per falsi allarmi.</div>", unsafe_allow_html=True)
 
         with g2:
             cm = confusion_matrix(y_test, y_pred)
-            fig2 = px.imshow(cm, text_auto=True, color_continuous_scale="Blues", labels=dict(x="Predizione", y="Realtà"), x=['Sicuro', 'Overload'], y=['Sicuro', 'Overload'], title="2. Matrice di Confusione")
+            fig2 = px.imshow(cm, text_auto=True, color_continuous_scale="Blues", labels=dict(x="Cosa dice l'IA", y="Cos'è successo davvero"), x=['Sicuro', 'Overload'], y=['Sicuro', 'Overload'], title="Contatore degli Errori")
             st.plotly_chart(fig2, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Mostra l'esito delle predizioni. I Falsi Negativi (in basso a sinistra) sono gli errori più gravi nello sport: sessioni a rischio classificate come sicure, esponendo l'atleta all'infortunio.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>In basso a sinistra vedi l'incubo di ogni preparatore: gli allenamenti che l'IA reputava 'Sicuri' ma che in realtà erano 'Overload'. Il nostro scopo è mantenere quel numero a zero.</div>", unsafe_allow_html=True)
 
         with g3:
             prec, rec, _ = precision_recall_curve(y_test, y_prob)
-            fig3 = px.line(x=rec, y=prec, title="3. Curva Precision-Recall", color_discrete_sequence=[COLORS['pink']])
-            fig3.update_layout(xaxis_title="Recall (Copertura del rischio)", yaxis_title="Precision (Affidabilità dell'allarme)")
+            fig3 = px.line(x=rec, y=prec, title="Qualità degli Allarmi", color_discrete_sequence=[COLORS['purple']])
+            fig3.update_layout(xaxis_title="Percentuale di Pericoli Trovati", yaxis_title="Affidabilità dell'Allarme")
             st.plotly_chart(fig3, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Cruciale in dataset sbilanciati. Mostra come l'affidabilità dell'allarme (Precision) decada quando cerchiamo di catturare ogni singola sessione a rischio possibile (Recall).</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>Se cerchiamo di intercettare il 100% dei rischi (andando verso destra), quanto diventano inaffidabili i nostri allarmi? Se la linea crolla, significa che stiamo fermando l'atleta troppo spesso per niente.</div>", unsafe_allow_html=True)
 
         with g4:
-            coef_df = pd.DataFrame({"Feature": RF_FEATURES, "Logit Weight": lr.coef_[0]}).sort_values("Logit Weight")
-            fig4 = px.bar(coef_df, x="Logit Weight", y="Feature", orientation="h", color_discrete_sequence=[COLORS['purple']], title="4. Importanza Lineare delle Variabili")
+            coef_df = pd.DataFrame({"Metrica": RF_FEATURES, "Impatto sul Rischio": lr.coef_[0]}).sort_values("Impatto sul Rischio")
+            fig4 = px.bar(coef_df, x="Impatto sul Rischio", y="Metrica", orientation="h", color_discrete_sequence=[COLORS['red']], title="I colpevoli del Sovraccarico")
             st.plotly_chart(fig4, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> A differenza del Random Forest, qui vediamo l'effetto direzionale. Valori negativi riducono la probabilità di overload (es. Ore Sonno), valori positivi la incrementano drasticamente.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>Barre verso destra (es. Stress, RPE) alzano il rischio di infortunio. Barre verso sinistra (es. Ore Sonno) abbassano il rischio, funzionando come scudo protettivo per l'atleta.</div>", unsafe_allow_html=True)
 
     # ==============================================================
-    # 3. RANDOM FOREST
+    # 3. RANDOM FOREST (RISCHIO AVANZATO)
     # ==============================================================
     elif scelta == sezioni[2]:
-        st.markdown("<div class='kicker'>Modellazione Non-Lineare</div><h2>Random Forest Classifier</h2>", unsafe_allow_html=True)
+        st.markdown("<div class='section-title'>Intelligenza Artificiale: Random Forest</div>", unsafe_allow_html=True)
         st.markdown("""
-        <div class="theory-box">
-            <h4>Teoria del Modello</h4>
-            <p>Il Random Forest è un metodo di <i>Ensemble Learning</i> che addestra centinaia di Alberi Decisionistici su porzioni casuali di dati e variabili. La previsione finale è la media (o la classe maggioritaria) delle risposte di tutti gli alberi.<br><br>
-            A differenza della Regressione Logistica, il Random Forest eccelle nell'individuare <b>pattern non lineari e interazioni complesse</b>. Nello sport, questo è fondamentale: l'effetto di un RPE elevato potrebbe essere innocuo se l'atleta ha dormito 9 ore, ma critico se ne ha dormite 5. Il Random Forest modella queste condizioni ramificate senza bisogno di specificarle matematicamente a priori.</p>
+        <div class="info-box">
+            <strong>Come ragiona l'algoritmo:</strong> Pensa a un team di 200 allenatori (gli 'alberi'). Ognuno guarda l'atleta da un punto di vista diverso. Questo sistema capisce le 'situazioni complesse' tipiche dello sport. Ad esempio: l'IA capisce che dormire 5 ore non è per forza un rischio se oggi fai scarico, ma diventa un rischio critico se oggi fai le ripetute.
         </div>
         """, unsafe_allow_html=True)
 
         y_pred = rf.predict(X_test)
         y_prob = rf.predict_proba(X_test)[:, 1]
 
+        st.markdown("### Risultati per il Coach")
         c1, c2, c3 = st.columns(3)
-        c1.metric("Accuracy", f"{accuracy_score(y_test, y_pred):.3f}")
-        c2.metric("F1-Score", f"{f1_score(y_test, y_pred):.3f}")
-        c3.metric("AUC-ROC", f"{roc_auc_score(y_test, y_prob):.3f}")
+        c1.metric("Allenamenti azzeccati", f"{accuracy_score(y_test, y_pred)*100:.1f}%")
+        c2.metric("Sensibilità (rispetto al base)", f"{roc_auc_score(y_test, y_prob)*100:.1f}%")
+        c3.metric("Falsi Allarmi", f"{(1-precision_score(y_test, y_pred))*100:.1f}%")
 
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
         with g1:
             fpr, tpr, _ = roc_curve(y_test, y_prob)
-            fig1 = px.line(x=fpr, y=tpr, title="1. Curva ROC", color_discrete_sequence=[COLORS['cyan']])
-            fig1.add_shape(type='line', line=dict(dash='dash', color=COLORS['muted']), x0=0, x1=1, y0=0, y1=1)
-            fig1.update_layout(xaxis_title="Falsi Positivi", yaxis_title="Veri Positivi")
+            fig1 = px.line(x=fpr, y=tpr, title="Efficacia Avanzata (ROC)", color_discrete_sequence=[COLORS['cyan']])
+            fig1.add_shape(type='line', line=dict(dash='dash', color=COLORS['text_soft']), x0=0, x1=1, y0=0, y1=1)
+            fig1.update_layout(xaxis_title="Falsi Allarmi", yaxis_title="Infortuni Intercettati")
             st.plotly_chart(fig1, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Se quest'area è superiore a quella della regressione logistica, dimostra inequivocabilmente che le cause del sovraccarico allenante contengono interazioni non lineari complesse.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>Confronta questa curva con quella del modello precedente. Se questa è più alta, conferma che la stanchezza umana non è lineare, ma piena di sfumature che solo l'IA complessa può leggere.</div>", unsafe_allow_html=True)
 
         with g2:
             cm = confusion_matrix(y_test, y_pred)
-            fig2 = px.imshow(cm, text_auto=True, color_continuous_scale="Purp", labels=dict(x="Predizione", y="Realtà"), x=['Sicuro', 'Overload'], y=['Sicuro', 'Overload'], title="2. Matrice di Confusione")
+            fig2 = px.imshow(cm, text_auto=True, color_continuous_scale="Purp", labels=dict(x="Cosa dice l'IA", y="Cos'è successo davvero"), x=['Sicuro', 'Overload'], y=['Sicuro', 'Overload'], title="Contatore degli Errori (Migliorato)")
             st.plotly_chart(fig2, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Il Random Forest tende a separare meglio le classi, riducendo l'incertezza e minimizzando l'errore misto (spesso azzerando o abbassando drasticamente i Falsi Positivi/Negativi rispetto al modello base).</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>I numeri fuori dalla diagonale principale dovrebbero essere molto più bassi qui. Significa che l'Intelligenza Artificiale ha 'salvato' atleti che il modello base non aveva notato.</div>", unsafe_allow_html=True)
 
         with g3:
-            imp = pd.DataFrame({"Feature": RF_FEATURES, "Gini": rf.feature_importances_}).sort_values("Gini")
-            fig3 = px.bar(imp, x="Gini", y="Feature", orientation="h", color_discrete_sequence=[COLORS['amber']], title="3. Gini Feature Importance")
+            imp = pd.DataFrame({"Metrica": RF_FEATURES, "Importanza": rf.feature_importances_}).sort_values("Importanza")
+            fig3 = px.bar(imp, x="Importanza", y="Metrica", orientation="h", color_discrete_sequence=[COLORS['amber']], title="Classifica dei Segnali d'Allarme")
             st.plotly_chart(fig3, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Misura quante volte una metrica è stata usata dagli alberi per separare in modo netto i dati. Mostra il 'potere informativo' puro della variabile nel contesto globale della fatica.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>Ti dice a cosa l'IA fa più attenzione per decidere se bloccare l'atleta. Spesso, l'interazione tra Carico Interno (Stress/Battiti) ed Esterno domina questa classifica.</div>", unsafe_allow_html=True)
 
         with g4:
-            df_prob = pd.DataFrame({"Probabilità": y_prob, "Classe Reale": ["Overload" if y == 1 else "Sicuro" for y in y_test]})
-            fig4 = px.histogram(df_prob, x="Probabilità", color="Classe Reale", barmode="overlay", nbins=40, color_discrete_sequence=[COLORS['cyan'], COLORS['pink']], title="4. Distribuzione delle Certezze Predittive")
+            df_prob = pd.DataFrame({"Probabilità di Rischio %": y_prob * 100, "Stato Reale": ["Overload" if y == 1 else "Sicuro" for y in y_test]})
+            fig4 = px.histogram(df_prob, x="Probabilità di Rischio %", color="Stato Reale", barmode="overlay", nbins=40, color_discrete_sequence=[COLORS['red'], COLORS['green']], title="Sicurezza Decisionale")
             st.plotly_chart(fig4, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Valuta la sicurezza del modello. Un modello eccellente presenterà due picchi distinti (verso lo 0.0 e verso l'1.0), indicando che l'algoritmo non ha dubbi su cosa costituisca un rischio.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>Un'IA perfetta avrà i grafici verdi tutti schiacciati a sinistra (0% rischio) e quelli rossi tutti a destra (100% rischio). La zona centrale (50%) rappresenta i dubbi dell'algoritmo.</div>", unsafe_allow_html=True)
 
     # ==============================================================
-    # 4. K-MEANS CLUSTERING
+    # 4. K-MEANS CLUSTERING (PROFILAZIONE)
     # ==============================================================
     elif scelta == sezioni[3]:
-        st.markdown("<div class='kicker'>Apprendimento Non Supervisionato</div><h2>K-Means Clustering</h2>", unsafe_allow_html=True)
+        st.markdown("<div class='section-title'>Classificazione Automatica Allenamenti</div>", unsafe_allow_html=True)
         st.markdown("""
-        <div class="theory-box">
-            <h4>Teoria del Modello</h4>
-            <p>Il K-Means è un algoritmo che non tenta di prevedere un risultato, ma esplora i dati alla ricerca di similitudini per dividerli in sottogruppi (Cluster). Funziona calcolando le distanze euclidee nello spazio multidimensionale per minimizzare la varianza interna ai gruppi.<br><br>
-            Nella pratica sportiva, questo serve a <b>scoprire profili latenti di allenamento</b>. Non imponiamo noi le categorie (es. "Scarico", "Lavoro Medio", "Alta Intensità"), ma lasciamo che la matematica raggruppi le sessioni che inducono reazioni fisiologiche e biomeccaniche identiche sull'atleta.</p>
+        <div class="info-box">
+            <strong>Come ragiona l'algoritmo:</strong> Questo algoritmo lavora senza etichette. Guarda tutti gli allenamenti della stagione e li divide automaticamente in 'cassetti' o tipologie simili. Il coach scopre così come il corpo dell'atleta raggruppa fisiologicamente gli sforzi: magari scopre il cassetto 'Lavori di recupero', quello 'Alta intensità' e quello 'Volume estremo'.
         </div>
         """, unsafe_allow_html=True)
 
+        st.markdown("### Risultati per il Coach")
         sil_score = silhouette_score(StandardScaler().fit_transform(df[CLUSTER_FEATURES]), df["Cluster"])
-        st.metric("Silhouette Score", f"{sil_score:.3f}")
+        st.metric("Qualità della Separazione (Silhouette)", f"{sil_score*100:.1f}%", "Oltre il 50% significa che le tipologie di allenamento sono ben distinte")
 
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
         with g1:
-            fig1 = px.scatter_3d(df, x="FC Media", y="ISLR", z="SMA", color="Cluster", color_continuous_scale=list(CLUSTER_COLORS.values()), title="1. Spazio Latente (3D)")
-            fig1.update_layout(scene=dict(xaxis_title="FC Media", yaxis_title="ISLR", zaxis_title="SMA"), margin=dict(l=0, r=0, b=0, t=40))
+            fig1 = px.scatter_3d(df, x="FC Media", y="ISLR", z="SMA", color="Cluster", color_continuous_scale=list(CLUSTER_COLORS.values()), title="Mappa 3D della Fatica")
+            fig1.update_layout(scene=dict(xaxis_title="Battiti", yaxis_title="Indice Lavoro", zaxis_title="Stress"), margin=dict(l=0, r=0, b=0, t=40))
             st.plotly_chart(fig1, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Mappa fisica dei cluster. Più i gruppi sono separati visivamente, più i profili di allenamento indotti sono fisiologicamente distanti tra loro.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>Ogni punto è una sessione. I colori rappresentano le diverse tipologie di impatto sul corpo. Più i 'nuvoloni' colorati sono separati, più i tuoi stimoli allenanti sono diversificati.</div>", unsafe_allow_html=True)
 
         with g2:
             centroids = df.groupby("Cluster")[CLUSTER_FEATURES].mean().reset_index()
@@ -426,45 +471,48 @@ def render_ui():
             for i, row in centroids.iterrows():
                 fig2.add_trace(go.Scatterpolar(
                     r=[row["FC Media"]/df["FC Media"].max(), row["ISLR"]/df["ISLR"].max(), row["SMA"]/df["SMA"].max()],
-                    theta=CLUSTER_FEATURES, fill='toself', name=f'Cluster {int(row["Cluster"])}'
+                    theta=["Battiti", "Indice di Lavoro", "Stress Metabolico"], fill='toself', name=f'Tipologia {int(row["Cluster"])}'
                 ))
-            fig2.update_layout(title="2. Profilazione Centroidi (Radar)", polar=dict(radialaxis=dict(visible=False, range=[0, 1])))
+            fig2.update_layout(title="L'Identikit dei Gruppi (Radar)", polar=dict(radialaxis=dict(visible=False, range=[0, 1])))
             st.plotly_chart(fig2, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Identifica il 'DNA' di ogni cluster. Un cluster esteso sull'asse SMA rappresenta sessioni ad alto impatto metabolico, definendone il profilo latente.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>Ti mostra 'chi è' ogni gruppo. Un poligono enorme su Stress e Battiti identifica la tipologia delle sessioni massimali (le più logoranti per l'atleta).</div>", unsafe_allow_html=True)
 
         with g3:
-            fig3 = px.box(df, x="Cluster", y="SMA", color="Cluster", color_discrete_sequence=list(CLUSTER_COLORS.values()), title="3. Varianza dello Stress Metabolico")
+            fig3 = px.box(df, x="Cluster", y="SMA", color="Cluster", color_discrete_sequence=list(CLUSTER_COLORS.values()), title="Stress Generato per Tipologia")
+            fig3.update_layout(xaxis_title="Tipologia Allenamento (Cluster)", yaxis_title="Livello di Stress (SMA)")
             st.plotly_chart(fig3, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Misura la compattezza dei gruppi rispetto a una singola metrica critica (SMA). Se i box si sovrappongono troppo, la metrica non è discriminante.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>Verifica se c'è coerenza. Se il gruppo dello scarico attivo ha picchi di stress alti come quello delle ripetute, l'atleta sta sbagliando i ritmi di recupero.</div>", unsafe_allow_html=True)
 
         with g4:
             cluster_counts = df['Cluster'].value_counts().reset_index()
-            cluster_counts.columns = ['Cluster', 'Conteggio']
-            fig4 = px.bar(cluster_counts, x='Cluster', y='Conteggio', color='Cluster', color_continuous_scale=list(CLUSTER_COLORS.values()), title="4. Distribuzione Volumetrica")
+            cluster_counts.columns = ['Tipologia', 'Numero di Sessioni']
+            fig4 = px.bar(cluster_counts, x='Tipologia', y='Numero di Sessioni', color='Tipologia', color_continuous_scale=list(CLUSTER_COLORS.values()), title="Bilancio del Macrociclo")
             st.plotly_chart(fig4, use_container_width=True)
-            st.markdown("<div class='chart-desc'><b>Analisi:</b> Verifica la distribuzione dei carichi nel macrociclo dell'atleta. Un'alta densità di sessioni nei cluster più stressanti indica un'errata periodizzazione del carico.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='coach-insight'><span>Cosa guardare</span>Mostra la distribuzione reale del carico. Se hai 80% di sessioni nella tipologia 'Stress Estremo', stai per infortunare l'atleta a causa di una cattiva periodizzazione.</div>", unsafe_allow_html=True)
 
     # ==============================================================
-    # 5. SIMULATORE
+    # 5. SIMULATORE WHAT-IF
     # ==============================================================
     elif scelta == sezioni[4]:
-        st.markdown("<div class='kicker'>Applica i Modelli Predittivi</div><h2>Simulatore Interattivo What-If</h2>", unsafe_allow_html=True)
+        st.markdown("<div class='section-title'>Pianificazione Predittiva (Pre-Sessione)</div>", unsafe_allow_html=True)
         st.markdown("""
-        <div class="theory-box">
-            <h4>Valutazione in Tempo Reale</h4>
-            <p>Questa sezione sfrutta il modello <b>Random Forest</b> addestrato in background. Inserendo ipotetici valori ambientali e fisiologici, il sistema calcola all'istante le metriche derivate (SMA, ISLR, IDET) ed emette una sentenza probabilistica sul rischio di sovraccarico per l'atleta prima che questo scenda in campo.</p>
+        <div class="info-box">
+            <strong>Come usare il Simulatore:</strong> Inserisci i dati dell'allenamento che l'atleta deve svolgere <i>oggi</i>. Il sistema calcola sul momento le metriche biologiche e interroga l'AI (Random Forest) per darti una risposta immediata: "Mandarlo a correre 15km oggi, sapendo che ha dormito male, lo metterà in pericolo?". Se il tachimetro entra in zona rossa, abbassa i km o l'intensità direttamente qui per trovare un compromesso sicuro.
         </div>
         """, unsafe_allow_html=True)
         
         sc1, sc2 = st.columns([1, 2])
+        
+        # COLONNA SINISTRA: INPUT
         with sc1:
-            st.markdown("#### Imposta Variabili Operative")
-            s_dist = st.slider("Distanza Prevista (km)", 5.0, 42.0, 15.0, 0.5)
-            s_rpe = st.slider("Fatica Percepita Attesa (RPE)", 1, 10, 7)
-            s_sonno = st.slider("Ore di Sonno Notte Precedente", 3.0, 12.0, 6.5, 0.5)
-            s_fc = st.slider("FC Media Stimata (bpm)", 100, 190, 150)
-            s_temp = st.slider("Temperatura Esterna (C)", 0, 40, 25)
+            st.markdown("<h4 style='color: #00e5ff;'>Imposta Allenamento Odierno</h4>", unsafe_allow_html=True)
+            s_dist = st.slider("Km da percorrere", 5.0, 42.0, 15.0, 0.5)
+            s_rpe = st.slider("Fatica Obiettivo (RPE 1-10)", 1, 10, 7)
+            s_sonno = st.slider("Ore Sonno recuperate stanotte", 3.0, 12.0, 6.5, 0.5)
+            s_fc = st.slider("Battiti Medi Previsti", 100, 190, 150)
+            s_temp = st.slider("Temperatura Esterna (°C)", 0, 40, 25)
             
+            # Calcolo metriche derivate in background
             s_tempo = s_dist * 4.5 + (s_rpe * 2) 
             s_lavoro = s_tempo / 60
             s_sma = (s_lavoro * s_rpe) / s_sonno
@@ -476,21 +524,23 @@ def render_ui():
             prob = rf.predict_proba(input_data)[0][1] * 100
             label, color = risk_band(prob)
 
+        # COLONNA DESTRA: RISULTATI
         with sc2:
-            st.markdown("#### Verdetto dell'Algoritmo")
+            st.markdown("<h4 style='color: #ffffff;'>Verdetto dell'AI</h4>", unsafe_allow_html=True)
             
             c_gauge, c_radar = st.columns([1, 1])
+            
             with c_gauge:
                 fig_g = go.Figure(go.Indicator(
-                    mode = "gauge+number", value = prob, number={'suffix': "%"}, title = {'text': f"Rischio: {label}"},
+                    mode = "gauge+number", value = prob, number={'suffix': "%", 'font': {'color': color}}, title = {'text': f"Livello di Rischio: {label}", 'font': {'color': '#cbd5e1'}},
                     gauge = {
                         'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': COLORS['border']},
                         'bar': {'color': color},
                         'bgcolor': COLORS['surface'],
                         'steps': [
-                            {'range': [0, 40], 'color': 'rgba(16, 185, 129, 0.15)'},
-                            {'range': [40, 70], 'color': 'rgba(245, 158, 11, 0.15)'},
-                            {'range': [70, 100], 'color': 'rgba(239, 68, 68, 0.15)'}],
+                            {'range': [0, 40], 'color': 'rgba(163, 230, 53, 0.2)'},  # Green zone
+                            {'range': [40, 70], 'color': 'rgba(251, 191, 36, 0.2)'},  # Amber zone
+                            {'range': [70, 100], 'color': 'rgba(248, 113, 113, 0.2)'}], # Red zone
                     }))
                 fig_g.update_layout(height=350, margin=dict(l=10, r=10, t=50, b=10))
                 st.plotly_chart(fig_g, use_container_width=True)
@@ -502,10 +552,18 @@ def render_ui():
                 norm_mean = (means / maxs).tolist()
                 
                 fig_r = go.Figure()
-                fig_r.add_trace(go.Scatterpolar(r=norm_mean, theta=RF_FEATURES, fill='toself', name='Media Storica', line_color=COLORS['border_soft']))
-                fig_r.add_trace(go.Scatterpolar(r=norm_input, theta=RF_FEATURES, fill='toself', name='Simulazione', line_color=color))
-                fig_r.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1])), height=350, margin=dict(l=30, r=30, t=30, b=30))
+                fig_r.add_trace(go.Scatterpolar(r=norm_mean, theta=["Distanza", "Sonno", "Stress (SMA)", "Lavoro", "Impatto Termico", "Interferenza", "RPE"], fill='toself', name='Media Storica Atleta', line_color=COLORS['border_soft']))
+                fig_r.add_trace(go.Scatterpolar(r=norm_input, theta=["Distanza", "Sonno", "Stress (SMA)", "Lavoro", "Impatto Termico", "Interferenza", "RPE"], fill='toself', name='Simulazione Odierna', line_color=color))
+                fig_r.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1])), height=350, margin=dict(l=30, r=30, t=30, b=30), legend=dict(y=-0.2))
                 st.plotly_chart(fig_r, use_container_width=True)
+
+        st.markdown(f"""
+        <div class="coach-insight" style="margin-top: 10px;">
+            <span>Interpretazione del Simulatore per il Coach</span>
+            <strong>Tachimetro a Sinistra:</strong> Se il valore supera il 70% (Area Rossa), l'Intelligenza Artificiale reputa l'allenamento troppo logorante in base alle condizioni attuali (es. poco riposo). È consigliato ridurre lo sforzo agendo sui cursori a sinistra per riportare l'ago in zona Verde o Gialla.<br><br>
+            <strong>Radar a Destra:</strong> L'area in grigio è quello a cui l'atleta è "abituato" mediamente. L'area colorata è quello che gli stai chiedendo di fare oggi. Se l'area colorata "sborda" enormemente fuori dal grigio in corrispondenza dello Stress o dell'RPE, significa che stai somministrando uno stimolo eccessivo rispetto alle sue abitudini consolidate, aumentando il rischio infortuni.
+        </div>
+        """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     render_ui()
