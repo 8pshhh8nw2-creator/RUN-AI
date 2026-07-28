@@ -72,6 +72,7 @@ class Settings:
     n_estimators: int = 200
     max_depth: int = 8
     n_clusters: int = 3
+    n_sessions: int = 1000
 
 # ============================================================================
 # CSS & THEME PLOTLY
@@ -137,6 +138,41 @@ def inject_css():
     """, unsafe_allow_html=True)
 
 # ============================================================================
+# DATA GENERATOR (DA SOSTITUIRE IN FUTURO)
+# ============================================================================
+@st.cache_data
+def generate_synthetic_data(n: int, seed: int) -> pd.DataFrame:
+    np.random.seed(seed)
+    distanza = np.random.uniform(5.0, 35.0, n)
+    rpe = np.random.randint(2, 11, n)
+    ore_sonno = np.random.normal(7.5, 1.2, n).clip(3, 10)
+    temperatura = np.random.normal(20, 8, n)
+    vento = np.random.normal(10, 5, n).clip(0, 40)
+    
+    tempo = distanza * np.random.normal(4.5, 0.3, n) + (rpe * 2) 
+    velocita = (distanza * 1000) / (tempo * 60) 
+    fc_media = 110 + (rpe * 6) - (ore_sonno * 2) + np.random.normal(0, 5, n)
+    
+    ore_lavoro = tempo / 60
+    sma = (ore_lavoro * rpe) / ore_sonno
+    islr = (ore_lavoro * rpe) / distanza
+    idet = (fc_media * temperatura) / np.where(velocita>0, velocita, 1)
+    iitr = (temperatura * vento) / distanza
+    
+    stress_score = (sma * 0.4) + (islr * 0.3) + (rpe * 0.3)
+    prob_overload = 1 / (1 + np.exp(-(stress_score - np.median(stress_score))))
+    rischio = (prob_overload > 0.65).astype(int) 
+    
+    df = pd.DataFrame({
+        "Distanza (km)": distanza, "Tempo (min)": tempo, "Velocità (m/s)": velocita,
+        "RPE": rpe, "Ore Sonno": ore_sonno, "FC Media": fc_media,
+        "Temperatura": temperatura, "Vento": vento,
+        "SMA": sma, "ISLR": islr, "IDET": idet, "IITR": iitr,
+        TARGET: rischio
+    })
+    return df.round(2)
+
+# ============================================================================
 # ML PIPELINE
 # ============================================================================
 @st.cache_resource
@@ -188,29 +224,13 @@ def render_ui():
     """, unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # UPLOAD DATI
+    # CARICAMENTO DATI
     # ---------------------------------------------------------
-    st.markdown("### Caricamento Dati")
-    uploaded_file = st.file_uploader("Carica il tuo file CSV strutturato per l'analisi", type="csv")
+    # QUANDO SARAI PRONTO A USARE I TUOI DATI REALI, SOSTITUISCI LA RIGA SEGUENTE CON:
+    # df = pd.read_csv("nome_del_tuo_file.csv")
+    df = generate_synthetic_data(cfg.n_sessions, cfg.seed)
     
-    if not uploaded_file:
-        st.warning("In attesa del caricamento dei dati. Il file deve contenere le colonne: Distanza (km), Ore Sonno, SMA, ISLR, IDET, IITR, RPE, Tempo (min), FC Media, Temperatura, Vento, Rischio Overload.")
-        return
-
-    try:
-        df = pd.read_csv(uploaded_file)
-        # Controllo rapido colonne richieste
-        required_cols = RF_FEATURES + CLUSTER_FEATURES + [TIME_TARGET, TARGET]
-        missing = [c for c in set(required_cols) if c not in df.columns]
-        if missing:
-            st.error(f"Errore: colonne mancanti nel file caricato: {', '.join(missing)}")
-            return
-            
-    except Exception as e:
-        st.error(f"Errore nella lettura del file: {e}")
-        return
-
-    # Addestramento modelli sui dati caricati
+    # Addestramento modelli
     rf, lr, reg, kmeans, scaler, X_train, X_test, y_train, y_test, X_train_scaled, X_test_scaled, X_test_r, y_test_r = train_models(df, cfg)
 
     # ---------------------------------------------------------
@@ -242,12 +262,10 @@ def render_ui():
         
         preds = reg.predict(X_test_r)
         
-        # Metriche
         c1, c2 = st.columns(2)
         c1.metric("R-Squared (R²)", f"{r2_score(y_test_r, preds):.3f}")
         c2.metric("Mean Absolute Error (MAE)", f"{mean_absolute_error(y_test_r, preds):.2f} min")
 
-        # Layout grafici 2x2
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
@@ -403,7 +421,6 @@ def render_ui():
             st.markdown("<div class='chart-desc'><b>Analisi:</b> Mappa fisica dei cluster. Più i gruppi sono separati visivamente, più i profili di allenamento indotti sono fisiologicamente distanti tra loro.</div>", unsafe_allow_html=True)
 
         with g2:
-            # Calcolo dei centroidi medi per il radar chart
             centroids = df.groupby("Cluster")[CLUSTER_FEATURES].mean().reset_index()
             fig2 = go.Figure()
             for i, row in centroids.iterrows():
@@ -446,7 +463,7 @@ def render_ui():
             s_rpe = st.slider("Fatica Percepita Attesa (RPE)", 1, 10, 7)
             s_sonno = st.slider("Ore di Sonno Notte Precedente", 3.0, 12.0, 6.5, 0.5)
             s_fc = st.slider("FC Media Stimata (bpm)", 100, 190, 150)
-            s_temp = st.slider("Temperatura Esterna (°C)", 0, 40, 25)
+            s_temp = st.slider("Temperatura Esterna (C)", 0, 40, 25)
             
             s_tempo = s_dist * 4.5 + (s_rpe * 2) 
             s_lavoro = s_tempo / 60
