@@ -14,7 +14,10 @@ carica_css()
 
 # Funzione di utilità per renderizzare HTML in modo sicuro
 def md(text):
-    st.markdown(text, unsafe_allow_html=True)
+    # Rimuove gli spazi iniziali di ogni riga per evitare che 
+    # Streamlit lo interpreti come un blocco di codice Markdown
+    testo_pulito = "\n".join([line.strip() for line in text.split("\n")])
+    st.markdown(testo_pulito, unsafe_allow_html=True)
 
 # Inizializzazione sicura dello stato se manca
 if 'dati' not in st.session_state or st.session_state.dati is None:
