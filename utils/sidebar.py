@@ -6,7 +6,7 @@ from utils.data import genera_dati
 def sidebar_comune():
     """
     Disegna la sidebar comune con il selettore temporale e il dispositivo in alto,
-    e la navigazione delle pagine pulita in basso, senza emoji e con stile curato.
+    e la navigazione delle pagine ufficiali in basso, senza emoji e con stile curato.
     """
     # Inizializzazione sicura di tutte le variabili di stato
     if 'dati' not in st.session_state or st.session_state.dati is None:
@@ -87,9 +87,12 @@ def sidebar_comune():
         # =========================================================
         st.markdown("<p style='font-family:\"Oswald\",sans-serif; font-size:0.85rem; letter-spacing:0.05em; text-transform:uppercase; color:#F8F9FA; margin-bottom:10px; font-weight:600;'>Navigazione Pagine</p>", unsafe_allow_html=True)
         
-        st.page_link("app.py", label="Dashboard Principale")
-        st.page_link("pages/01_analisi_stato_di_forma.py", label="Analisi Stato di Forma")
-        st.page_link("pages/05_consiglio_finale.py", label="Consiglio Finale & Report")
+        st.page_link("app.py", label="Home")
+        st.page_link("pages/01_analisi_stato_di_forma.py", label="Stato di Forma")
+        st.page_link("pages/02_carico_settimanale.py", label="Carico Settimanale")
+        st.page_link("pages/03_progressione_e_ritmi.py", label="Progressione e Ritmi")
+        st.page_link("pages/04_prevenzione_infortuni.py", label="Prevenzione Infortuni")
+        st.page_link("pages/05_consiglio_finale.py", label="Consiglio Finale")
 
     # Gestione filtraggio dataset in base alla scelta temporale
     df_full = st.session_state.dati.copy()
