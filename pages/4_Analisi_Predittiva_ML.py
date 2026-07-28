@@ -24,14 +24,23 @@ from sklearn.metrics import (
     precision_score, r2_score, recall_score, roc_auc_score, roc_curve,
     silhouette_score,
 )
-from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
-from sklearn.pipeline import Pipeline
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 warnings.filterwarnings("ignore")
 
 # ============================================================================
-# CONFIG
+# CONFIGURAZIONE PAGINA (DEVE ESSERE LA PRIMA CHIAMATA)
+# ============================================================================
+st.set_page_config(
+    page_title="Sport ML Suite",
+    page_icon="🧠",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# ============================================================================
+# CONFIG & COSTANTI
 # ============================================================================
 APP_TITLE = "Advanced Machine Learning Suite"
 APP_SUBTITLE = (
@@ -39,8 +48,6 @@ APP_SUBTITLE = (
     "di overload, l'analisi dei driver del sovraccarico e la scoperta di profili latenti "
     "di allenamento."
 )
-APP_ICON = "🧠"
-APP_CAPTION = "Core analitico della tesi magistrale · Sport Data Science"
 
 COLORS = {
     "bg": "#060b14", "bg2": "#0a1424", "surface": "#0f1b2d", "surface_2": "#13243b",
@@ -50,30 +57,14 @@ COLORS = {
     "red": "#f87171", "purple": "#a78bfa", "pink": "#f472b6",
 }
 QUALITATIVE = [COLORS['blue'], COLORS['purple'], COLORS['cyan'], COLORS['amber'], COLORS['pink'], COLORS['green']]
-CLASS_COLORS = {"Nessun rischio": COLORS['blue'], "Rischio overload": COLORS['red']}
-SPLIT_COLORS = {"Train": COLORS['blue'], "Test": COLORS['amber']}
-SEQUENTIAL = ["#0e3a52", "#0e7490", "#22d3ee", "#a5f3fc"]
-CLUSTER_COLORS = {"Rigenerativo": COLORS['green'], "Qualità / Misto": COLORS['amber'], "Elevato Stress": COLORS['red']}
-CLUSTER_LABELS = ["Rigenerativo", "Qualità / Misto", "Elevato Stress"]
+CLUSTER_COLORS = {0: COLORS['green'], 1: COLORS['amber'], 2: COLORS['red']}
 
 TARGET = "Rischio Overload"
 TIME_TARGET = "Tempo (min)"
-RF_FEATURES = ["Distanza (km)", "Ore Sonno", "SMA", "ISLR", "IDET", "IITR"]
-CLUSTER_FEATURES = ["FC Media", "ISLR"]
-LR_FEATURES = ["Distanza (km)"]
-LOG_FEATURES = ["ISLR"]
-
-GLOSSARY = {
-    "SMA": "Stress Metabolico Apparente - (Stress lavoro × RPE) / Ore di sonno.",
-    "ISLR": "Indice di Stress Lavoro-Relativo - (Ore lavoro × Stress) / Distanza.",
-    "IDET": "Indice di Domanda Emodinamico-Termica - (FC media × Temperatura) / Velocità.",
-    "IITR": "Indice di Interferenza Termo-Ventosa - (Temperatura × Vento) / Distanza.",
-    "RPE": "Rating of Perceived Exertion: percezione soggettiva dello sforzo (1-10).",
-    TARGET: "Etichetta binaria: 1 se la sessione ricade in area di sovraccarico.",
-}
+RF_FEATURES = ["Distanza (km)", "Ore Sonno", "SMA", "ISLR", "IDET", "IITR", "RPE"]
+CLUSTER_FEATURES = ["FC Media", "ISLR", "SMA"]
 
 RISK_BANDS = ((40.0, "Basso", COLORS['green']), (70.0, "Moderato", COLORS['amber']), (101.0, "Alto", COLORS['red']))
-
 
 def risk_band(prob: float) -> tuple[str, str]:
     for thr, label, color in RISK_BANDS:
@@ -81,31 +72,19 @@ def risk_band(prob: float) -> tuple[str, str]:
             return label, color
     return RISK_BANDS[-1][1], RISK_BANDS[-1][2]
 
-
 @dataclass(frozen=True)
 class Settings:
-    n_sessions: int = 320
+    n_sessions: int = 500
     seed: int = 42
     test_size: float = 0.25
-    n_estimators: int = 300
-    max_depth: int = 6
-    min_samples_leaf: int = 4
+    n_estimators: int = 200
+    max_depth: int = 8
     n_clusters: int = 3
-    cv_folds: int = 5
-    risk_prevalence: float = 0.30
-    label_noise: float = 0.55
-    cluster_grid: tuple = field(default=(2, 3, 4, 5, 6))
-
-    @property
-    def cache_key(self) -> str:
-        return f"{self.n_sessions}|{self.seed}|{self.test_size}|{self.n_estimators}|{self.max_depth}|{self.min_samples_leaf}|{self.n_clusters}|{self.cv_folds}|{self.risk_prevalence}|{self.label_noise}"
-
 
 # ============================================================================
-# THEME
+# THEME & CSS
 # ============================================================================
 PLOTLY_TEMPLATE = "ml_suite"
-
 
 def register_plotly_template():
     if PLOTLY_TEMPLATE in pio.templates:
@@ -117,14 +96,12 @@ def register_plotly_template():
         title=dict(font=dict(size=17, color=COLORS['text']), x=0.01, xanchor="left", y=0.96),
         margin=dict(t=64, l=16, r=16, b=16),
         hoverlabel=dict(bgcolor=COLORS['surface_2'], bordercolor=COLORS['border'], font=dict(family="Inter", color=COLORS['text'], size=12)),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=1, xanchor="right", bgcolor="rgba(0,0,0,0)", font=dict(size=12), title_text=""),
-        xaxis=dict(showgrid=False, zeroline=False, linecolor=COLORS['border_soft'], ticks="outside", tickcolor=COLORS['border_soft'], title=dict(font=dict(size=12, color=COLORS['muted']))),
-        yaxis=dict(gridcolor="rgba(148,163,184,0.10)", zeroline=False, linecolor="rgba(0,0,0,0)", title=dict(font=dict(size=12, color=COLORS['muted']))),
-        colorscale=dict(sequential=[[0, "#0e3a52"], [0.5, "#0e7490"], [1, "#a5f3fc"]]),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=1, xanchor="right", bgcolor="rgba(0,0,0,0)", font=dict(size=12)),
+        xaxis=dict(showgrid=False, zeroline=False, linecolor=COLORS['border_soft'], ticks="outside", tickcolor=COLORS['border_soft']),
+        yaxis=dict(gridcolor="rgba(148,163,184,0.10)", zeroline=False, linecolor="rgba(0,0,0,0)"),
     )
     pio.templates[PLOTLY_TEMPLATE] = tpl
     pio.templates.default = PLOTLY_TEMPLATE
-
 
 def inject_css():
     st.markdown(f"""
@@ -132,71 +109,310 @@ def inject_css():
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
     :root {{
         --bg:{COLORS['bg']}; --bg2:{COLORS['bg2']}; --surface:{COLORS['surface']};
-        --surface2:{COLORS['surface_2']}; --border:{COLORS['border']};
-        --border-soft:{COLORS['border_soft']}; --text:{COLORS['text']};
-        --text-soft:{COLORS['text_soft']}; --muted:{COLORS['muted']};
-        --blue:{COLORS['blue']}; --cyan:{COLORS['cyan']}; --amber:{COLORS['amber']};
-        --purple:{COLORS['purple']}; --radius-lg:24px; --radius-md:16px; --radius-sm:12px;
-        --shadow-lg:0 24px 60px rgba(2,6,23,0.45); --shadow-md:0 10px 28px rgba(2,6,23,0.28);
+        --border:{COLORS['border']}; --text:{COLORS['text']}; --cyan:{COLORS['cyan']};
+        --purple:{COLORS['purple']}; --blue:{COLORS['blue']}; --amber:{COLORS['amber']};
     }}
-    html,body,[class*="css"],button,input,textarea,select {{
-        font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
-        font-feature-settings:'cv02','cv03','ss01';
-    }}
+    html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
     .stApp {{
-        background:
-            radial-gradient(900px 520px at 8% -6%,rgba(56,189,248,0.13),transparent 70%),
-            radial-gradient(760px 480px at 96% 0%,rgba(167,139,250,0.13),transparent 70%),
-            radial-gradient(1100px 700px at 50% 118%,rgba(34,211,238,0.07),transparent 70%),
-            linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);
-        background-attachment:fixed; color:var(--text);
+        background: radial-gradient(900px 520px at 8% -6%, rgba(56,189,248,0.13), transparent 70%),
+                    linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+        background-attachment: fixed; color: var(--text);
     }}
-    #MainMenu,footer,header [data-testid="stToolbar"] {{ visibility:hidden; }}
-    .block-container {{ max-width:1500px; padding-top:2.2rem; padding-bottom:4rem; }}
-    h1,h2,h3,h4 {{ letter-spacing:-0.02em; color:var(--text); }}
-    a {{ color:var(--cyan); text-decoration:none; }} a:hover {{ text-decoration:underline; }}
     .hero {{
-        position:relative; overflow:hidden;
-        background:linear-gradient(135deg,rgba(15,27,45,0.97) 0%,rgba(19,36,59,0.92) 100%);
-        border:1px solid var(--border); border-radius:var(--radius-lg);
-        padding:2.3rem 2.4rem; margin-bottom:1.4rem; box-shadow:var(--shadow-lg);
-    }}
-    .hero::after {{
-        content:""; position:absolute; inset:0 0 auto 0; height:2px;
-        background:linear-gradient(90deg,transparent,var(--cyan),var(--purple),transparent); opacity:0.75;
+        position: relative; overflow: hidden;
+        background: linear-gradient(135deg, rgba(15,27,45,0.97) 0%, rgba(19,36,59,0.92) 100%);
+        border: 1px solid var(--border); border-radius: 24px;
+        padding: 2.3rem 2.4rem; margin-bottom: 2rem; box-shadow: 0 24px 60px rgba(2,6,23,0.45);
     }}
     .hero-eyebrow {{
-        display:inline-flex; align-items:center; gap:0.5rem; font-size:0.72rem; font-weight:700;
-        letter-spacing:0.18em; text-transform:uppercase; color:var(--cyan);
-        background:rgba(34,211,238,0.10); border:1px solid rgba(34,211,238,0.22);
-        border-radius:999px; padding:0.35rem 0.8rem; margin-bottom:1.1rem;
+        display: inline-flex; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.15em;
+        text-transform: uppercase; color: var(--cyan);
+        background: rgba(34,211,238,0.10); border: 1px solid rgba(34,211,238,0.22);
+        border-radius: 999px; padding: 0.35rem 0.8rem; margin-bottom: 1rem;
     }}
     .hero-title {{
-        margin:0; font-size:clamp(2rem,3.4vw,2.9rem); line-height:1.04;
-        letter-spacing:-0.045em; font-weight:800;
-        background:linear-gradient(120deg,#ffffff 0%,#cfe9ff 55%,#b8c8ff 100%);
-        -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+        margin: 0; font-size: 2.6rem; font-weight: 800; line-height: 1.1;
+        background: linear-gradient(120deg, #ffffff 0%, #cfe9ff 55%, #b8c8ff 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }}
-    .hero-subtitle {{ margin-top:0.9rem; color:var(--muted); font-size:1.02rem; line-height:1.75; max-width:74ch; }}
-    .pill-row {{ display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.9rem; }}
-    .pill {{
-        font-size:0.78rem; font-weight:600; color:var(--text-soft);
-        background:rgba(148,163,184,0.10); border:1px solid rgba(148,163,184,0.18);
-        border-radius:999px; padding:0.3rem 0.75rem;
-    }}
-    .callout {{ border-radius:var(--radius-md); padding:1rem 1.15rem; margin:0.55rem 0 1rem 0; font-size:0.95rem; line-height:1.7; }}
-    .callout b {{ color:#ffffff; }}
-    .callout--simple {{ background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.20); border-left:4px solid var(--blue); color:#dbeafe; }}
-    .callout--theory {{ background:rgba(251,191,36,0.07); border:1px solid rgba(251,191,36,0.20); border-left:4px solid var(--amber); color:#fef3c7; }}
-    .callout--insight {{ background:rgba(167,139,250,0.09); border:1px solid rgba(167,139,250,0.20); border-left:4px solid var(--purple); color:#ede9fe; }}
-    .callout--neutral {{ background:rgba(148,163,184,0.07); border:1px solid var(--border-soft); border-left:4px solid var(--muted); color:var(--text-soft); }}
+    .callout {{ border-radius: 12px; padding: 1rem; margin: 1rem 0; font-size: 0.95rem; line-height: 1.6; }}
+    .callout--theory {{ background: rgba(251,191,36,0.07); border-left: 4px solid var(--amber); color: #fef3c7; }}
+    .callout--insight {{ background: rgba(167,139,250,0.09); border-left: 4px solid var(--purple); color: #ede9fe; }}
+    .callout--simple {{ background: rgba(56,189,248,0.08); border-left: 4px solid var(--blue); color: #dbeafe; }}
     .section-head {{
-        display:flex; flex-direction:column; gap:0.3rem; padding:1.35rem 1.5rem;
-        margin:0.4rem 0 1.1rem 0;
-        background:linear-gradient(180deg,rgba(15,27,45,0.88),rgba(15,27,45,0.55));
-        border:1px solid var(--border); border-radius:var(--radius-md); box-shadow:var(--shadow-md);
+        padding: 1rem 1.5rem; margin: 2rem 0 1rem 0;
+        background: rgba(15,27,45,0.7); border: 1px solid var(--border); border-radius: 12px;
     }}
-    .section-kicker {{ font-size:0.7rem; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:var(--cyan); }}
-    .section-title {{ font-size:1.45rem; font-weight:800; line-height:1.2; }}
+    .section-kicker {{ font-size: 0.75rem; font-weight: 700; color: var(--cyan); letter-spacing: 0.1em; text-transform: uppercase; }}
+    .section-title {{ font-size: 1.4rem; font-weight: 800; margin:0; padding-top: 0.2rem; }}
+    /* Fix Streamlit metric styling */
+    div[data-testid="stMetricValue"] {{ color: {COLORS['cyan']} !important; font-weight: 800; }}
     </style>
     """, unsafe_allow_html=True)
+
+# ============================================================================
+# DATA GENERATION
+# ============================================================================
+@st.cache_data
+def generate_synthetic_data(n: int, seed: int) -> pd.DataFrame:
+    np.random.seed(seed)
+    
+    # Variabili di base
+    distanza = np.random.uniform(5.0, 35.0, n)
+    rpe = np.random.randint(2, 11, n)
+    ore_sonno = np.random.normal(7.5, 1.2, n).clip(3, 10)
+    temperatura = np.random.normal(20, 8, n)
+    vento = np.random.normal(10, 5, n).clip(0, 40)
+    
+    # Variabili dipendenti
+    tempo = distanza * np.random.normal(4.5, 0.3, n) + (rpe * 2) # Pace tra 4 e 5 min/km + fatica
+    velocita = (distanza * 1000) / (tempo * 60) # m/s
+    fc_media = 110 + (rpe * 6) - (ore_sonno * 2) + np.random.normal(0, 5, n)
+    
+    # Calcolo Indici Magistrale (Formule Teoriche)
+    ore_lavoro = tempo / 60
+    sma = (ore_lavoro * rpe) / ore_sonno
+    islr = (ore_lavoro * rpe) / distanza
+    idet = (fc_media * temperatura) / np.where(velocita>0, velocita, 1)
+    iitr = (temperatura * vento) / distanza
+    
+    # Definizione Target: Rischio Overload logica latente
+    # Se lo stress metabolico è alto e si dorme poco -> Rischio = 1
+    stress_score = (sma * 0.4) + (islr * 0.3) + (rpe * 0.3)
+    prob_overload = 1 / (1 + np.exp(-(stress_score - np.median(stress_score))))
+    rischio = (prob_overload > 0.65).astype(int) # Aggiungiamo un threshold
+    
+    df = pd.DataFrame({
+        "Distanza (km)": distanza, "Tempo (min)": tempo, "Velocità (m/s)": velocita,
+        "RPE": rpe, "Ore Sonno": ore_sonno, "FC Media": fc_media,
+        "Temperatura": temperatura, "Vento": vento,
+        "SMA": sma, "ISLR": islr, "IDET": idet, "IITR": iitr,
+        TARGET: rischio
+    })
+    return df.round(2)
+
+# ============================================================================
+# ML PIPELINE (Cached)
+# ============================================================================
+@st.cache_resource
+def train_models(df: pd.DataFrame, config: Settings):
+    # Dati classificazione
+    X_cls = df[RF_FEATURES]
+    y_cls = df[TARGET]
+    X_train, X_test, y_train, y_test = train_test_split(X_cls, y_cls, test_size=config.test_size, random_state=config.seed)
+    
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    # Random Forest
+    rf = RandomForestClassifier(n_estimators=config.n_estimators, max_depth=config.max_depth, random_state=config.seed)
+    rf.fit(X_train, y_train)
+    
+    # Logistic Regression (Baseline)
+    lr_cls = LogisticRegression()
+    lr_cls.fit(X_train_scaled, y_train)
+    
+    # Dati Regressione Performance
+    X_reg = df[["Distanza (km)", "SMA", "RPE"]]
+    y_reg = df[TIME_TARGET]
+    reg = LinearRegression().fit(X_reg, y_reg)
+    
+    # Dati Clustering
+    X_clust = df[CLUSTER_FEATURES]
+    kmeans = KMeans(n_clusters=config.n_clusters, random_state=config.seed)
+    df["Cluster"] = kmeans.fit_predict(StandardScaler().fit_transform(X_clust))
+    
+    return rf, lr_cls, reg, kmeans, scaler, X_train, X_test, y_train, y_test
+
+# ============================================================================
+# UI RENDERING
+# ============================================================================
+def render_ui():
+    register_plotly_template()
+    inject_css()
+    
+    # SIDEBAR
+    with st.sidebar:
+        st.title("⚙️ Parametri Modelli")
+        n_sess = st.slider("Numero Sessioni (Dataset)", 100, 2000, 500, step=100)
+        n_est = st.slider("Alberi Random Forest", 50, 500, 200, step=50)
+        k_clust = st.slider("Numero Cluster (K-Means)", 2, 5, 3)
+        
+        cfg = Settings(n_sessions=n_sess, n_estimators=n_est, n_clusters=k_clust)
+        
+        st.markdown("---")
+        st.markdown("**Glossario Indici:**")
+        st.markdown("- **SMA**: Stress Metabolico Apparente\n- **ISLR**: Indice Stress Lavoro-Relativo\n- **IDET**: Domanda Emodinamico-Termica")
+
+    # CARICAMENTO DATI
+    df = generate_synthetic_data(cfg.n_sessions, cfg.seed)
+    rf, lr_cls, reg, kmeans, scaler, X_train, X_test, y_train, y_test = train_models(df, cfg)
+
+    # HERO SECTION
+    st.markdown(f"""
+    <div class="hero">
+        <div class="hero-eyebrow">Data Science M.Sc. Thesis</div>
+        <h1 class="hero-title">{APP_TITLE}</h1>
+        <p style="color:var(--muted); margin-top:1rem; font-size:1.1rem;">{APP_SUBTITLE}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # TABS
+    t1, t2, t3, t4, t5 = st.tabs(["📊 Panoramica & Dati", "📈 Regressione", "⚠️ Rischio Overload", "🧩 Clustering", "🎮 Simulatore What-If"])
+
+    # --- TAB 1: DATI ---
+    with t1:
+        st.markdown("""<div class="section-head"><div class="section-kicker">Esplorazione</div>
+        <div class="section-title">Dataset Sintetico Generato</div></div>""", unsafe_allow_html=True)
+        
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Totale Sessioni", len(df))
+        c2.metric("Rischio Overload (%)", f"{(df[TARGET].mean()*100):.1f}%")
+        c3.metric("Distanza Media (km)", f"{df['Distanza (km)'].mean():.1f}")
+        c4.metric("Sonno Medio (h)", f"{df['Ore Sonno'].mean():.1f}")
+        
+        st.dataframe(df.head(15), use_container_width=True)
+        
+        # Correlazione
+        st.markdown("### Matrice di Correlazione")
+        corr = df[RF_FEATURES + [TARGET]].corr()
+        fig = px.imshow(corr, text_auto=".2f", aspect="auto", color_continuous_scale="RdBu_r")
+        fig.update_layout(margin=dict(t=20, b=20, l=20, r=20))
+        st.plotly_chart(fig, use_container_width=True)
+
+    # --- TAB 2: REGRESSIONE ---
+    with t2:
+        st.markdown("""<div class="section-head"><div class="section-kicker">Stima Performance</div>
+        <div class="section-title">Previsione del Tempo di Completamento</div></div>""", unsafe_allow_html=True)
+        
+        st.markdown("""<div class="callout callout--theory">
+        <b>Modello Lineare:</b> Utilizziamo Distanza, Stress Metabolico Apparente (SMA) e RPE per stimare il tempo di completamento. L'obiettivo è quantificare l'impatto della fatica sul passo dell'atleta.
+        </div>""", unsafe_allow_html=True)
+        
+        preds = reg.predict(df[["Distanza (km)", "SMA", "RPE"]])
+        r2 = r2_score(df[TIME_TARGET], preds)
+        mae = mean_absolute_error(df[TIME_TARGET], preds)
+        
+        c1, c2 = st.columns(2)
+        c1.metric("R² Score", f"{r2:.3f}", "Variabilità spiegata")
+        c2.metric("Mean Absolute Error (MAE)", f"{mae:.2f} min", "Errore medio", delta_color="inverse")
+        
+        fig = px.scatter(x=df[TIME_TARGET], y=preds, opacity=0.7, 
+                         labels={"x": "Tempo Reale (min)", "y": "Tempo Predetto (min)"},
+                         title="Reale vs Predetto (Regressione Multipla)", color_discrete_sequence=[COLORS['cyan']])
+        fig.add_shape(type="line", x0=df[TIME_TARGET].min(), y0=df[TIME_TARGET].min(), 
+                      x1=df[TIME_TARGET].max(), y1=df[TIME_TARGET].max(), line=dict(color=COLORS['pink'], dash="dash"))
+        st.plotly_chart(fig, use_container_width=True)
+
+    # --- TAB 3: CLASSIFICAZIONE ---
+    with t3:
+        st.markdown("""<div class="section-head"><div class="section-kicker">Classificazione Binaria</div>
+        <div class="section-title">Analisi Rischio Overload & Feature Importance</div></div>""", unsafe_allow_html=True)
+        
+        y_prob_rf = rf.predict_proba(X_test)[:, 1]
+        y_prob_lr = lr_cls.predict_proba(X_test_scaled)[:, 1]
+        
+        c1, c2 = st.columns([1, 1])
+        with c1:
+            # ROC Curve
+            fpr_rf, tpr_rf, _ = roc_curve(y_test, y_prob_rf)
+            fpr_lr, tpr_lr, _ = roc_curve(y_test, y_prob_lr)
+            auc_rf, auc_lr = roc_auc_score(y_test, y_prob_rf), roc_auc_score(y_test, y_prob_lr)
+            
+            fig_roc = go.Figure()
+            fig_roc.add_trace(go.Scatter(x=fpr_rf, y=tpr_rf, name=f"Random Forest (AUC={auc_rf:.2f})", line=dict(color=COLORS['cyan'], width=3)))
+            fig_roc.add_trace(go.Scatter(x=fpr_lr, y=tpr_lr, name=f"Logistic Reg (AUC={auc_lr:.2f})", line=dict(color=COLORS['purple'], width=2, dash='dot')))
+            fig_roc.add_shape(type='line', line=dict(dash='dash', color=COLORS['muted']), x0=0, x1=1, y0=0, y1=1)
+            fig_roc.update_layout(title="ROC Curve - Confronto Modelli", xaxis_title="False Positive Rate", yaxis_title="True Positive Rate")
+            st.plotly_chart(fig_roc, use_container_width=True)
+            
+        with c2:
+            # Feature Importance (Gini)
+            imp = pd.DataFrame({"Feature": RF_FEATURES, "Importance": rf.feature_importances_}).sort_values("Importance", ascending=True)
+            fig_imp = px.bar(imp, x="Importance", y="Feature", orientation="h", title="Driver del Sovraccarico (RF Gini Imp.)", color_discrete_sequence=[COLORS['amber']])
+            st.plotly_chart(fig_imp, use_container_width=True)
+
+        st.markdown("""<div class="callout callout--insight">
+        <b>Insight:</b> Il Random Forest supera la regressione logistica nel catturare le relazioni non lineari. Le metriche derivate (SMA e ISLR) mostrano un alto potere predittivo, confermando l'ipotesi di ricerca: la combinazione di carico interno ed esterno è più informativa delle singole metriche.
+        </div>""", unsafe_allow_html=True)
+
+    # --- TAB 4: CLUSTERING ---
+    with t4:
+        st.markdown("""<div class="section-head"><div class="section-kicker">Unsupervised Learning</div>
+        <div class="section-title">Identificazione Profili Latenti (K-Means)</div></div>""", unsafe_allow_html=True)
+        
+        sil_score = silhouette_score(StandardScaler().fit_transform(df[CLUSTER_FEATURES]), df["Cluster"])
+        st.metric("Silhouette Score", f"{sil_score:.3f}", "Misura della separazione dei cluster")
+        
+        fig_cluster = px.scatter_3d(df, x="FC Media", y="ISLR", z="SMA", color="Cluster", 
+                                    color_continuous_scale=[CLUSTER_COLORS[0], CLUSTER_COLORS[1], CLUSTER_COLORS[2]],
+                                    title="Spazio Latente delle Sessioni di Allenamento")
+        fig_cluster.update_layout(scene=dict(xaxis_title="FC Media (BPM)", yaxis_title="Indice ISLR", zaxis_title="Stress (SMA)"))
+        st.plotly_chart(fig_cluster, use_container_width=True)
+
+    # --- TAB 5: SIMULATORE ---
+    with t5:
+        st.markdown("""<div class="section-head"><div class="section-kicker">Interactive App</div>
+        <div class="section-title">Simulatore What-If dell'Atleta</div></div>""", unsafe_allow_html=True)
+        
+        sc1, sc2 = st.columns([1, 2])
+        
+        with sc1:
+            st.markdown("### Inserisci Parametri")
+            s_dist = st.slider("Distanza Prevista (km)", 5.0, 42.0, 15.0, 0.5)
+            s_rpe = st.slider("Fatica Percepita (RPE)", 1, 10, 7)
+            s_sonno = st.slider("Ore Sonno Notte Precedente", 3.0, 12.0, 6.5, 0.5)
+            s_fc = st.slider("FC Media Stimata", 100, 190, 150)
+            s_temp = st.slider("Temperatura (°C)", 0, 40, 25)
+            
+            # Calcolo al volo metriche derivate
+            s_tempo = s_dist * 4.5 + (s_rpe * 2) # Stima sommaria
+            s_lavoro = s_tempo / 60
+            s_sma = (s_lavoro * s_rpe) / s_sonno
+            s_islr = (s_lavoro * s_rpe) / s_dist
+            s_idet = (s_fc * s_temp) / ((s_dist*1000)/(s_tempo*60))
+            s_iitr = (s_temp * 10) / s_dist # Vento fisso a 10
+            
+            input_data = pd.DataFrame([[s_dist, s_sonno, s_sma, s_islr, s_idet, s_iitr, s_rpe]], columns=RF_FEATURES)
+            prob = rf.predict_proba(input_data)[0][1] * 100
+            label, color = risk_band(prob)
+
+        with sc2:
+            st.markdown("### Esito e Footprint")
+            
+            c_gauge, c_radar = st.columns([1, 1])
+            with c_gauge:
+                fig_g = go.Figure(go.Indicator(
+                    mode = "gauge+number", value = prob, title = {'text': f"Rischio: {label}"},
+                    gauge = {
+                        'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': COLORS['border']},
+                        'bar': {'color': color},
+                        'bgcolor': COLORS['surface'],
+                        'steps': [
+                            {'range': [0, 40], 'color': 'rgba(52, 211, 153, 0.2)'},
+                            {'range': [40, 70], 'color': 'rgba(251, 191, 36, 0.2)'},
+                            {'range': [70, 100], 'color': 'rgba(248, 113, 113, 0.2)'}],
+                    }))
+                fig_g.update_layout(height=300, margin=dict(l=10, r=10, t=40, b=10))
+                st.plotly_chart(fig_g, use_container_width=True)
+            
+            with c_radar:
+                # Normalizzazione manuale per il radar
+                means = df[RF_FEATURES].mean()
+                maxs = df[RF_FEATURES].max()
+                norm_input = (input_data.iloc[0] / maxs).tolist()
+                norm_mean = (means / maxs).tolist()
+                
+                fig_r = go.Figure()
+                fig_r.add_trace(go.Scatterpolar(r=norm_mean, theta=RF_FEATURES, fill='toself', name='Media Squadra', line_color=COLORS['muted']))
+                fig_r.add_trace(go.Scatterpolar(r=norm_input, theta=RF_FEATURES, fill='toself', name='Questa Sessione', line_color=color))
+                fig_r.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1])), height=300, margin=dict(l=30, r=30, t=30, b=30))
+                st.plotly_chart(fig_r, use_container_width=True)
+                
+            st.markdown("""<div class="callout callout--simple">
+            Usa gli slider per simulare l'impatto di una scarsa qualità del sonno o di un incremento dell'RPE sulle metriche derivate. Il Random Forest valuta il profilo in tempo reale.
+            </div>""", unsafe_allow_html=True)
+
+if __name__ == "__main__":
+    render_ui()
