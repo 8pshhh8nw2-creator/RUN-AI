@@ -218,6 +218,7 @@ def sidebar_comune():
         st.markdown("<p class='runai-label'>Navigazione</p>", unsafe_allow_html=True)
 
         st.page_link("app.py", label="Home", icon="🏠")
+        st.page_link("pages/0_Home.py", label="Panoramica", icon="🧾")
         st.page_link("pages/1_Stato_Forma.py", label="Stato Forma", icon="📈")
         st.page_link("pages/2_Statistiche_Analisi.py", label="Statistiche Analisi", icon="📊")
         st.page_link("pages/3_KPI_Dashboard.py", label="KPI Dashboard", icon="🧭")
