@@ -6,9 +6,8 @@ from utils.data import genera_dati
 def sidebar_comune():
     """
     Disegna la sidebar comune (logo, device, filtro temporale) in alto
-    e la navigazione delle pagine ufficiali rigorosamente in basso.
+    e la navigazione delle pagine in basso.
     """
-    # Inizializzazione sicura di tutte le variabili di stato
     if 'dati' not in st.session_state or st.session_state.dati is None:
         st.session_state.dati = genera_dati()
     if 'analisi_fatta' not in st.session_state:
@@ -169,19 +168,18 @@ def sidebar_comune():
             label_visibility="collapsed"
         )
 
-        # =========================================================
-        # NAVIGAZIONE PAGINE (RIGOROSAMENTE IN FONDO A TUTTO)
-        # =========================================================
+        # ---------- NAVIGAZIONE PAGINE (IN FONDO) ----------
+        # Nota: Usiamo i link diretti corrispondenti ai file reali della cartella
         st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
         st.markdown("<p class='runai-label'>Navigazione</p>", unsafe_allow_html=True)
         
-        st.page_link("0_Home.py", label="Home")
-        st.page_link("1_Stato_Forma.py", label="Stato Forma")
-        st.page_link("2_Statistiche_Analisi.py", label="Statistiche Analisi")
-        st.page_link("3_KPI_Dashboard.py", label="KPI Dashboard")
-        st.page_link("4_Analisi_Predittiva_ML.py", label="Analisi Predittiva ML")
-        st.page_link("5_Consiglio_Finale.py", label="Consiglio Finale")
-        st.page_link("6_ComputerVision.py", label="Computer Vision")
+        st.page_link("app.py", label="Home")
+        st.page_link("pages/1_Stato_Forma.py", label="Stato Forma")
+        st.page_link("pages/2_Statistiche_Analisi.py", label="Statistiche Analisi")
+        st.page_link("pages/3_KPI_Dashboard.py", label="KPI Dashboard")
+        st.page_link("pages/4_Analisi_Predittiva_ML.py", label="Analisi Predittiva ML")
+        st.page_link("pages/5_Consiglio_Finale.py", label="Consiglio Finale")
+        st.page_link("pages/6_ComputerVision.py", label="Computer Vision")
 
     df_full = st.session_state.dati.copy()
     if filtro_tempo == "Ultimi 30 giorni":
