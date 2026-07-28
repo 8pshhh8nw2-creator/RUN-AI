@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Literal, Sequence
 
 import numpy as np
 import pandas as pd
@@ -17,11 +16,10 @@ import plotly.io as pio
 import streamlit as st
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import (
     accuracy_score, confusion_matrix, f1_score, mean_absolute_error,
-    precision_score, r2_score, recall_score, roc_auc_score, roc_curve,
+    precision_score, r2_score, roc_auc_score, roc_curve,
     silhouette_score,
 )
 from sklearn.model_selection import train_test_split
@@ -30,7 +28,7 @@ from sklearn.preprocessing import StandardScaler
 warnings.filterwarnings("ignore")
 
 # ============================================================================
-# CONFIGURAZIONE PAGINA (DEVE ESSERE LA PRIMA CHIAMATA)
+# CONFIGURAZIONE PAGINA
 # ============================================================================
 st.set_page_config(
     page_title="Sport ML Suite",
@@ -40,14 +38,10 @@ st.set_page_config(
 )
 
 # ============================================================================
-# CONFIG & COSTANTI
+# COSTANTI E COLORI
 # ============================================================================
 APP_TITLE = "Advanced Machine Learning Suite"
-APP_SUBTITLE = (
-    "Framework interattivo per la stima della performance, la classificazione del rischio "
-    "di overload, l'analisi dei driver del sovraccarico e la scoperta di profili latenti "
-    "di allenamento."
-)
+APP_SUBTITLE = "Dashboard Analitica Interattiva per la valutazione del rischio e della performance."
 
 COLORS = {
     "bg": "#060b14", "bg2": "#0a1424", "surface": "#0f1b2d", "surface_2": "#13243b",
@@ -82,7 +76,7 @@ class Settings:
     n_clusters: int = 3
 
 # ============================================================================
-# THEME & CSS
+# CSS & THEME PLOTLY
 # ============================================================================
 PLOTLY_TEMPLATE = "ml_suite"
 
@@ -135,7 +129,7 @@ def inject_css():
         background: linear-gradient(120deg, #ffffff 0%, #cfe9ff 55%, #b8c8ff 100%);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }}
-    .callout {{ border-radius: 12px; padding: 1rem; margin: 1rem 0; font-size: 0.95rem; line-height: 1.6; }}
+    .callout {{ border-radius: 12px; padding: 1rem; margin: 1rem 0; font-size: 0.95rem; line-height: 1.6; border: 1px solid var(--border); }}
     .callout--theory {{ background: rgba(251,191,36,0.07); border-left: 4px solid var(--amber); color: #fef3c7; }}
     .callout--insight {{ background: rgba(167,139,250,0.09); border-left: 4px solid var(--purple); color: #ede9fe; }}
     .callout--simple {{ background: rgba(56,189,248,0.08); border-left: 4px solid var(--blue); color: #dbeafe; }}
@@ -145,8 +139,10 @@ def inject_css():
     }}
     .section-kicker {{ font-size: 0.75rem; font-weight: 700; color: var(--cyan); letter-spacing: 0.1em; text-transform: uppercase; }}
     .section-title {{ font-size: 1.4rem; font-weight: 800; margin:0; padding-top: 0.2rem; }}
-    /* Fix Streamlit metric styling */
     div[data-testid="stMetricValue"] {{ color: {COLORS['cyan']} !important; font-weight: 800; }}
+    
+    /* Styling per il selettore orizzontale */
+    div.row-widget.stRadio > div {{ flex-direction: row; flex-wrap: wrap; gap: 10px; background: rgba(15,27,45,0.7); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -156,31 +152,25 @@ def inject_css():
 @st.cache_data
 def generate_synthetic_data(n: int, seed: int) -> pd.DataFrame:
     np.random.seed(seed)
-    
-    # Variabili di base
     distanza = np.random.uniform(5.0, 35.0, n)
     rpe = np.random.randint(2, 11, n)
     ore_sonno = np.random.normal(7.5, 1.2, n).clip(3, 10)
     temperatura = np.random.normal(20, 8, n)
     vento = np.random.normal(10, 5, n).clip(0, 40)
     
-    # Variabili dipendenti
-    tempo = distanza * np.random.normal(4.5, 0.3, n) + (rpe * 2) # Pace tra 4 e 5 min/km + fatica
-    velocita = (distanza * 1000) / (tempo * 60) # m/s
+    tempo = distanza * np.random.normal(4.5, 0.3, n) + (rpe * 2) 
+    velocita = (distanza * 1000) / (tempo * 60) 
     fc_media = 110 + (rpe * 6) - (ore_sonno * 2) + np.random.normal(0, 5, n)
     
-    # Calcolo Indici Magistrale (Formule Teoriche)
     ore_lavoro = tempo / 60
     sma = (ore_lavoro * rpe) / ore_sonno
     islr = (ore_lavoro * rpe) / distanza
     idet = (fc_media * temperatura) / np.where(velocita>0, velocita, 1)
     iitr = (temperatura * vento) / distanza
     
-    # Definizione Target: Rischio Overload logica latente
-    # Se lo stress metabolico è alto e si dorme poco -> Rischio = 1
     stress_score = (sma * 0.4) + (islr * 0.3) + (rpe * 0.3)
     prob_overload = 1 / (1 + np.exp(-(stress_score - np.median(stress_score))))
-    rischio = (prob_overload > 0.65).astype(int) # Aggiungiamo un threshold
+    rischio = (prob_overload > 0.65).astype(int) 
     
     df = pd.DataFrame({
         "Distanza (km)": distanza, "Tempo (min)": tempo, "Velocità (m/s)": velocita,
@@ -192,11 +182,10 @@ def generate_synthetic_data(n: int, seed: int) -> pd.DataFrame:
     return df.round(2)
 
 # ============================================================================
-# ML PIPELINE (Cached)
+# ML PIPELINE
 # ============================================================================
 @st.cache_resource
 def train_models(df: pd.DataFrame, config: Settings):
-    # Dati classificazione
     X_cls = df[RF_FEATURES]
     y_cls = df[TARGET]
     X_train, X_test, y_train, y_test = train_test_split(X_cls, y_cls, test_size=config.test_size, random_state=config.seed)
@@ -209,21 +198,21 @@ def train_models(df: pd.DataFrame, config: Settings):
     rf = RandomForestClassifier(n_estimators=config.n_estimators, max_depth=config.max_depth, random_state=config.seed)
     rf.fit(X_train, y_train)
     
-    # Logistic Regression (Baseline)
-    lr_cls = LogisticRegression()
-    lr_cls.fit(X_train_scaled, y_train)
+    # Logistic Regression
+    lr = LogisticRegression()
+    lr.fit(X_train_scaled, y_train)
     
-    # Dati Regressione Performance
+    # Linear Regression
     X_reg = df[["Distanza (km)", "SMA", "RPE"]]
     y_reg = df[TIME_TARGET]
     reg = LinearRegression().fit(X_reg, y_reg)
     
-    # Dati Clustering
+    # KMeans
     X_clust = df[CLUSTER_FEATURES]
     kmeans = KMeans(n_clusters=config.n_clusters, random_state=config.seed)
     df["Cluster"] = kmeans.fit_predict(StandardScaler().fit_transform(X_clust))
     
-    return rf, lr_cls, reg, kmeans, scaler, X_train, X_test, y_train, y_test
+    return rf, lr, reg, kmeans, scaler, X_train, X_test, y_train, y_test, X_train_scaled, X_test_scaled
 
 # ============================================================================
 # UI RENDERING
@@ -234,37 +223,45 @@ def render_ui():
     
     # SIDEBAR
     with st.sidebar:
-        st.title("⚙️ Parametri Modelli")
+        st.title("⚙️ Parametri Generali")
         n_sess = st.slider("Numero Sessioni (Dataset)", 100, 2000, 500, step=100)
         n_est = st.slider("Alberi Random Forest", 50, 500, 200, step=50)
         k_clust = st.slider("Numero Cluster (K-Means)", 2, 5, 3)
-        
         cfg = Settings(n_sessions=n_sess, n_estimators=n_est, n_clusters=k_clust)
         
         st.markdown("---")
-        st.markdown("**Glossario Indici:**")
+        st.markdown("**Glossario Metriche:**")
         st.markdown("- **SMA**: Stress Metabolico Apparente\n- **ISLR**: Indice Stress Lavoro-Relativo\n- **IDET**: Domanda Emodinamico-Termica")
 
-    # CARICAMENTO DATI
     df = generate_synthetic_data(cfg.n_sessions, cfg.seed)
-    rf, lr_cls, reg, kmeans, scaler, X_train, X_test, y_train, y_test = train_models(df, cfg)
+    rf, lr, reg, kmeans, scaler, X_train, X_test, y_train, y_test, X_train_scaled, X_test_scaled = train_models(df, cfg)
 
     # HERO SECTION
     st.markdown(f"""
     <div class="hero">
-        <div class="hero-eyebrow">Data Science M.Sc. Thesis</div>
+        <div class="hero-eyebrow">Sport Data Science M.Sc.</div>
         <h1 class="hero-title">{APP_TITLE}</h1>
         <p style="color:var(--muted); margin-top:1rem; font-size:1.1rem;">{APP_SUBTITLE}</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # TABS
-    t1, t2, t3, t4, t5 = st.tabs(["📊 Panoramica & Dati", "📈 Regressione", "⚠️ Rischio Overload", "🧩 Clustering", "🎮 Simulatore What-If"])
+    # MENU ORIZZONTALE
+    sezioni = [
+        "📊 Dataset & Esplorazione", 
+        "📈 Regressione Lineare", 
+        "⚖️ Regressione Logistica", 
+        "🌲 Random Forest", 
+        "🧩 K-Means Clustering", 
+        "🎮 Simulatore What-If"
+    ]
+    
+    scelta = st.radio("Seleziona il Modulo Analitico:", sezioni, horizontal=True, label_visibility="collapsed")
 
-    # --- TAB 1: DATI ---
-    with t1:
-        st.markdown("""<div class="section-head"><div class="section-kicker">Esplorazione</div>
-        <div class="section-title">Dataset Sintetico Generato</div></div>""", unsafe_allow_html=True)
+    # ==============================================================
+    # 1. DATASET
+    if scelta == sezioni[0]:
+        st.markdown("""<div class="section-head"><div class="section-kicker">Data Overview</div>
+        <div class="section-title">Esplorazione del Dataset e Variabili</div></div>""", unsafe_allow_html=True)
         
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Totale Sessioni", len(df))
@@ -272,114 +269,144 @@ def render_ui():
         c3.metric("Distanza Media (km)", f"{df['Distanza (km)'].mean():.1f}")
         c4.metric("Sonno Medio (h)", f"{df['Ore Sonno'].mean():.1f}")
         
-        st.dataframe(df.head(15), use_container_width=True)
+        st.dataframe(df.head(12), use_container_width=True)
         
-        # Correlazione
         st.markdown("### Matrice di Correlazione")
         corr = df[RF_FEATURES + [TARGET]].corr()
         fig = px.imshow(corr, text_auto=".2f", aspect="auto", color_continuous_scale="RdBu_r")
-        fig.update_layout(margin=dict(t=20, b=20, l=20, r=20))
         st.plotly_chart(fig, use_container_width=True)
 
-    # --- TAB 2: REGRESSIONE ---
-    with t2:
-        st.markdown("""<div class="section-head"><div class="section-kicker">Stima Performance</div>
-        <div class="section-title">Previsione del Tempo di Completamento</div></div>""", unsafe_allow_html=True)
+    # ==============================================================
+    # 2. REGRESSIONE LINEARE
+    elif scelta == sezioni[1]:
+        st.markdown("""<div class="section-head"><div class="section-kicker">Stima della Performance</div>
+        <div class="section-title">Regressione Lineare Multipla</div></div>""", unsafe_allow_html=True)
         
         st.markdown("""<div class="callout callout--theory">
-        <b>Modello Lineare:</b> Utilizziamo Distanza, Stress Metabolico Apparente (SMA) e RPE per stimare il tempo di completamento. L'obiettivo è quantificare l'impatto della fatica sul passo dell'atleta.
+        <b>Spiegazione Teorica:</b> Questo modello stima il <b>Tempo di completamento</b> in funzione della distanza, dello stress metabolico (SMA) e della fatica percepita (RPE). L'obiettivo è analizzare in che misura i marker di stress prolungato degradano la performance attesa a parità di distanza.
         </div>""", unsafe_allow_html=True)
         
         preds = reg.predict(df[["Distanza (km)", "SMA", "RPE"]])
-        r2 = r2_score(df[TIME_TARGET], preds)
-        mae = mean_absolute_error(df[TIME_TARGET], preds)
         
         c1, c2 = st.columns(2)
-        c1.metric("R² Score", f"{r2:.3f}", "Variabilità spiegata")
-        c2.metric("Mean Absolute Error (MAE)", f"{mae:.2f} min", "Errore medio", delta_color="inverse")
+        c1.metric("R² Score (Varianza spiegata)", f"{r2_score(df[TIME_TARGET], preds):.3f}")
+        c2.metric("MAE (Errore medio assoluto)", f"{mean_absolute_error(df[TIME_TARGET], preds):.2f} min", delta_color="inverse")
         
         fig = px.scatter(x=df[TIME_TARGET], y=preds, opacity=0.7, 
-                         labels={"x": "Tempo Reale (min)", "y": "Tempo Predetto (min)"},
-                         title="Reale vs Predetto (Regressione Multipla)", color_discrete_sequence=[COLORS['cyan']])
+                         labels={"x": "Tempo Reale (min)", "y": "Tempo Predetto dal Modello (min)"},
+                         title="Valori Reali vs Predizioni", color_discrete_sequence=[COLORS['cyan']])
         fig.add_shape(type="line", x0=df[TIME_TARGET].min(), y0=df[TIME_TARGET].min(), 
                       x1=df[TIME_TARGET].max(), y1=df[TIME_TARGET].max(), line=dict(color=COLORS['pink'], dash="dash"))
         st.plotly_chart(fig, use_container_width=True)
 
-    # --- TAB 3: CLASSIFICAZIONE ---
-    with t3:
-        st.markdown("""<div class="section-head"><div class="section-kicker">Classificazione Binaria</div>
-        <div class="section-title">Analisi Rischio Overload & Feature Importance</div></div>""", unsafe_allow_html=True)
+    # ==============================================================
+    # 3. REGRESSIONE LOGISTICA
+    elif scelta == sezioni[2]:
+        st.markdown("""<div class="section-head"><div class="section-kicker">Baseline Classificatore</div>
+        <div class="section-title">Regressione Logistica (Rischio Overload)</div></div>""", unsafe_allow_html=True)
         
-        y_prob_rf = rf.predict_proba(X_test)[:, 1]
-        y_prob_lr = lr_cls.predict_proba(X_test_scaled)[:, 1]
+        st.markdown("""<div class="callout callout--theory">
+        <b>Spiegazione Teorica:</b> Modello interpretabile che stima la probabilità log-odds che un allenamento causi <i>sovraccarico</i>. Funge da <b>baseline lineare</b> per dimostrare se le relazioni tra metriche fisiche e rischio siano proporzionali o complesse (non lineari).
+        </div>""", unsafe_allow_html=True)
         
-        c1, c2 = st.columns([1, 1])
-        with c1:
-            # ROC Curve
-            fpr_rf, tpr_rf, _ = roc_curve(y_test, y_prob_rf)
-            fpr_lr, tpr_lr, _ = roc_curve(y_test, y_prob_lr)
-            auc_rf, auc_lr = roc_auc_score(y_test, y_prob_rf), roc_auc_score(y_test, y_prob_lr)
+        y_pred_lr = lr.predict(X_test_scaled)
+        y_prob_lr = lr.predict_proba(X_test_scaled)[:, 1]
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Accuracy (Test)", f"{accuracy_score(y_test, y_pred_lr):.2f}")
+        c2.metric("F1-Score", f"{f1_score(y_test, y_pred_lr):.2f}")
+        c3.metric("AUC-ROC", f"{roc_auc_score(y_test, y_prob_lr):.2f}")
+        
+        col_fig1, col_fig2 = st.columns(2)
+        with col_fig1:
+            cm = confusion_matrix(y_test, y_pred_lr)
+            fig_cm = px.imshow(cm, text_auto=True, color_continuous_scale="Blues", labels=dict(x="Classe Predetta", y="Classe Reale"), x=['No Rischio', 'Overload'], y=['No Rischio', 'Overload'], title="Matrice di Confusione (Test Set)")
+            st.plotly_chart(fig_cm, use_container_width=True)
             
+        with col_fig2:
+            coefs = pd.DataFrame({"Feature": RF_FEATURES, "Peso (Coefficiente)": lr.coef_[0]}).sort_values("Peso (Coefficiente)")
+            fig_coef = px.bar(coefs, x="Peso (Coefficiente)", y="Feature", orientation="h", title="Impatto Logistico delle Variabili", color_discrete_sequence=[COLORS['purple']])
+            st.plotly_chart(fig_coef, use_container_width=True)
+
+    # ==============================================================
+    # 4. RANDOM FOREST
+    elif scelta == sezioni[3]:
+        st.markdown("""<div class="section-head"><div class="section-kicker">Modello Avanzato</div>
+        <div class="section-title">Random Forest Classifier (Rischio Overload)</div></div>""", unsafe_allow_html=True)
+        
+        st.markdown("""<div class="callout callout--insight">
+        <b>Spiegazione Teorica & Insight:</b> Modello d'insieme ad alberi decisionali, capace di intercettare dinamiche <b>non lineari</b> (es. l'effetto combinato di tanto allenamento e poco sonno). Se le sue performance superano la Logistica, conferma che il sovraccarico è un fenomeno multifattoriale e interattivo.
+        </div>""", unsafe_allow_html=True)
+        
+        y_pred_rf = rf.predict(X_test)
+        y_prob_rf = rf.predict_proba(X_test)[:, 1]
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Accuracy (Test)", f"{accuracy_score(y_test, y_pred_rf):.2f}")
+        c2.metric("F1-Score", f"{f1_score(y_test, y_pred_rf):.2f}")
+        c3.metric("AUC-ROC", f"{roc_auc_score(y_test, y_prob_rf):.2f}")
+        
+        col_fig1, col_fig2 = st.columns(2)
+        with col_fig1:
+            fpr, tpr, _ = roc_curve(y_test, y_prob_rf)
             fig_roc = go.Figure()
-            fig_roc.add_trace(go.Scatter(x=fpr_rf, y=tpr_rf, name=f"Random Forest (AUC={auc_rf:.2f})", line=dict(color=COLORS['cyan'], width=3)))
-            fig_roc.add_trace(go.Scatter(x=fpr_lr, y=tpr_lr, name=f"Logistic Reg (AUC={auc_lr:.2f})", line=dict(color=COLORS['purple'], width=2, dash='dot')))
+            fig_roc.add_trace(go.Scatter(x=fpr, y=tpr, name="Random Forest", line=dict(color=COLORS['cyan'], width=3)))
             fig_roc.add_shape(type='line', line=dict(dash='dash', color=COLORS['muted']), x0=0, x1=1, y0=0, y1=1)
-            fig_roc.update_layout(title="ROC Curve - Confronto Modelli", xaxis_title="False Positive Rate", yaxis_title="True Positive Rate")
+            fig_roc.update_layout(title="Curva ROC", xaxis_title="Falsi Positivi", yaxis_title="Veri Positivi")
             st.plotly_chart(fig_roc, use_container_width=True)
             
-        with c2:
-            # Feature Importance (Gini)
-            imp = pd.DataFrame({"Feature": RF_FEATURES, "Importance": rf.feature_importances_}).sort_values("Importance", ascending=True)
-            fig_imp = px.bar(imp, x="Importance", y="Feature", orientation="h", title="Driver del Sovraccarico (RF Gini Imp.)", color_discrete_sequence=[COLORS['amber']])
+        with col_fig2:
+            imp = pd.DataFrame({"Feature": RF_FEATURES, "Importanza (Gini)": rf.feature_importances_}).sort_values("Importanza (Gini)")
+            fig_imp = px.bar(imp, x="Importanza (Gini)", y="Feature", orientation="h", title="Driver di Overload (Feature Importance)", color_discrete_sequence=[COLORS['amber']])
             st.plotly_chart(fig_imp, use_container_width=True)
 
-        st.markdown("""<div class="callout callout--insight">
-        <b>Insight:</b> Il Random Forest supera la regressione logistica nel catturare le relazioni non lineari. Le metriche derivate (SMA e ISLR) mostrano un alto potere predittivo, confermando l'ipotesi di ricerca: la combinazione di carico interno ed esterno è più informativa delle singole metriche.
-        </div>""", unsafe_allow_html=True)
-
-    # --- TAB 4: CLUSTERING ---
-    with t4:
+    # ==============================================================
+    # 5. CLUSTERING
+    elif scelta == sezioni[4]:
         st.markdown("""<div class="section-head"><div class="section-kicker">Unsupervised Learning</div>
-        <div class="section-title">Identificazione Profili Latenti (K-Means)</div></div>""", unsafe_allow_html=True)
+        <div class="section-title">K-Means Clustering: Profili Latenti</div></div>""", unsafe_allow_html=True)
+        
+        st.markdown("""<div class="callout callout--theory">
+        <b>Spiegazione Teorica:</b> Algoritmo non supervisionato che ricerca "pattern nascosti" senza conoscere a priori le etichette di rischio. Segmenta le sessioni raggruppandole per similarità basata su FC Media, Indice di Lavoro (ISLR) e Stress Metabolico (SMA).
+        </div>""", unsafe_allow_html=True)
         
         sil_score = silhouette_score(StandardScaler().fit_transform(df[CLUSTER_FEATURES]), df["Cluster"])
-        st.metric("Silhouette Score", f"{sil_score:.3f}", "Misura della separazione dei cluster")
+        st.metric("Silhouette Score", f"{sil_score:.3f}", "Rappresenta quanto sono ben definiti e separati i cluster")
         
         fig_cluster = px.scatter_3d(df, x="FC Media", y="ISLR", z="SMA", color="Cluster", 
                                     color_continuous_scale=[CLUSTER_COLORS[0], CLUSTER_COLORS[1], CLUSTER_COLORS[2]],
-                                    title="Spazio Latente delle Sessioni di Allenamento")
-        fig_cluster.update_layout(scene=dict(xaxis_title="FC Media (BPM)", yaxis_title="Indice ISLR", zaxis_title="Stress (SMA)"))
+                                    title="Visualizzazione 3D dello Spazio Latente degli Allenamenti")
+        fig_cluster.update_layout(scene=dict(xaxis_title="FC Media", yaxis_title="Indice ISLR", zaxis_title="Stress SMA"), margin=dict(l=0, r=0, b=0, t=30))
         st.plotly_chart(fig_cluster, use_container_width=True)
 
-    # --- TAB 5: SIMULATORE ---
-    with t5:
+    # ==============================================================
+    # 6. SIMULATORE
+    elif scelta == sezioni[5]:
         st.markdown("""<div class="section-head"><div class="section-kicker">Interactive App</div>
         <div class="section-title">Simulatore What-If dell'Atleta</div></div>""", unsafe_allow_html=True)
         
         sc1, sc2 = st.columns([1, 2])
-        
         with sc1:
-            st.markdown("### Inserisci Parametri")
+            st.markdown("### Modifica i parametri")
             s_dist = st.slider("Distanza Prevista (km)", 5.0, 42.0, 15.0, 0.5)
             s_rpe = st.slider("Fatica Percepita (RPE)", 1, 10, 7)
             s_sonno = st.slider("Ore Sonno Notte Precedente", 3.0, 12.0, 6.5, 0.5)
             s_fc = st.slider("FC Media Stimata", 100, 190, 150)
             s_temp = st.slider("Temperatura (°C)", 0, 40, 25)
             
-            # Calcolo al volo metriche derivate
-            s_tempo = s_dist * 4.5 + (s_rpe * 2) # Stima sommaria
+            s_tempo = s_dist * 4.5 + (s_rpe * 2) 
             s_lavoro = s_tempo / 60
             s_sma = (s_lavoro * s_rpe) / s_sonno
             s_islr = (s_lavoro * s_rpe) / s_dist
             s_idet = (s_fc * s_temp) / ((s_dist*1000)/(s_tempo*60))
-            s_iitr = (s_temp * 10) / s_dist # Vento fisso a 10
+            s_iitr = (s_temp * 10) / s_dist
             
             input_data = pd.DataFrame([[s_dist, s_sonno, s_sma, s_islr, s_idet, s_iitr, s_rpe]], columns=RF_FEATURES)
             prob = rf.predict_proba(input_data)[0][1] * 100
             label, color = risk_band(prob)
 
         with sc2:
-            st.markdown("### Esito e Footprint")
+            st.markdown("### Valutazione Predittiva (Random Forest)")
             
             c_gauge, c_radar = st.columns([1, 1])
             with c_gauge:
@@ -394,11 +421,10 @@ def render_ui():
                             {'range': [40, 70], 'color': 'rgba(251, 191, 36, 0.2)'},
                             {'range': [70, 100], 'color': 'rgba(248, 113, 113, 0.2)'}],
                     }))
-                fig_g.update_layout(height=300, margin=dict(l=10, r=10, t=40, b=10))
+                fig_g.update_layout(height=320, margin=dict(l=10, r=10, t=50, b=10))
                 st.plotly_chart(fig_g, use_container_width=True)
             
             with c_radar:
-                # Normalizzazione manuale per il radar
                 means = df[RF_FEATURES].mean()
                 maxs = df[RF_FEATURES].max()
                 norm_input = (input_data.iloc[0] / maxs).tolist()
@@ -406,13 +432,9 @@ def render_ui():
                 
                 fig_r = go.Figure()
                 fig_r.add_trace(go.Scatterpolar(r=norm_mean, theta=RF_FEATURES, fill='toself', name='Media Squadra', line_color=COLORS['muted']))
-                fig_r.add_trace(go.Scatterpolar(r=norm_input, theta=RF_FEATURES, fill='toself', name='Questa Sessione', line_color=color))
-                fig_r.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1])), height=300, margin=dict(l=30, r=30, t=30, b=30))
+                fig_r.add_trace(go.Scatterpolar(r=norm_input, theta=RF_FEATURES, fill='toself', name='Sessione Simulata', line_color=color))
+                fig_r.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1])), height=320, margin=dict(l=40, r=40, t=40, b=40))
                 st.plotly_chart(fig_r, use_container_width=True)
-                
-            st.markdown("""<div class="callout callout--simple">
-            Usa gli slider per simulare l'impatto di una scarsa qualità del sonno o di un incremento dell'RPE sulle metriche derivate. Il Random Forest valuta il profilo in tempo reale.
-            </div>""", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     render_ui()
