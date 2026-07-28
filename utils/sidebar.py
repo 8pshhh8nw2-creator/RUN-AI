@@ -170,12 +170,6 @@ def sidebar_comune():
         )
 
         # ---------- NAVIGAZIONE PAGINE (in fondo a tutto) ----------
-        # NOTA: se l'app usa la cartella "pages/", Streamlit disegna la lista
-        # delle pagine automaticamente IN CIMA alla sidebar, prima di qualsiasi
-        # contenuto custom — è per questo che finora "le pagine" non si
-        # spostavano in fondo, indipendentemente da come riordinavo il resto.
-        # Qui nascondo quella nav automatica e la ridisegno a mano in fondo,
-        # stile sport-tech. Va aggiornata con i nomi reali delle tue pagine.
         st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
         st.markdown("<p class='runai-label'>Navigazione</p>", unsafe_allow_html=True)
         st.markdown("""
@@ -184,10 +178,12 @@ def sidebar_comune():
             </style>
         """, unsafe_allow_html=True)
 
-        # Sostituisci i path/etichette con le pagine reali della tua app
         st.page_link("app.py", label="Home")
-        # st.page_link("pages/analisi_predittiva.py", label="Analisi Predittiva ML")
-        # st.page_link("pages/altra_pagina.py", label="Altra Pagina")
+        st.page_link("pages/01_analisi_stato_di_forma.py", label="Stato di Forma")
+        st.page_link("pages/02_carico_settimanale.py", label="Carico Settimanale")
+        st.page_link("pages/03_progressione_e_ritmi.py", label="Progressione e Ritmi")
+        st.page_link("pages/04_prevenzione_infortuni.py", label="Prevenzione Infortuni")
+        st.page_link("pages/05_consiglio_finale.py", label="Consiglio Finale")
 
     df_full = st.session_state.dati.copy()
     if filtro_tempo == "Ultimi 30 giorni":
