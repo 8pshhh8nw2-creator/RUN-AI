@@ -5,8 +5,8 @@ from utils.data import genera_dati
 
 def sidebar_comune():
     """
-    Disegna la sidebar comune (logo, filtro temporale sopra, dispositivo sotto)
-    e restituisce i dati filtrati da usare in ogni pagina.
+    Disegna la sidebar comune con il selettore temporale e il dispositivo in alto,
+    e la navigazione delle pagine pulita in basso, senza emoji e con stile curato.
     """
     # Inizializzazione sicura di tutte le variabili di stato
     if 'dati' not in st.session_state or st.session_state.dati is None:
@@ -29,28 +29,27 @@ def sidebar_comune():
         """, unsafe_allow_html=True)
 
         # =========================================================
-        # 1. GIORNI DA SELEZIONARE / FILTRO TEMPORALE (ORA È SOPRA)
+        # 1. SELEZIONE TEMPORALE (SOPRA)
         # =========================================================
-        st.markdown("<p style='font-family:\"Oswald\",sans-serif; font-size:0.85rem; letter-spacing:0.05em; text-transform:uppercase; color:#F8F9FA; margin-bottom:6px; font-weight:600;'>📅 Giorni da Analizzare</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-family:\"Oswald\",sans-serif; font-size:0.85rem; letter-spacing:0.05em; text-transform:uppercase; color:#F8F9FA; margin-bottom:6px; font-weight:600;'>Periodo di Analisi</p>", unsafe_allow_html=True)
         filtro_tempo = st.selectbox(
             "Intervallo Analisi:",
             ["Ultimi 30 giorni", "Ultimi 60 giorni", "Ultimi 90 giorni (Tutto)"],
             label_visibility="collapsed"
         )
 
-        st.markdown("---")
+        st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
 
         # =========================================================
-        # 2. DISPOSITIVO RUNAI (ORA È SOTTO)
+        # 2. DISPOSITIVO RUNAI (SOPRA)
         # =========================================================
-        st.markdown("<p style='font-family:\"Oswald\",sans-serif; font-size:0.85rem; letter-spacing:0.05em; text-transform:uppercase; color:#F8F9FA; margin-bottom:6px; font-weight:600;'>⌚ Dispositivo RunAI</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-family:\"Oswald\",sans-serif; font-size:0.85rem; letter-spacing:0.05em; text-transform:uppercase; color:#F8F9FA; margin-bottom:6px; font-weight:600;'>Dispositivo RunAI</p>", unsafe_allow_html=True)
         device_scelto = st.selectbox(
             "Seleziona dispositivo:",
             ["Garmin Forerunner 965", "Apple Watch Ultra", "Polar Vantage V3", "Fitbit Charge 6", "WHOOP 4.0", "Fascia Cardio Garmin"],
             label_visibility="collapsed"
         )
 
-        # Spaziatura estetica prima del pulsante
         st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
 
         if st.button("CONNETTI DISPOSITIVO", use_container_width=True):
@@ -69,7 +68,7 @@ def sidebar_comune():
             st.markdown(f"""
             <div style='background-color: #0E1420; border: 1px solid #1c2333; border-radius: 10px; padding: 14px; font-family:"Inter",sans-serif; margin-top: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);'>
                 <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #1c2333; padding-bottom: 6px;'>
-                    <span style='color: #00F5A0; font-weight: bold; font-family:"JetBrains Mono",monospace; font-size:0.75em; letter-spacing:0.1em;'>● LIVE SYNC</span>
+                    <span style='color: #00F5A0; font-weight: bold; font-family:"JetBrains Mono",monospace; font-size:0.75em; letter-spacing:0.1em;'>LIVE SYNC</span>
                     <span style='color: #566178; font-size: 0.7em; font-family:"JetBrains Mono",monospace;'>{info['sync_time']}</span>
                 </div>
                 <div style='color: #E8ECF2; font-family:"JetBrains Mono",monospace; font-size:0.88em;'>
@@ -80,6 +79,17 @@ def sidebar_comune():
                 </div>
             </div>
             """, unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # =========================================================
+        # 3. NAVIGAZIONE PAGINE (SOTTO)
+        # =========================================================
+        st.markdown("<p style='font-family:\"Oswald\",sans-serif; font-size:0.85rem; letter-spacing:0.05em; text-transform:uppercase; color:#F8F9FA; margin-bottom:10px; font-weight:600;'>Navigazione Pagine</p>", unsafe_allow_html=True)
+        
+        st.page_link("app.py", label="Dashboard Principale")
+        st.page_link("pages/01_analisi_stato_di_forma.py", label="Analisi Stato di Forma")
+        st.page_link("pages/05_consiglio_finale.py", label="Consiglio Finale & Report")
 
     # Gestione filtraggio dataset in base alla scelta temporale
     df_full = st.session_state.dati.copy()
