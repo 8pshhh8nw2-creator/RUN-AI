@@ -197,4 +197,6 @@ def inject_css():
         border:1px solid var(--border); border-radius:var(--radius-md); box-shadow:var(--shadow-md);
     }}
     .section-kicker {{ font-size:0.7rem; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:var(--cyan); }}
-    .section-title {{ font-size:1.45rem; font-weight:800; line-hei
+    .section-title {{ font-size:1.45rem; font-weight:800; line-height:1.2; }}
+    </style>
+    """, unsafe_allow_html=True)
