@@ -169,23 +169,6 @@ def sidebar_comune():
             label_visibility="collapsed"
         )
 
-        # ---------- NAVIGAZIONE PAGINE (in fondo a tutto) ----------
-        st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
-        st.markdown("<p class='runai-label'>Navigazione</p>", unsafe_allow_html=True)
-        st.markdown("""
-            <style>
-            div[data-testid="stSidebarNav"] { display: none; }
-            </style>
-        """, unsafe_allow_html=True)
-
-        st.page_link("0_Home.py", label="Home")
-        st.page_link("1_Stato_Forma.py", label="Stato Forma")
-        st.page_link("2_Statistiche_Analisi.py", label="Statistiche Analisi")
-        st.page_link("3_KPI_Dashboard.py", label="KPI Dashboard")
-        st.page_link("4_Analisi_Predittiva_ML.py", label="Analisi Predittiva ML")
-        st.page_link("5_Consiglio_Finale.py", label="Consiglio Finale")
-        st.page_link("6_ComputerVision.py", label="Computer Vision")
-
     df_full = st.session_state.dati.copy()
     if filtro_tempo == "Ultimi 30 giorni":
         df = df_full.tail(30)
