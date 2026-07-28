@@ -25,6 +25,10 @@ def sidebar_comune():
                 background: #070B12;
                 border-right: 1px solid #161D2B;
             }
+            /* Nasconde la navigazione nativa automatica di Streamlit se presente */
+            [data-testid="stSidebarNav"] {
+                display: none;
+            }
             section[data-testid="stSidebar"] .stSelectbox > div > div {
                 background-color: #0E1420;
                 border: 1px solid #1c2333;
@@ -169,7 +173,6 @@ def sidebar_comune():
         )
 
         # ---------- NAVIGAZIONE PAGINE (IN FONDO) ----------
-        # Nota: Usiamo i link diretti corrispondenti ai file reali della cartella
         st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
         st.markdown("<p class='runai-label'>Navigazione</p>", unsafe_allow_html=True)
         
