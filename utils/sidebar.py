@@ -5,7 +5,7 @@ from utils.data import genera_dati
 
 def sidebar_comune():
     """
-    Disegna la sidebar comune (logo, dispositivo, filtro temporale, navigazione pagine)
+    Disegna la sidebar comune (logo, dispositivo, filtro temporale)
     e restituisce i dati filtrati da usare in ogni pagina.
     """
     # Inizializzazione sicura di tutte le variabili di stato
@@ -19,7 +19,7 @@ def sidebar_comune():
         st.session_state.device_connected = False
 
     with st.sidebar:
-        # 1. LOGO PRINCIPALE
+        # LOGO E HEADER
         st.markdown("""
             <div style='display:flex; align-items:center; gap:10px; margin-bottom:2px;'>
                 <div style='width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg, #00E5FF, #00F5A0); display:flex; align-items:center; justify-content:center; font-family:"Space Grotesk",sans-serif; font-weight:800; color:#04121a; font-size:1.1em;'>R</div>
@@ -29,7 +29,7 @@ def sidebar_comune():
         """, unsafe_allow_html=True)
 
         # =========================================================
-        # PARTE 1: DISPOSITIVO RUNAI (In alto)
+        # 1. DISPOSITIVO RUNAI (SOPRA)
         # =========================================================
         st.markdown("<p style='font-family:\"Oswald\",sans-serif; font-size:0.85rem; letter-spacing:0.05em; text-transform:uppercase; color:#F8F9FA; margin-bottom:6px; font-weight:600;'>Dispositivo RunAI</p>", unsafe_allow_html=True)
         device_scelto = st.selectbox(
@@ -69,24 +69,14 @@ def sidebar_comune():
         st.markdown("---")
 
         # =========================================================
-        # PARTE 2: GIORNI DA SELEZIONARE (Filtro temporale)
+        # 2. GIORNI DA SELEZIONARE / FILTRO TEMPORALE (SOTTO)
         # =========================================================
-        st.markdown("<p style='font-family:\"Oswald\",sans-serif; font-size:0.85rem; letter-spacing:0.05em; text-transform:uppercase; color:#F8F9FA; margin-bottom:6px; font-weight:600;'>Periodo di Analisi</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-family:\"Oswald\",sans-serif; font-size:0.85rem; letter-spacing:0.05em; text-transform:uppercase; color:#F8F9FA; margin-bottom:6px; font-weight:600;'>Giorni da Analizzare</p>", unsafe_allow_html=True)
         filtro_tempo = st.selectbox(
             "Intervallo Analisi:",
             ["Ultimi 30 giorni", "Ultimi 60 giorni", "Ultimi 90 giorni (Tutto)"],
             label_visibility="collapsed"
         )
-
-        st.markdown("---")
-
-        # =========================================================
-        # PARTE 3: NAVIGAZIONE PAGINE (In basso)
-        # =========================================================
-        st.markdown("<p style='font-family:\"Oswald\",sans-serif; font-size:0.85rem; letter-spacing:0.05em; text-transform:uppercase; color:#F8F9FA; margin-bottom:6px; font-weight:600;'>Navigazione Pagine</p>", unsafe_allow_html=True)
-        st.page_link("app.py", label="Dashboard Principale", icon="🏠")
-        st.page_link("pages/01_analisi_stato_di_forma.py", label="Analisi Stato di Forma", icon="📊")
-        st.page_link("pages/05_consiglio_finale.py", label="Consiglio Finale & Report", icon="🎯")
 
     # Gestione filtraggio dataset in base alla scelta temporale
     df_full = st.session_state.dati.copy()
