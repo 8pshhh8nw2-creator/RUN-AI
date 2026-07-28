@@ -135,7 +135,7 @@ else:
     .lane-chip .zn {{ font-family:'Inter',sans-serif; font-weight:600; color:{TXT_PRIMARY}; margin:6px 0 6px 0; font-size:.95em; }}
     .lane-chip .zd {{ font-family:'Inter',sans-serif; color:{TXT_SECONDARY}; font-size:.85em; line-height:1.4; }}
     
-    .chart-caption {{ border-top: 1px solid {PANEL_BD}; margin-top: 10px; padding-top: 10px; color:{TXT_SECONDARY}; font-family:'Inter',sans-serif; font-size:.85rem; line-height:1.55; }}
+    .chart-caption {{ border-top: 1px solid {PANEL_BD}; margin-top: 10px; padding-top: 10px; color:{TXT_SECONDARY}; font-family:'Inter',sans-serif; font-size:.9rem; line-height:1.55; }}
     </style>
     """)
 
@@ -432,7 +432,7 @@ else:
             """)
             st.plotly_chart(fig, use_container_width=True, config=config_pulita)
             md(f"""
-                <div class='panel-body' style='padding-top:0;'><div class='chart-caption'><strong>Insight Clinico:</strong><br>{spiegazione}</div></div>
+                <div class='panel-body' style='padding-top:0;'><div class='chart-caption'><strong>Cosa significa questo grafico?</strong><br>{spiegazione}</div></div>
             </div>
             """)
         figs_per_export.append(fig)
@@ -463,19 +463,15 @@ else:
     
     stress_oggi = r.get('stress_lavoro', 5)
     if ore_s >= media_sonno_90 and stress_oggi <= media_stress_90:
-        quad = "Ottimale (Alto recupero, Basso stress)."
-        azione = "Sei nel quadrante d'oro. Il corpo è pronto per carichi pesanti e adattamenti strutturali."
+        quad_txt = "🟢 **Stato Ottimale:** Hai dormito bene e sei poco stressato. Il tuo corpo è pronto per un allenamento intenso."
     elif ore_s >= media_sonno_90 and stress_oggi > media_stress_90:
-        quad = "Compensato (Alto recupero, Alto stress)."
-        azione = "Stai dormendo abbastanza per tamponare lo stress lavorativo, ma il sistema nervoso è sotto pressione."
+        quad_txt = "🟡 **Attenzione:** Stai dormendo abbastanza, ma lo stress lavorativo è alto. Non esagerare con l'intensità della corsa oggi."
     elif ore_s < media_sonno_90 and stress_oggi <= media_stress_90:
-        quad = "Vulnerabile (Basso recupero, Basso stress)."
-        azione = "Il livello di stress è OK, ma manca materia prima (sonno) per riparare i muscoli."
+        quad_txt = "🟠 **Recupero Parziale:** Sei poco stressato ma hai dormito poco. I muscoli non sono carichi al 100%, fai un allenamento più leggero."
     else:
-        quad = "Critico (Basso recupero, Alto stress)."
-        azione = "Zona rossa di infortunio. Cortisolo alto e recupero cellulare assente. Riposo consigliato."
+        quad_txt = "🔴 **Stato Critico:** Hai dormito poco e sei molto stressato. Sei a forte rischio infortunio: oggi è meglio riposare o solo camminare."
         
-    chart_card(c_adv1, "Matrice di Prontezza", fig_matrix, f"Stato: {quad}<br>{azione}", col)
+    chart_card(c_adv1, "Matrice: Sonno vs Stress", fig_matrix, quad_txt, col)
 
     # 2. ACUTE TO CHRONIC WORKLOAD RATIO (ACWR Proxy)
     if 'RPE' in df_adv.columns:
@@ -490,19 +486,19 @@ else:
             line=dict(color=C_AMBRA, width=2, shape='spline')
         ))
         fig_acwr.add_hline(y=1.3, line_dash="dash", line_color=C_STRESS, line_width=1)
-        fig_acwr.update_layout(**layout_base, yaxis_title="Ratio (Acuto/Cronico)", yaxis=dict(range=[0.5, 2.0]))
+        fig_acwr.update_layout(**layout_base, yaxis_title="Rapporto Fatica", yaxis=dict(range=[0.5, 2.0]))
         
         acwr_attuale = df_adv['ACWR'].iloc[-1] if not df_adv['ACWR'].empty else 1.0
         if acwr_attuale > 1.3:
-            acwr_txt = "ATTENZIONE: Ratio sopra 1.3. Stai aumentando il carico troppo in fretta. Rischio tendiniti."
+            acwr_txt = "⚠️ La linea ha superato la zona verde. Significa che **ti stai affaticando troppo velocemente** rispetto al mese scorso. Rallenta o rischi un infortunio (es. tendinite)!"
         elif acwr_attuale < 0.8:
-            acwr_txt = "Ratio sotto 0.8. Sei in fase di de-training (scarico prolungato)."
+            acwr_txt = "🔵 La linea è sotto la zona verde. Ti stai allenando meno del solito o troppo piano. Potresti perdere un po' di forma se continui così."
         else:
-            acwr_txt = "Ratio nella 'Sweet Spot' (0.8 - 1.3). Progressione del carico bilanciata."
+            acwr_txt = "🟢 Perfetto! La linea è all'interno della zona verde. Stai aumentando o mantenendo la fatica in modo **corretto e graduale**."
             
-        chart_card(c_adv2, "ACWR (Carico Acuto vs Cronico)", fig_acwr, acwr_txt, C_AMBRA)
+        chart_card(c_adv2, "Carico Recente vs Mensile", fig_acwr, acwr_txt, C_AMBRA)
     else:
-        c_adv2.warning("Dati RPE insufficienti per calcolo ACWR.")
+        c_adv2.warning("Dati di fatica insufficienti per questo grafico.")
 
     # 3. PATTERN SETTIMANALE DELLO STRESS
     if 'Stress Lavoro' in df_adv.columns:
@@ -527,8 +523,8 @@ else:
             
             fig_week.update_layout(**layout_base, yaxis=dict(range=[0, 10]), xaxis_title="Giorno Settimana", barmode='overlay')
             
-            adv_week = f"Il {giorno_max['Nome_Giorno']} è mediamente la tua giornata con maggior carico mentale. Tieni questo giorno per riposo o Easy Run."
-            chart_card(c_adv3, "Pattern Stress Settimanale", fig_week, adv_week, C_STRESS)
+            adv_week = f"Analizzando la tua storia, il **{giorno_max['Nome_Giorno']}** è di solito il giorno in cui accumuli più stress mentale. Ti consiglio di tenere questo giorno per il riposo o per corsette molto facili."
+            chart_card(c_adv3, "Stress medio per giorno", fig_week, adv_week, C_STRESS)
         else:
             c_adv3.warning("Dati storici insufficienti.")
     else:
@@ -539,7 +535,7 @@ else:
     # =========================================================
     # SEZIONE 2: TREND STORICI
     # =========================================================
-    section_head("Trend Storici", "Andamento Base (90 giorni)", "Evoluzione fisiologica per individuare sovrallenamento o deficit.")
+    section_head("Trend Storici", "Andamento degli ultimi 3 mesi", "Come cambiano le tue abitudini di base nel tempo.")
 
     df_plot = df_adv.tail(90)
 
@@ -557,9 +553,9 @@ else:
             x=df_plot['Data_Chart'], y=df_plot['Ore Sonno'], mode='lines',
             line=dict(color=C_SONNO, width=2), fill='tozeroy', fillcolor='rgba(46,144,255,0.08)'
         ))
-        fig_t1.update_layout(**layout_base, yaxis_title="ore")
-        spieg_sonno = "Un trend in calo indica che non stai compensando il volume. Dormire di più è l'unica via naturale." if trend_sonno < -0.3 else "Sonno stabile. Ottimo substrato per adattamenti positivi."
-        chart_card(r1c1, "Trend Sonno Temporale", fig_t1, spieg_sonno, C_SONNO)
+        fig_t1.update_layout(**layout_base, yaxis_title="Ore a notte")
+        spieg_sonno = "⚠️ Attenzione: la linea scende. Ultimamente stai dormendo meno del solito. Cerca di andare a letto un po' prima per far recuperare i muscoli." if trend_sonno < -0.3 else "🟢 Bene! Le tue ore di sonno sono costanti. Stai dando al corpo il tempo giusto per ricaricarsi e ripararsi."
+        chart_card(r1c1, "Andamento del Sonno", fig_t1, spieg_sonno, C_SONNO)
 
     if 'Stress Lavoro' in df_plot.columns:
         trend_stress = calcola_trend(df_plot['Stress Lavoro'])
@@ -567,9 +563,9 @@ else:
             x=df_plot['Data_Chart'], y=df_plot['Stress Lavoro'], mode='lines',
             line=dict(color=C_STRESS, width=2), fill='tozeroy', fillcolor='rgba(255,69,58,0.08)'
         ))
-        fig_t2.update_layout(**layout_base, yaxis=dict(range=[0, 10]), yaxis_title="punti")
-        spieg_stress = "Stress cronico in ascesa. Se la linea sale, il volume di allenamento DEVE scendere." if trend_stress > 0.5 else "Carico mentale sotto controllo."
-        chart_card(r1c2, "Trend Stress Lavorativo", fig_t2, spieg_stress, C_STRESS)
+        fig_t2.update_layout(**layout_base, yaxis=dict(range=[0, 10]), yaxis_title="Livello Stress (0-10)")
+        spieg_stress = "⚠️ La linea sale, il tuo stress generale sta aumentando. Quando la mente è stanca, il corpo si fa male più facilmente: abbassa l'intensità della corsa." if trend_stress > 0.5 else "🟢 Il tuo livello di stress lavorativo e quotidiano è stabile e sotto controllo."
+        chart_card(r1c2, "Andamento dello Stress", fig_t2, spieg_stress, C_STRESS)
 
     if 'RPE' in df_plot.columns:
         trend_rpe = calcola_trend(df_plot['RPE'])
@@ -577,9 +573,9 @@ else:
             x=df_plot['Data_Chart'], y=df_plot['RPE'], mode='lines',
             line=dict(color=C_RPE, width=2), fill='tozeroy', fillcolor='rgba(48,209,88,0.08)'
         ))
-        fig_t3.update_layout(**layout_base, yaxis=dict(range=[0, 10]), yaxis_title="punti")
-        spieg_rpe = "Se l'RPE medio si alza a parità di passi, sei in over-reaching non funzionale. Valuta un deload." if trend_rpe > 0.5 else "Mantenimento ottimale dello sforzo."
-        chart_card(r1c3, "Trend Sforzo Percepito (RPE)", fig_t3, spieg_rpe, C_RPE)
+        fig_t3.update_layout(**layout_base, yaxis=dict(range=[0, 10]), yaxis_title="Fatica Percepita (0-10)")
+        spieg_rpe = "⚠️ La linea sale. Stai facendo molta più fatica del solito negli allenamenti. È il segnale che hai bisogno di scaricare: fai un paio di giorni leggeri." if trend_rpe > 0.5 else "🟢 La fatica che provi dopo gli allenamenti è costante. Il tuo corpo sta gestendo bene i chilometri."
+        chart_card(r1c3, "Andamento della Fatica", fig_t3, spieg_rpe, C_RPE)
 
     md("<div style='height:34px;'></div>")
 
