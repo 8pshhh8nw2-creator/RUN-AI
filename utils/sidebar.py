@@ -178,12 +178,13 @@ def sidebar_comune():
             </style>
         """, unsafe_allow_html=True)
 
-        st.page_link("app.py", label="Home")
-        st.page_link("pages/01_analisi_stato_di_forma.py", label="Stato di Forma")
-        st.page_link("pages/02_carico_settimanale.py", label="Carico Settimanale")
-        st.page_link("pages/03_progressione_e_ritmi.py", label="Progressione e Ritmi")
-        st.page_link("pages/04_prevenzione_infortuni.py", label="Prevenzione Infortuni")
-        st.page_link("pages/05_consiglio_finale.py", label="Consiglio Finale")
+        st.page_link("0_Home.py", label="Home")
+        st.page_link("1_Stato_Forma.py", label="Stato Forma")
+        st.page_link("2_Statistiche_Analisi.py", label="Statistiche Analisi")
+        st.page_link("3_KPI_Dashboard.py", label="KPI Dashboard")
+        st.page_link("4_Analisi_Predittiva_ML.py", label="Analisi Predittiva ML")
+        st.page_link("5_Consiglio_Finale.py", label="Consiglio Finale")
+        st.page_link("6_ComputerVision.py", label="Computer Vision")
 
     df_full = st.session_state.dati.copy()
     if filtro_tempo == "Ultimi 30 giorni":
