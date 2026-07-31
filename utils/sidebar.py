@@ -217,14 +217,32 @@ def sidebar_comune():
         st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
         st.markdown("<p class='runai-label'>Navigazione</p>", unsafe_allow_html=True)
 
-        st.page_link("app.py", label="Home", icon="🏠")
-        st.page_link("pages/0_Home.py", label="Panoramica", icon="🧾")
-        st.page_link("pages/1_Stato_Forma.py", label="Stato Forma", icon="📈")
-        st.page_link("pages/2_Statistiche_Analisi.py", label="Statistiche Analisi", icon="📊")
-        st.page_link("pages/3_KPI_Dashboard.py", label="KPI Dashboard", icon="🧭")
-        st.page_link("pages/4_Analisi_Predittiva_ML.py", label="Analisi Predittiva ML", icon="🤖")
-        st.page_link("pages/5_Consiglio_Finale.py", label="Consiglio Finale", icon="💡")
-        st.page_link("pages/6_ComputerVision.py", label="Computer Vision", icon="👁️")
+        # Lista delle pagine attese: (percorso_file, etichetta, icona)
+        pagine = [
+            ("app.py", "Home"),
+            ("pages/0_Home.py", "Panoramica"),
+            ("pages/1_Stato_Forma.py", "Stato Forma"),
+            ("pages/2_Statistiche_Analisi.py", "Statistiche Analisi"),
+            ("pages/3_KPI_Dashboard.py", "KPI Dashboard"),
+            ("pages/4_Analisi_Predittiva_ML.py", "Analisi Predittiva ML"),
+            ("pages/5_Consiglio_Finale.py", "Consiglio Finale"),
+            ("pages/6_ComputerVision.py", "Computer Vision"),
+        ]
+
+        for percorso, etichetta, icona in pagine:
+            try:
+                st.page_link(percorso, label=etichetta, icon=icona)
+            except Exception:
+                # Il file della pagina non esiste o ha un nome diverso
+                # (es. rinominato, spazio/carattere errato, file mancante nel repo).
+                # Non blocchiamo tutta l'app: mostriamo un avviso e continuiamo.
+                st.markdown(
+                    f"<div style='padding:9px 10px; border-radius:8px; color:#FF6B6B; "
+                    f"font-family:\"JetBrains Mono\",monospace; font-size:0.78em;'>"
+                    f"⚠️ {etichetta} non trovata ({percorso})</div>",
+                    unsafe_allow_html=True
+                )
+
         st.markdown("</div>", unsafe_allow_html=True)
 
     df_full = st.session_state.dati.copy()
