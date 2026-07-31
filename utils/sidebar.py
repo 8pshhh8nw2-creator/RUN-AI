@@ -219,27 +219,30 @@ def sidebar_comune():
 
         # Lista delle pagine attese: (percorso_file, etichetta, icona)
         pagine = [
-            ("app.py", "Home"),
-            ("pages/0_Home.py", "Panoramica"),
-            ("pages/1_Stato_Forma.py", "Stato Forma"),
-            ("pages/2_Statistiche_Analisi.py", "Statistiche Analisi"),
-            ("pages/3_KPI_Dashboard.py", "KPI Dashboard"),
-            ("pages/4_Analisi_Predittiva_ML.py", "Analisi Predittiva ML"),
-            ("pages/5_Consiglio_Finale.py", "Consiglio Finale"),
-            ("pages/6_ComputerVision.py", "Computer Vision"),
+            ("app.py", "Home", "🏠"),
+            ("pages/0_Home.py", "Panoramica", "🧾"),
+            ("pages/1_Stato_Forma.py", "Stato Forma", "📈"),
+            ("pages/2_Statistiche_Analisi.py", "Statistiche Analisi", "📊"),
+            ("pages/3_KPI_Dashboard.py", "KPI Dashboard", "🧭"),
+            ("pages/4_Analisi_Predittiva_ML.py", "Analisi Predittiva ML", "🤖"),
+            ("pages/5_Consiglio_Finale.py", "Consiglio Finale", "💡"),
+            ("pages/6_ComputerVision.py", "Computer Vision", "👁️"),
         ]
 
-        for percorso, etichetta, icona in pagine:
+        for voce in pagine:
             try:
+                # Unpacking protetto: se la tupla non ha 3 elementi
+                # (es. modificata a mano nel repo), non crasha tutta l'app.
+                percorso, etichetta, icona = voce
                 st.page_link(percorso, label=etichetta, icon=icona)
-            except Exception:
-                # Il file della pagina non esiste o ha un nome diverso
-                # (es. rinominato, spazio/carattere errato, file mancante nel repo).
-                # Non blocchiamo tutta l'app: mostriamo un avviso e continuiamo.
+            except Exception as e:
+                etichetta_sicura = voce[1] if isinstance(voce, (list, tuple)) and len(voce) > 1 else str(voce)
+                percorso_sicuro = voce[0] if isinstance(voce, (list, tuple)) and len(voce) > 0 else "?"
                 st.markdown(
                     f"<div style='padding:9px 10px; border-radius:8px; color:#FF6B6B; "
-                    f"font-family:\"JetBrains Mono\",monospace; font-size:0.78em;'>"
-                    f"⚠️ {etichetta} non trovata ({percorso})</div>",
+                    f"font-family:\"JetBrains Mono\",monospace; font-size:0.72em;'>"
+                    f"⚠️ {etichetta_sicura} non disponibile ({percorso_sicuro})<br>"
+                    f"<span style='color:#8792A3; font-size:0.9em;'>{type(e).__name__}: {e}</span></div>",
                     unsafe_allow_html=True
                 )
 
