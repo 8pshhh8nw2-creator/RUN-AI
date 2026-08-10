@@ -45,11 +45,12 @@ elif pagina == "ANALISI STATO DI FORMA":
     st.title("Stato di forma")
 
 elif pagina == "STATISTICHE ANALISI":
-    def header_block(title, subtitle, description, image, category):
-    st.markdown(f"### {category}")
-    st.title(title)
-    st.markdown(description)
-    st.markdown("---")
+    header_block(
+        "Modulo 02 — Analytics Storico",
+        "STATISTICHE ANALISI",
+        f"Volume, intensità e recupero filtrati per: **{filtro_tempo}**.",
+        IMG_HERO_STATS, "Historical Metrics"
+    )
 
     st.subheader("KPI Panoramica")
     col_m1, col_m2, col_m3, col_m4 = st.columns(4)
