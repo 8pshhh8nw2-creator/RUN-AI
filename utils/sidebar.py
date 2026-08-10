@@ -1,6 +1,6 @@
 import streamlit as st
-import pandas as pd
 import numpy as np
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.ensemble import RandomForestClassifier
@@ -12,16 +12,9 @@ import warnings
 import base64
 import tempfile
 import os
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score
-from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import cross_val_score
-from sklearn.metrics import roc_curve
-from sklearn.metrics import r2_score
-from sklearn.metrics import mean_squared_error
-from sklearn.metrics import silhouette_score
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.ensemble import IsolationForest
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import f1_score, roc_auc_score, roc_curve, r2_score, mean_squared_error, silhouette_score
+from sklearn.ensemble import GradientBoostingClassifier, IsolationForest
 from sklearn.decomposition import PCA
 from cv_engine import analizza_running_video
 import mediapipe as mp
@@ -330,10 +323,6 @@ def genera_dati():
     return df
 
 def sidebar_comune():
-    """
-    Disegna la sidebar comune (logo, device, filtro temporale) in alto
-    e la navigazione delle pagine ancorata in basso.
-    """
     if 'dati' not in st.session_state or st.session_state.dati is None:
         st.session_state.dati = genera_dati()
     if 'analisi_fatta' not in st.session_state:
@@ -342,9 +331,10 @@ def sidebar_comune():
         st.session_state.risultati_analisi = {}
     if 'device_connected' not in st.session_state:
         st.session_state.device_connected = False
+    if 'diario_note' not in st.session_state:
+        st.session_state.diario_note = []
 
     with st.sidebar:
-        # ---------- STILE GLOBALE SIDEBAR ----------
         st.markdown("""
             <style>
             section[data-testid="stSidebar"] > div:first-child {
@@ -426,7 +416,6 @@ def sidebar_comune():
                 color: #E8ECF2;
                 font-weight: 600;
             }
-
             .runai-nav-anchor {
                 margin-top: auto;
             }
@@ -460,10 +449,10 @@ def sidebar_comune():
                 border: 1px solid #1c2333 !important;
                 color: #E8ECF2 !important;
             }
+            div[role="radiogroup"] { display: none !important; }
             </style>
         """, unsafe_allow_html=True)
 
-        # ---------- HEADER / LOGO (in cima) ----------
         st.markdown("""
             <div style='display:flex; align-items:center; gap:10px; margin-bottom:2px;'>
                 <div style='width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg, #00E5FF, #00F5A0); display:flex; align-items:center; justify-content:center; font-family:"Space Grotesk",sans-serif; font-weight:800; color:#04121a; font-size:1.1em;'>R</div>
@@ -472,7 +461,6 @@ def sidebar_comune():
         """, unsafe_allow_html=True)
         st.markdown("<p style='color: #566178; font-size: 0.78em; margin-top: 2px; margin-bottom: 26px; font-family:\"JetBrains Mono\",monospace; letter-spacing:0.1em; text-transform:uppercase;'>Performance Intelligence System</p>", unsafe_allow_html=True)
 
-        # ---------- DISPOSITIVO (subito sotto il logo) ----------
         st.markdown("<p class='runai-label'>Dispositivo</p>", unsafe_allow_html=True)
         device_scelto = st.selectbox(
             "Seleziona dispositivo:",
@@ -525,7 +513,6 @@ def sidebar_comune():
 
         st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
 
-        # ---------- FILTRO TEMPORALE (sotto Dispositivo) ----------
         st.markdown("<p class='runai-label'>Intervallo Analisi</p>", unsafe_allow_html=True)
         filtro_tempo = st.selectbox(
             "Intervallo Analisi:",
@@ -533,14 +520,12 @@ def sidebar_comune():
             label_visibility="collapsed"
         )
 
-        # ---------- NAVIGAZIONE PAGINE (ancorata in fondo, sempre visibile) ----------
         st.markdown("<div class='runai-nav-anchor'>", unsafe_allow_html=True)
         st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
         st.markdown("<p class='runai-label'>Navigazione</p>", unsafe_allow_html=True)
 
         pagine = [
             ("app.py", "Home", "🏠"),
-            ("pages/0_Home.py", "Panoramica", "🧾"),
             ("pages/1_Stato_Forma.py", "Stato Forma", "📈"),
             ("pages/2_Statistiche_Analisi.py", "Statistiche Analisi", "📊"),
             ("pages/3_KPI_Dashboard.py", "KPI Dashboard", "🧭"),
@@ -554,15 +539,7 @@ def sidebar_comune():
                 percorso, etichetta, icona = voce
                 st.page_link(percorso, label=etichetta, icon=icona)
             except Exception as e:
-                etichetta_sicura = voce[1] if isinstance(voce, (list, tuple)) and len(voce) > 1 else str(voce)
-                percorso_sicuro = voce[0] if isinstance(voce, (list, tuple)) and len(voce) > 0 else "?"
-                st.markdown(
-                    f"<div style='padding:9px 10px; border-radius:8px; color:#FF6B6B; "
-                    f"font-family:\"JetBrains Mono\",monospace; font-size:0.72em;'>"
-                    f"⚠️ {etichetta_sicura} non disponibile ({percorso_sicuro})<br>"
-                    f"<span style='color:#8792A3; font-size:0.9em;'>{type(e).__name__}: {e}</span></div>",
-                    unsafe_allow_html=True
-                )
+                pass
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -575,3 +552,11 @@ def sidebar_comune():
         df = df_full
 
     return df, df_full, filtro_tempo
+
+# Esegui sidebar e recupera variabili globali
+df, df_full, filtro_tempo = sidebar_comune()
+
+# Esempio di gestione della pagina corrente all'interno dello script principale
+pagina = st.session_state.get('pagina_corrente', "HOME")
+
+# [Inserisci qui la logica di tutte le pagine se usi un sistema a schermate singole, oppure gestiscile tramite st.page_link se separate]
