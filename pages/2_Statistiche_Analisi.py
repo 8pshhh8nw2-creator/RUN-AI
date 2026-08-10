@@ -36,8 +36,24 @@ try:
 except ImportError:
     SHAP_AVAILABLE = False
 
+# Definizione di sicurezza per evitare il NameError
+def header_block(title, subtitle, description, image, category):
+    st.markdown(f"### {category}")
+    st.title(title)
+    st.markdown(description)
+    st.markdown("---")
+
+# Variabili di fallback se non definite nel file principale
 if 'pagina' not in locals():
     pagina = "STATISTICHE ANALISI"
+if 'filtro_tempo' not in locals():
+    filtro_tempo = "Ultimi 30 giorni"
+if 'IMG_HERO_STATS' not in locals():
+    IMG_HERO_STATS = ""
+if 'style_fig' not in globals():
+    def style_fig(fig):
+        fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+        return fig
 
 if pagina == "HOME":
     st.title("Home Page")
