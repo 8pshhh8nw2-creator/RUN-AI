@@ -21,8 +21,20 @@ import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision as mp_vision
 
-# Indici landmark MediaPipe Pose rilevanti (BlazePose 33 punti)
-LM = mp_vision.PoseLandmark
+# Indici numerici standard dei landmark di MediaPipe Pose (BlazePose 33 punti)
+class LM:
+    LEFT_SHOULDER = 11
+    RIGHT_SHOULDER = 12
+    LEFT_HIP = 23
+    RIGHT_HIP = 24
+    LEFT_KNEE = 25
+    RIGHT_KNEE = 26
+    LEFT_ANKLE = 27
+    RIGHT_ANKLE = 28
+    LEFT_HEEL = 29
+    RIGHT_HEEL = 30
+    LEFT_FOOT_INDEX = 31
+    RIGHT_FOOT_INDEX = 32
 
 _MODEL_URL = (
     "https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
@@ -98,11 +110,18 @@ def _estrai_landmark_video(video_path, min_visibilita=0.5, max_frame=600):
             if out.pose_landmarks:
                 landmark_list = out.pose_landmarks[0]  # prima persona rilevata
                 pts = {}
-                for lm_id in LM:
-                    p = landmark_list[lm_id.value]
+                for lm_id in [
+                    LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER,
+                    LM.LEFT_HIP, LM.RIGHT_HIP,
+                    LM.LEFT_KNEE, LM.RIGHT_KNEE,
+                    LM.LEFT_ANKLE, LM.RIGHT_ANKLE,
+                    LM.LEFT_HEEL, LM.RIGHT_HEEL,
+                    LM.LEFT_FOOT_INDEX, LM.RIGHT_FOOT_INDEX
+                ]:
+                    p = landmark_list[lm_id]
                     visibilita = getattr(p, "visibility", 1.0)
                     if visibilita >= min_visibilita:
-                        pts[lm_id.value] = (p.x * frame_w, p.y * frame_h, visibilita)
+                        pts[lm_id] = (p.x * frame_w, p.y * frame_h, visibilita)
                 if pts:
                     risultati.append({"idx": idx, "t": idx / fps, "pts": pts})
             idx += 1
@@ -123,11 +142,11 @@ def _scegli_lato(risultati):
     vis_dx, vis_sx, n_dx, n_sx = 0.0, 0.0, 0, 0
     for r in risultati:
         pts = r["pts"]
-        if LM.RIGHT_HIP.value in pts:
-            vis_dx += pts[LM.RIGHT_HIP.value][2]
+        if LM.RIGHT_HIP in pts:
+            vis_dx += pts[LM.RIGHT_HIP][2]
             n_dx += 1
-        if LM.LEFT_HIP.value in pts:
-            vis_sx += pts[LM.LEFT_HIP.value][2]
+        if LM.LEFT_HIP in pts:
+            vis_sx += pts[LM.LEFT_HIP][2]
             n_sx += 1
     media_dx = vis_dx / n_dx if n_dx else 0
     media_sx = vis_sx / n_sx if n_sx else 0
@@ -137,12 +156,12 @@ def _scegli_lato(risultati):
 def _serie(risultati, key, lato_suffix):
     """Estrae la serie temporale (idx, x, y) di un landmark, ignorando i frame mancanti."""
     idmap = {
-        "shoulder": LM.RIGHT_SHOULDER.value if lato_suffix == "DX" else LM.LEFT_SHOULDER.value,
-        "hip": LM.RIGHT_HIP.value if lato_suffix == "DX" else LM.LEFT_HIP.value,
-        "knee": LM.RIGHT_KNEE.value if lato_suffix == "DX" else LM.LEFT_KNEE.value,
-        "ankle": LM.RIGHT_ANKLE.value if lato_suffix == "DX" else LM.LEFT_ANKLE.value,
-        "heel": LM.RIGHT_HEEL.value if lato_suffix == "DX" else LM.LEFT_HEEL.value,
-        "toe": LM.RIGHT_FOOT_INDEX.value if lato_suffix == "DX" else LM.LEFT_FOOT_INDEX.value,
+        "shoulder": LM.RIGHT_SHOULDER if lato_suffix == "DX" else LM.LEFT_SHOULDER,
+        "hip": LM.RIGHT_HIP if lato_suffix == "DX" else LM.LEFT_HIP,
+        "knee": LM.RIGHT_KNEE if lato_suffix == "DX" else LM.LEFT_KNEE,
+        "ankle": LM.RIGHT_ANKLE if lato_suffix == "DX" else LM.LEFT_ANKLE,
+        "heel": LM.RIGHT_HEEL if lato_suffix == "DX" else LM.LEFT_HEEL,
+        "toe": LM.RIGHT_FOOT_INDEX if lato_suffix == "DX" else LM.LEFT_FOOT_INDEX,
     }
     lm_id = idmap[key]
     out = []
@@ -177,7 +196,6 @@ def analizza_running_video(video_path, altezza_cm=175.0):
         raise ValueError("Dati insufficienti sul piede/anca per calcolare la falcata.")
 
     # --- Calibrazione pixel -> cm usando l'altezza dichiarata dall'utente ---
-    # Altezza scheletro = distanza media spalla-caviglia (proxy di statura in verticale)
     alt_px = []
     idx_to_shoulder = {i: (x, y) for i, x, y in shoulder}
     idx_to_ankle = {i: (x, y) for i, x, y in ankle}
@@ -188,8 +206,8 @@ def analizza_running_video(video_path, altezza_cm=175.0):
             alt_px.append(abs(ay - sy))
     if not alt_px:
         raise ValueError("Impossibile calibrare la scala pixel/cm dal video.")
-    px_riferimento = float(np.percentile(alt_px, 90))  # punto di massima estensione verticale
-    px_per_cm = px_riferimento / (altezza_cm * 0.87)  # ~87% statura = spalla-caviglia
+    px_riferimento = float(np.percentile(alt_px, 90))
+    px_per_cm = px_riferimento / (altezza_cm * 0.87)
 
     # --- Individuazione dei momenti di appoggio (heel strike) ---
     idx_heel = np.array([i for i, x, y in heel])
@@ -206,10 +224,9 @@ def analizza_running_video(video_path, altezza_cm=175.0):
     if len(picchi) < 1:
         raise ValueError("Nessun appoggio del piede rilevato: video troppo breve o corridore non visibile per un ciclo completo.")
 
-    # Scarta il primo/ultimo 10% dei frame (partenza/arresto, spesso rumorosi)
     n_frame_tot = risultati[-1]["idx"]
     picchi_validi = [p for p in picchi if 0.1 * n_frame_tot < p < 0.9 * n_frame_tot] or picchi
-    frame_strike = int(picchi_validi[len(picchi_validi) // 2])  # appoggio centrale, il più stabile
+    frame_strike = int(picchi_validi[len(picchi_validi) // 2])
 
     def pos(serie, frame_idx):
         d = {i: (x, y) for i, x, y in serie}
@@ -226,14 +243,11 @@ def analizza_running_video(video_path, altezza_cm=175.0):
     toe_s = pos(toe, frame_strike)
     shoulder_s = pos(shoulder, frame_strike)
 
-    # --- Angolo ginocchio all'appoggio ---
+    # --- Metriche biomeccaniche ---
     angolo_ginocchio = _angolo(hip_s[:2], knee_s[:2], ankle_s[:2])
-
-    # --- Inclinazione busto (spalla-anca vs verticale) ---
     inclinazione_busto = _angolo_verticale(hip_s[:2], shoulder_s[:2])
 
-    # --- Tipo di appoggio: confronto altezza tallone vs punta al momento dello strike ---
-    diff_talloe = heel_s[1] - toe_s[1]  # y maggiore = più in basso/vicino al suolo
+    diff_talloe = heel_s[1] - toe_s[1]
     if diff_talloe > 0.015 * frame_h:
         tipo_appoggio = "Appoggio di Tallone Marcato (Heel Striking)"
     elif diff_talloe < -0.015 * frame_h:
@@ -241,43 +255,29 @@ def analizza_running_video(video_path, altezza_cm=175.0):
     else:
         tipo_appoggio = "Appoggio di Mesopiede (Midfoot Striking)"
 
-    # --- Overstride: distanza orizzontale caviglia-anca al momento dello strike, in cm ---
     overstride_px = abs(ankle_s[0] - hip_s[0])
     overstride_cm = overstride_px / px_per_cm
 
-    # --- Oscillazione verticale: ampiezza del movimento verticale dell'anca su un ciclo ---
     finestra_ciclo = [h for h in hip if abs(h[0] - frame_strike) <= int(fps * 0.6)]
     y_hip_ciclo = [y for i, x, y in finestra_ciclo] or [hip_s[1]]
     oscillazione_px = max(y_hip_ciclo) - min(y_hip_ciclo)
     oscillazione_verticale = oscillazione_px / px_per_cm
 
-    # --- Angoli di ginocchio nelle altre fasi del passo ---
-    # Mid-stance: punto di massimo abbassamento dell'anca dopo lo strike (picco di carico)
     post_strike = [h for h in hip if frame_strike <= h[0] <= frame_strike + int(fps * 0.3)]
-    if post_strike:
-        f_midstance = max(post_strike, key=lambda h: h[2])[0]
-    else:
-        f_midstance = frame_strike
+    f_midstance = max(post_strike, key=lambda h: h[2])[0] if post_strike else frame_strike
     angolo_midstance = _angolo(pos(hip, f_midstance)[:2], pos(knee, f_midstance)[:2], pos(ankle, f_midstance)[:2])
 
-    # Toe-off: punta ancora bassa ma prossima al sollevamento, ~0.35-0.5 ciclo dopo lo strike
     finestra_toeoff = [t for t in toe if frame_strike + int(fps * 0.15) <= t[0] <= frame_strike + int(fps * 0.45)]
-    if finestra_toeoff:
-        f_toeoff = min(finestra_toeoff, key=lambda t: t[2])[0]  # punta più in alto = distacco
-    else:
-        f_toeoff = frame_strike + int(fps * 0.3)
+    f_toeoff = min(finestra_toeoff, key=lambda t: t[2])[0] if finestra_toeoff else frame_strike + int(fps * 0.3)
     angolo_toeoff = _angolo(pos(hip, f_toeoff)[:2], pos(knee, f_toeoff)[:2], pos(ankle, f_toeoff)[:2])
 
-    # Swing: massima flessione del ginocchio (angolo minimo) nella finestra successiva
     finestra_swing = [k for k in knee if frame_strike + int(fps * 0.3) <= k[0] <= frame_strike + int(fps * 0.7)]
     angoli_swing = []
     for i, kx, ky in finestra_swing:
         angoli_swing.append((_angolo(pos(hip, i)[:2], (kx, ky), pos(ankle, i)[:2]), i))
     angolo_swing = min(angoli_swing)[0] if angoli_swing else 90.0
 
-    # --- Punteggi di sovraccarico articolare (euristica su feature REALI estratte) ---
-    # Nota: non è un modello ML addestrato su dataset clinici; è uno scoring
-    # basato su soglie biomeccaniche derivate dai valori misurati sul video.
+    # --- Punteggi e rischi ---
     score_ginocchio = max(0, 160 - angolo_ginocchio) * 1.4 + overstride_cm * 1.2
     score_achille = max(0, diff_talloe) / max(frame_h, 1) * 4000 + overstride_cm * 0.8
     score_anca = inclinazione_busto * 2.0
@@ -287,10 +287,8 @@ def analizza_running_video(video_path, altezza_cm=175.0):
     grezzi = np.array([score_ginocchio, score_achille, score_anca, score_schiena, score_caviglie])
     grezzi = np.clip(grezzi, 0.5, None)
     carichi_pct = (grezzi / grezzi.sum() * 100).round(1).tolist()
-
     articolazioni = ["Ginocchia", "Achille", "Anca", "Schiena", "Caviglie"]
 
-    # --- Rischio infortunio per distretto (stessa logica, ripesata su patologie tipiche) ---
     r_ginocchio = score_ginocchio * 1.3
     r_achille = score_achille * 1.2
     r_plantare = score_caviglie * 1.1 + (10 if "Avampiede" in tipo_appoggio else 0)
@@ -324,7 +322,6 @@ def analizza_running_video(video_path, altezza_cm=175.0):
         "lato_analizzato": "Destro" if lato == "DX" else "Sinistro",
         "fps_video": round(fps, 1),
         "frame_strike_analizzato": frame_strike,
-        # dati per i grafici (sostituiscono gli array hardcoded)
         "articolazioni_carico": articolazioni,
         "carichi_pct": carichi_pct,
         "fasi_gait": ["Impatto (Strike)", "Mid-Stance", "Toe-Off", "Swing"],
