@@ -26,10 +26,10 @@ from sklearn.decomposition import PCA
 from cv_engine import analizza_running_video
 import mediapipe as mp
 
-# Usa mp.solutions.pose per accedere ai Landmark della posa
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 warnings.filterwarnings('ignore')
+
 try:
     import shap
     SHAP_AVAILABLE = True
