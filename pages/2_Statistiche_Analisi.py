@@ -3,186 +3,109 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix
 import warnings
-import base64
-import tempfile
-import os
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score
-from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import cross_val_score
-from sklearn.metrics import roc_curve
-from sklearn.metrics import r2_score
-from sklearn.metrics import mean_squared_error
-from sklearn.metrics import silhouette_score
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.ensemble import IsolationForest
-from sklearn.decomposition import PCA
-from cv_engine import analizza_running_video
-import mediapipe as mp
 
-mp_pose = mp.solutions.pose
-LM = mp_pose.PoseLandmark
 warnings.filterwarnings('ignore')
 
-try:
-    import shap
-    SHAP_AVAILABLE = True
-except ImportError:
-    SHAP_AVAILABLE = False
-
-# Definizione di sicurezza per evitare il NameError
 def header_block(title, subtitle, description, image, category):
     st.markdown(f"### {category}")
     st.title(title)
     st.markdown(description)
     st.markdown("---")
 
-# Variabili di fallback se non definite nel file principale
-if 'pagina' not in locals():
-    pagina = "STATISTICHE ANALISI"
-if 'filtro_tempo' not in locals():
-    filtro_tempo = "Ultimi 30 giorni"
-if 'IMG_HERO_STATS' not in locals():
-    IMG_HERO_STATS = ""
-if 'style_fig' not in globals():
-    def style_fig(fig):
-        fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-        return fig
+def style_fig(fig):
+    fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+    return fig
 
-if pagina == "HOME":
-    st.title("Home Page")
-elif pagina == "ANALISI STATO DI FORMA":
-    st.title("Stato di forma")
+# Recupero o inizializzazione del dataframe in st.session_state
+if 'df' not in st.session_state:
+    st.session_state['df'] = pd.DataFrame(columns=[
+        'Giorno', 'Distanza (km)', 'Velocità (km/h)', 'FC Media', 
+        'RPE', 'Ore Sonno', 'Stress Lavoro', 'Rischio Infortunio'
+    ])
 
-elif pagina == "STATISTICHE ANALISI":
-    header_block(
-        "Modulo 02 — Analytics Storico",
-        "STATISTICHE ANALISI",
-        f"Volume, intensità e recupero filtrati per: **{filtro_tempo}**.",
-        IMG_HERO_STATS, "Historical Metrics"
-    )
+df = st.session_state['df']
 
-    st.subheader("KPI Panoramica")
+st.markdown("## Modulo — Analisi Stato di Formazione e Storico Allenamenti")
+st.markdown("Compila i dati della nuova sessione per aggiornare lo stato di forma e visualizzare la tabella riepilogativa.")
+
+# Form per la compilazione/aggiunta di un nuovo allenamento
+with st.form("form_nuovo_allenamento"):
+    st.subheader("Registra Nuova Sessione")
+    col_f1, col_f2, col_f3 = st.columns(3)
+    
+    with col_f1:
+        giorno_input = st.date_input("Data Allenamento")
+        distanza_input = st.number_input("Distanza (km)", min_value=0.0, max_value=100.0, value=10.0, step=0.5)
+        velocita_input = st.number_input("Velocità Media (km/h)", min_value=0.0, max_value=30.0, value=11.5, step=0.1)
+        
+    with col_f2:
+        fc_input = st.number_input("FC Media (bpm)", min_value=60, max_value=220, value=150)
+        rpe_input = st.slider("Sforzo Percepito (RPE 1-10)", min_value=1, max_value=10, value=5)
+        ore_sonno = st.number_input("Ore di Sonno", min_value=0.0, max_value=14.0, value=7.5, step=0.5)
+        
+    with col_f3:
+        stress_lavoro = st.slider("Stress Lavorativo (1-10)", min_value=1, max_value=10, value=3)
+        
+    submit_btn = st.form_submit_button("Aggiungi Allenamento e Aggiorna Stato")
+    
+    if submit_btn:
+        # Calcolo euristico automatico del rischio infortunio basato su carico e recupero
+        rischio_calc = 1 if (rpe_input >= 8 or ore_sonno < 6.0 or (stress_lavoro >= 7 and rpe_input >= 6)) else 0
+        
+        nuova_riga = pd.DataFrame([{
+            'Giorno': pd.to_datetime(giorno_input),
+            'Distanza (km)': distanza_input,
+            'Velocità (km/h)': velocita_input,
+            'FC Media': fc_input,
+            'RPE': rpe_input,
+            'Ore Sonno': ore_sonno,
+            'Stress Lavoro': stress_lavoro,
+            'Rischio Infortunio': rischio_calc
+        }])
+        
+        st.session_state['df'] = pd.concat([st.session_state['df'], nuova_riga], ignore_index=True)
+        df = st.session_state['df']
+        st.success("Sessione registrata con successo e stato di forma aggiornato!")
+
+st.markdown("---")
+st.subheader("Panoramica Stato di Forma")
+
+if df.empty:
+    st.info("Nessun allenamento registrato. Compila il modulo sopra per iniziare l'analisi.")
+else:
+    # KPI di sintesi dello stato di forma
     col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-    col_m1.metric("KM Totali", f"{df['Distanza (km)'].sum():.0f} km", filtro_tempo)
-    col_m2.metric("Sessioni", f"{len(df)}")
-    col_m3.metric("Media/Sessione", f"{df['Distanza (km)'].mean():.1f} km")
-    col_m4.metric("Giorni Rischio", f"{df['Rischio Infortunio'].sum()}")
+    col_m1.metric("KM Totali", f"{df['Distanza (km)'].sum():.1f} km")
+    col_m2.metric("Sessioni Totali", f"{len(df)}")
+    col_m3.metric("Sonno Medio", f"{df['Ore Sonno'].mean():.1f} ore")
+    col_m4.metric("Giorni a Rischio", f"{df['Rischio Infortunio'].sum()}")
 
     st.markdown("---")
-    st.subheader("Analisi Dettagliata")
+    st.subheader("Tabella Storico Allenamenti")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Volume", "Intensità", "Recupero", "Tabella Storico"])
+    # Preparazione tabella pulita per la visualizzazione
+    tab_data = df.copy()
+    tab_data['Giorno'] = pd.to_datetime(tab_data['Giorno']).dt.strftime('%d/%m/%Y')
+    tab_data['Stato Rischio'] = tab_data['Rischio Infortunio'].apply(lambda x: 'ALTO' if x == 1 else 'OK')
+    
+    colonne_visibili = ['Giorno', 'Distanza (km)', 'Velocità (km/h)', 'FC Media', 'RPE', 'Ore Sonno', 'Stress Lavoro', 'Stato Rischio']
+    tab_display = tab_data[colonne_visibili].sort_values(by='Giorno', ascending=False)
 
-    with tab1:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**KM per Settimana**")
-            df_weekly = df.groupby(df['Giorno'].dt.to_period('W')).agg({'Distanza (km)': 'sum'}).reset_index()
-            df_weekly['Giorno'] = df_weekly['Giorno'].astype(str)
-            fig1 = px.bar(df_weekly, x='Giorno', y='Distanza (km)', height=300, color='Distanza (km)', color_continuous_scale=[[0,'#0E4A57'],[1,'#00E5FF']])
-            st.plotly_chart(style_fig(fig1), use_container_width=True)
-            st.markdown("<div class='explain-text'>Verifica che le barre non presentino sbalzi improvvisi superiori al 10% da una settimana all'altra per prevenire sovraccarichi tendinei.</div>", unsafe_allow_html=True)
-
-            st.markdown("**Carico per Giorno della Settimana**")
-            df_copy = df.copy()
-            df_copy['Giorno_Settimana'] = df_copy['Giorno'].dt.day_name()
-            df_day = df_copy.groupby('Giorno_Settimana')['Distanza (km)'].mean().reindex(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']).reset_index()
-            fig_day = px.bar(df_day, x='Giorno_Settimana', y='Distanza (km)', height=300, color_discrete_sequence=['#00E5FF'])
-            st.plotly_chart(style_fig(fig_day), use_container_width=True)
-            st.markdown("<div class='explain-text'>Evidenzia la distribuzione settimanale dei chilometri. Assicurati di alternare giorni di carico a giorni di recupero attivo.</div>", unsafe_allow_html=True)
-
-        with col2:
-            st.markdown("**Distanza Cumulativa**")
-            df_copy = df.copy()
-            df_copy['Cumulativa'] = df_copy['Distanza (km)'].cumsum()
-            fig_cum = px.line(df_copy, x='Giorno', y='Cumulativa', height=300, markers=True)
-            fig_cum.update_traces(line_color="#00E5FF")
-            st.plotly_chart(style_fig(fig_cum), use_container_width=True)
-            st.markdown("<div class='explain-text'>Traccia la progressione lineare dei chilometri accumulati nel periodo di riferimento.</div>", unsafe_allow_html=True)
-
-            record_km = df.loc[df['Distanza (km)'].idxmax()]
-            record_vel = df.loc[df['Velocità (km/h)'].idxmax()]
-            giorni_attivi = (df['Distanza (km)'] > 0).sum()
-            streak = int((df['Distanza (km)'] > df['Distanza (km)'].mean()).astype(int).groupby((df['Distanza (km)'] <= df['Distanza (km)'].mean()).cumsum()).cumsum().max())
-
-            st.markdown(f"""
-            <div class='kpi-card' style='text-align:left; margin-top:10px; background: linear-gradient(135deg, #0E1420 0%, #131427 100%);'>
-                <h3 style='color:#FFB020; margin-bottom:15px;'>Bacheca Record — Periodo Selezionato</h3>
-                <div style='display:flex; justify-content:space-between; margin:8px 0; color:#B8C2D0;'><span>Corsa più lunga</span><strong style='color:#fff; font-family:"JetBrains Mono",monospace;'>{record_km['Distanza (km)']:.1f} km</strong></div>
-                <div style='display:flex; justify-content:space-between; margin:8px 0; color:#B8C2D0;'><span>Velocità massima</span><strong style='color:#fff; font-family:"JetBrains Mono",monospace;'>{record_vel['Velocità (km/h)']:.1f} km/h</strong></div>
-                <div style='display:flex; justify-content:space-between; margin:8px 0; color:#B8C2D0;'><span>Miglior striscia sopra media</span><strong style='color:#fff; font-family:"JetBrains Mono",monospace;'>{streak} allenamenti</strong></div>
-                <div style='display:flex; justify-content:space-between; margin:8px 0; color:#B8C2D0;'><span>Giorni con allenamento</span><strong style='color:#fff; font-family:"JetBrains Mono",monospace;'>{giorni_attivi} / {len(df)}</strong></div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    with tab2:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**FC Media vs Velocità**")
-            fig2 = px.scatter(df, x='Velocità (km/h)', y='FC Media', size='Distanza (km)', color='RPE', color_continuous_scale=[[0,'#0E4A57'],[0.5,'#00E5FF'],[1,'#FF6A3D']], height=300)
-            st.plotly_chart(style_fig(fig2), use_container_width=True)
-            st.markdown("<div class='explain-text'>Relazione tra velocità e frequenza cardiaca. Una maggiore efficienza sposta i punti verso destra mantenendo i battiti bassi.</div>", unsafe_allow_html=True)
-
-            st.markdown("**Ripartizione Zone Cardiache**")
-            bins = [0, 120, 140, 160, 180, 200]
-            labels = ['Z1 (Recupero)', 'Z2 (Fondo Lento)', 'Z3 (Medio/Tempo)', 'Z4 (Soglia)', 'Z5 (Max)']
-            df_copy = df.copy()
-            df_copy['Zone'] = pd.cut(df_copy['FC Media'], bins=bins, labels=labels)
-            zone_counts = df_copy['Zone'].value_counts().reset_index()
-            fig_zones = px.pie(zone_counts, values='count', names='Zone', hole=0.6, height=300, color_discrete_sequence=['#00E5FF','#00B8D4','#0E4A57','#FFB020','#FF6A3D'])
-            st.plotly_chart(style_fig(fig_zones), use_container_width=True)
-            st.markdown("<div class='explain-text'>Distribuzione percentuale del tempo trascorso nelle diverse zone cardiache di allenamento.</div>", unsafe_allow_html=True)
-
-        with col2:
-            st.markdown("**Distribuzione RPE**")
-            fig3 = px.histogram(df, x='RPE', nbins=9, height=300, color_discrete_sequence=['#00E5FF'])
-            fig3.add_vline(x=3.5, line_dash="dash", line_color="#00F5A0")
-            fig3.add_vline(x=6.5, line_dash="dash", line_color="#FF6A3D")
-            st.plotly_chart(style_fig(fig3), use_container_width=True)
-            st.markdown("<div class='explain-text'>Frequenza dei livelli di sforzo percepito registrati al termine delle sessioni.</div>", unsafe_allow_html=True)
-
-    with tab3:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**Ore di Sonno**")
-            fig_sleep = px.line(df, x='Giorno', y='Ore Sonno', height=300, markers=True)
-            fig_sleep.update_traces(line_color="#00E5FF")
-            fig_sleep.add_hline(y=7.5, line_dash="dash", line_color="#00F5A0")
-            fig_sleep.add_hline(y=6.5, line_dash="dash", line_color="#FF6A3D")
-            st.plotly_chart(style_fig(fig_sleep), use_container_width=True)
-            st.markdown("<div class='explain-text'>Monitoraggio giornaliero delle ore di sonno rispetto alle soglie di recupero raccomandate.</div>", unsafe_allow_html=True)
-
-            st.markdown("**Debito di Sonno (Rolling 7gg)**")
-            df_copy = df.copy()
-            df_copy['Debito'] = df_copy['Ore Sonno'].apply(lambda x: max(0, 7.5 - x)).rolling(7).sum()
-            fig_debt = px.area(df_copy, x='Giorno', y='Debito', height=300, color_discrete_sequence=['#FF6A3D'])
-            st.plotly_chart(style_fig(fig_debt), use_container_width=True)
-            st.markdown("<div class='explain-text'>Accumulo settimanale del deficit di sonno rispetto allo standard ottimale di 7.5 ore.</div>", unsafe_allow_html=True)
-
-        with col2:
-            st.markdown("**Sonno vs Sforzo**")
-            fig4 = px.scatter(df, x='Ore Sonno', y='RPE', size='Distanza (km)', color='Rischio Infortunio', color_continuous_scale=[[0,'#00E5FF'],[1,'#FF6A3D']], height=300)
-            fig4.add_hline(y=7, line_dash="dash", line_color="#FFB020")
-            fig4.add_vline(x=6.5, line_dash="dash", line_color="#FFB020")
-            st.plotly_chart(style_fig(fig4), use_container_width=True)
-            st.markdown("<div class='explain-text'>Correlazione bivariata tra ore di sonno e intensità dello sforzo in relazione al rischio infortuni.</div>", unsafe_allow_html=True)
-
-    with tab4:
-        st.markdown("**Storico Allenamenti Selezionati**")
-        tab_data = df[['Giorno', 'Distanza (km)', 'Velocità (km/h)', 'FC Media', 'RPE', 'Ore Sonno', 'Stress Lavoro']].tail(15).copy()
-        tab_data['Giorno'] = tab_data['Giorno'].dt.strftime('%d/%m/%y')
-        tab_data['Rischio'] = df['Rischio Infortunio'].tail(15).apply(lambda x: 'ALTO' if x == 1 else 'OK')
-
-        fig_table = go.Figure(data=[go.Table(
-            header=dict(values=list(tab_data.columns), fill_color='#111827', align='center', font=dict(color='#00E5FF', size=13, family="JetBrains Mono, monospace")),
-            cells=dict(values=[tab_data[col] for col in tab_data.columns], fill_color='#0E1420', align='center', font=dict(color='#B8C2D0', size=12, family="Inter, sans-serif"), height=30)
-        )])
-        fig_table.update_layout(margin=dict(l=0, r=0, t=0, b=0), height=500)
-        st.plotly_chart(style_fig(fig_table), use_container_width=True)
+    fig_table = go.Figure(data=[go.Table(
+        header=dict(
+            values=list(tab_display.columns), 
+            fill_color='#111827', 
+            align='center', 
+            font=dict(color='#00E5FF', size=13, family="JetBrains Mono, monospace")
+        ),
+        cells=dict(
+            values=[tab_display[col] for col in tab_display.columns], 
+            fill_color='#0E1420', 
+            align='center', 
+            font=dict(color='#B8C2D0', size=12, family="Inter, sans-serif"), 
+            height=30
+        )
+    )])
+    fig_table.update_layout(margin=dict(l=0, r=0, t=0, b=0), height=400)
+    st.plotly_chart(style_fig(fig_table), use_container_width=True)
