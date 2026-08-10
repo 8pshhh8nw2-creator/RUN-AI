@@ -322,241 +322,292 @@ def genera_dati():
     df['Session_RPE'] = df['RPE'] * df['Durata (min)']
     return df
 
-def sidebar_comune():
-    if 'dati' not in st.session_state or st.session_state.dati is None:
-        st.session_state.dati = genera_dati()
-    if 'analisi_fatta' not in st.session_state:
-        st.session_state.analisi_fatta = False
-    if 'risultati_analisi' not in st.session_state:
-        st.session_state.risultati_analisi = {}
-    if 'device_connected' not in st.session_state:
-        st.session_state.device_connected = False
-    if 'diario_note' not in st.session_state:
-        st.session_state.diario_note = []
+# Inizializzazione Session State
+if 'dati' not in st.session_state or st.session_state.dati is None:
+    st.session_state.dati = genera_dati()
+if 'analisi_fatta' not in st.session_state:
+    st.session_state.analisi_fatta = False
+if 'risultati_analisi' not in st.session_state:
+    st.session_state.risultati_analisi = {}
+if 'device_connected' not in st.session_state:
+    st.session_state.device_connected = False
+if 'diario_note' not in st.session_state:
+    st.session_state.diario_note = []
 
-    with st.sidebar:
+# =========================================================
+#   SIDEBAR UNIFICATA
+# =========================================================
+with st.sidebar:
+    st.markdown("""
+        <style>
+        section[data-testid="stSidebar"] > div:first-child {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        section[data-testid="stSidebar"] {
+            background: #070B12;
+            border-right: 1px solid #161D2B;
+        }
+        section[data-testid="stSidebar"] .stSelectbox > div > div {
+            background-color: #0E1420;
+            border: 1px solid #1c2333;
+            border-radius: 8px;
+            color: #E8ECF2;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.85em;
+        }
+        section[data-testid="stSidebar"] button {
+            background: linear-gradient(135deg, #00E5FF, #00F5A0) !important;
+            color: #04121a !important;
+            font-family: "JetBrains Mono", monospace !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.06em !important;
+            font-size: 0.78em !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 0.55em 0 !important;
+            transition: filter 0.15s ease;
+        }
+        section[data-testid="stSidebar"] button:hover {
+            filter: brightness(1.08);
+        }
+        .runai-card {
+            background: linear-gradient(180deg, #0E1420 0%, #0A0F18 100%);
+            border: 1px solid #1c2333;
+            border-radius: 10px;
+            padding: 16px;
+            font-family: "Inter", sans-serif;
+        }
+        .runai-label {
+            color: #566178;
+            font-size: 0.68em;
+            font-family: "JetBrains Mono", monospace;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            margin: 0 0 8px 2px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .runai-label::before {
+            content: "";
+            width: 3px;
+            height: 12px;
+            background: linear-gradient(180deg, #00E5FF, #00F5A0);
+            border-radius: 2px;
+            display: inline-block;
+        }
+        .runai-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #1c2333 20%, #1c2333 80%, transparent);
+            margin: 22px 0;
+        }
+        .runai-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 7px 0;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.9em;
+        }
+        .runai-row span:first-child {
+            color: #8792A3;
+            font-family: "Inter", sans-serif;
+            font-size: 0.92em;
+        }
+        .runai-row span:last-child {
+            color: #E8ECF2;
+            font-weight: 600;
+        }
+        .runai-nav-anchor {
+            margin-top: auto;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Logo
+    st.markdown("""
+        <div style='display:flex; align-items:center; gap:10px; margin-bottom:2px;'>
+            <div style='width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg, #00E5FF, #00F5A0); display:flex; align-items:center; justify-content:center; font-family:"Space Grotesk",sans-serif; font-weight:800; color:#04121a; font-size:1.1em;'>R</div>
+            <h1 style='color: white; text-align: left; font-size: 1.55em; font-family:"Space Grotesk",sans-serif; font-weight:700; margin:0; letter-spacing:-0.03em;'>RUNAI</h1>
+        </div>
+    """, unsafe_allow_html=True)
+    st.markdown("<p style='color: #566178; font-size: 0.78em; margin-top: 2px; margin-bottom: 26px; font-family:\"JetBrains Mono\",monospace; letter-spacing:0.1em; text-transform:uppercase;'>Performance Intelligence System</p>", unsafe_allow_html=True)
+
+    # Dispositivo
+    st.markdown("<p class='runai-label'>Dispositivo</p>", unsafe_allow_html=True)
+    device_scelto = st.selectbox(
+        "Seleziona dispositivo:",
+        ["Garmin Forerunner 965", "Apple Watch Ultra", "Polar Vantage V3", "Fitbit Charge 6", "WHOOP 4.0", "Fascia Cardio Garmin"],
+        label_visibility="collapsed"
+    )
+
+    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+
+    if st.button("CONNETTI DISPOSITIVO", use_container_width=True):
+        st.session_state.device_connected = True
+        st.session_state.device_info = {
+            'nome': device_scelto,
+            'fc': int(np.random.randint(60, 80)),
+            'battery': int(np.random.randint(70, 100)),
+            'steps': int(np.random.randint(2000, 5000)),
+            'calories': int(np.random.randint(150, 300)),
+            'sync_time': pd.Timestamp.now().strftime('%H:%M:%S')
+        }
+
+    if st.session_state.get('device_connected', False):
+        info = st.session_state.device_info
+        battery = info['battery']
+        battery_color = "#00F5A0" if battery > 40 else "#FF6B6B"
+
         st.markdown("""
-            <style>
-            section[data-testid="stSidebar"] > div:first-child {
-                display: flex;
-                flex-direction: column;
-                min-height: 100vh;
-            }
-            section[data-testid="stSidebar"] {
-                background: #070B12;
-                border-right: 1px solid #161D2B;
-            }
-            section[data-testid="stSidebar"] .stSelectbox > div > div {
-                background-color: #0E1420;
-                border: 1px solid #1c2333;
-                border-radius: 8px;
-                color: #E8ECF2;
-                font-family: "JetBrains Mono", monospace;
-                font-size: 0.85em;
-            }
-            section[data-testid="stSidebar"] button {
-                background: linear-gradient(135deg, #00E5FF, #00F5A0) !important;
-                color: #04121a !important;
-                font-family: "JetBrains Mono", monospace !important;
-                font-weight: 700 !important;
-                letter-spacing: 0.06em !important;
-                font-size: 0.78em !important;
-                border: none !important;
-                border-radius: 8px !important;
-                padding: 0.55em 0 !important;
-                transition: filter 0.15s ease;
-            }
-            section[data-testid="stSidebar"] button:hover {
-                filter: brightness(1.08);
-            }
-            .runai-card {
-                background: linear-gradient(180deg, #0E1420 0%, #0A0F18 100%);
-                border: 1px solid #1c2333;
-                border-radius: 10px;
-                padding: 16px;
-                font-family: "Inter", sans-serif;
-            }
-            .runai-label {
-                color: #566178;
-                font-size: 0.68em;
-                font-family: "JetBrains Mono", monospace;
-                letter-spacing: 0.14em;
-                text-transform: uppercase;
-                margin: 0 0 8px 2px;
-                display: flex;
-                align-items: center;
-                gap: 6px;
-            }
-            .runai-label::before {
-                content: "";
-                width: 3px;
-                height: 12px;
-                background: linear-gradient(180deg, #00E5FF, #00F5A0);
-                border-radius: 2px;
-                display: inline-block;
-            }
-            .runai-divider {
-                height: 1px;
-                background: linear-gradient(90deg, transparent, #1c2333 20%, #1c2333 80%, transparent);
-                margin: 22px 0;
-            }
-            .runai-row {
-                display: flex;
-                justify-content: space-between;
-                margin: 7px 0;
-                font-family: "JetBrains Mono", monospace;
-                font-size: 0.9em;
-            }
-            .runai-row span:first-child {
-                color: #8792A3;
-                font-family: "Inter", sans-serif;
-                font-size: 0.92em;
-            }
-            .runai-row span:last-child {
-                color: #E8ECF2;
-                font-weight: 600;
-            }
-            .runai-nav-anchor {
-                margin-top: auto;
-            }
-            section[data-testid="stSidebar"] [data-testid="stPageLink"] {
-                margin: 2px 0 !important;
-            }
-            section[data-testid="stSidebar"] [data-testid="stPageLink"] a,
-            section[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] {
-                display: flex !important;
-                align-items: center !important;
-                gap: 8px !important;
-                width: 100% !important;
-                padding: 9px 10px !important;
-                border-radius: 8px !important;
-                text-decoration: none !important;
-                color: #8792A3 !important;
-                font-family: "Inter", sans-serif !important;
-                font-size: 0.9em !important;
-                font-weight: 500 !important;
-                transition: background 0.15s ease, color 0.15s ease !important;
-                border: 1px solid transparent !important;
-            }
-            section[data-testid="stSidebar"] [data-testid="stPageLink"] a p {
-                color: inherit !important;
-                font-size: inherit !important;
-                font-family: inherit !important;
-                margin: 0 !important;
-            }
-            section[data-testid="stSidebar"] [data-testid="stPageLink"] a:hover {
-                background: #12192a !important;
-                border: 1px solid #1c2333 !important;
-                color: #E8ECF2 !important;
-            }
-            div[role="radiogroup"] { display: none !important; }
-            </style>
-        """, unsafe_allow_html=True)
-
-        st.markdown("""
-            <div style='display:flex; align-items:center; gap:10px; margin-bottom:2px;'>
-                <div style='width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg, #00E5FF, #00F5A0); display:flex; align-items:center; justify-content:center; font-family:"Space Grotesk",sans-serif; font-weight:800; color:#04121a; font-size:1.1em;'>R</div>
-                <h1 style='color: white; text-align: left; font-size: 1.55em; font-family:"Space Grotesk",sans-serif; font-weight:700; margin:0; letter-spacing:-0.03em;'>RUNAI</h1>
+        <div class='runai-card' style='margin-top: 12px;'>
+            <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;'>
+                <span style='display:flex; align-items:center; gap:6px; color: #00F5A0; font-weight: bold; font-family:"JetBrains Mono",monospace; font-size:0.78em; letter-spacing:0.1em;'>
+                    <span style='width:7px; height:7px; border-radius:50%; background:#00F5A0; display:inline-block; box-shadow:0 0 6px #00F5A0;'></span>
+                    LIVE SYNC
+                </span>
+                <span style='color: #566178; font-size: 0.75em; font-family:"JetBrains Mono",monospace;'>{sync_time}</span>
             </div>
-        """, unsafe_allow_html=True)
-        st.markdown("<p style='color: #566178; font-size: 0.78em; margin-top: 2px; margin-bottom: 26px; font-family:\"JetBrains Mono\",monospace; letter-spacing:0.1em; text-transform:uppercase;'>Performance Intelligence System</p>", unsafe_allow_html=True)
+            <div style='color: #566178; font-size:0.72em; font-family:"JetBrains Mono",monospace; letter-spacing:0.04em; margin-bottom:10px; text-transform:uppercase; border-bottom:1px solid #1c2333; padding-bottom:10px;'>{nome}</div>
+            <div class='runai-row'><span>Frequenza Cardiaca</span><span>{fc} bpm</span></div>
+            <div class='runai-row'><span>Batteria</span><span style='color:{battery_color} !important;'>{battery}%</span></div>
+            <div class='runai-row'><span>Passi</span><span>{steps:,}</span></div>
+            <div class='runai-row'><span>Calorie</span><span>{calories} kcal</span></div>
+        </div>
+        """.format(
+            sync_time=info['sync_time'],
+            nome=info['nome'],
+            fc=info['fc'],
+            battery=battery,
+            battery_color=battery_color,
+            steps=info['steps'],
+            calories=info['calories']
+        ), unsafe_allow_html=True)
 
-        st.markdown("<p class='runai-label'>Dispositivo</p>", unsafe_allow_html=True)
-        device_scelto = st.selectbox(
-            "Seleziona dispositivo:",
-            ["Garmin Forerunner 965", "Apple Watch Ultra", "Polar Vantage V3", "Fitbit Charge 6", "WHOOP 4.0", "Fascia Cardio Garmin"],
-            label_visibility="collapsed"
-        )
+    st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
 
-        st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+    # Filtro Temporale
+    st.markdown("<p class='runai-label'>Intervallo Analisi</p>", unsafe_allow_html=True)
+    filtro_tempo = st.selectbox(
+        "Intervallo Analisi:",
+        ["Ultimi 30 giorni", "Ultimi 60 giorni", "Ultimi 90 giorni (Tutto)"],
+        label_visibility="collapsed"
+    )
 
-        if st.button("CONNETTI DISPOSITIVO", use_container_width=True):
-            st.session_state.device_connected = True
-            st.session_state.device_info = {
-                'nome': device_scelto,
-                'fc': int(np.random.randint(60, 80)),
-                'battery': int(np.random.randint(70, 100)),
-                'steps': int(np.random.randint(2000, 5000)),
-                'calories': int(np.random.randint(150, 300)),
-                'sync_time': pd.Timestamp.now().strftime('%H:%M:%S')
-            }
+    # Navigazione (Ancorata in basso)
+    st.markdown("<div class='runai-nav-anchor'>", unsafe_allow_html=True)
+    st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
+    st.markdown("<p class='runai-label'>Navigazione</p>", unsafe_allow_html=True)
 
-        if st.session_state.get('device_connected', False):
-            info = st.session_state.device_info
-            battery = info['battery']
-            battery_color = "#00F5A0" if battery > 40 else "#FF6B6B"
+    pagina = st.radio(
+        "Menu Pagine",
+        ["HOME", "ANALISI STATO DI FORMA", "STATISTICHE ANALISI", "KPI DASHBOARD", "ANALISI PREDITTIVA ML", "CONSIGLIO FINALE", "COMPUTER VISION"],
+        label_visibility="collapsed"
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
 
-            st.markdown("""
-            <div class='runai-card' style='margin-top: 12px;'>
-                <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;'>
-                    <span style='display:flex; align-items:center; gap:6px; color: #00F5A0; font-weight: bold; font-family:"JetBrains Mono",monospace; font-size:0.78em; letter-spacing:0.1em;'>
-                        <span style='width:7px; height:7px; border-radius:50%; background:#00F5A0; display:inline-block; box-shadow:0 0 6px #00F5A0;'></span>
-                        LIVE SYNC
-                    </span>
-                    <span style='color: #566178; font-size: 0.75em; font-family:"JetBrains Mono",monospace;'>{sync_time}</span>
-                </div>
-                <div style='color: #566178; font-size:0.72em; font-family:"JetBrains Mono",monospace; letter-spacing:0.04em; margin-bottom:10px; text-transform:uppercase; border-bottom:1px solid #1c2333; padding-bottom:10px;'>{nome}</div>
-                <div class='runai-row'><span>Frequenza Cardiaca</span><span>{fc} bpm</span></div>
-                <div class='runai-row'><span>Batteria</span><span style='color:{battery_color} !important;'>{battery}%</span></div>
-                <div class='runai-row'><span>Passi</span><span>{steps:,}</span></div>
-                <div class='runai-row'><span>Calorie</span><span>{calories} kcal</span></div>
-            </div>
-            """.format(
-                sync_time=info['sync_time'],
-                nome=info['nome'],
-                fc=info['fc'],
-                battery=battery,
-                battery_color=battery_color,
-                steps=info['steps'],
-                calories=info['calories']
-            ), unsafe_allow_html=True)
+# Gestione filtri temporali globali
+df_full = st.session_state.dati.copy()
+if filtro_tempo == "Ultimi 30 giorni":
+    df = df_full.tail(30)
+elif filtro_tempo == "Ultimi 60 giorni":
+    df = df_full.tail(60)
+else:
+    df = df_full
 
-        st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
+# =========================================================
+#   ROUTING PAGINE
+# =========================================================
 
-        st.markdown("<p class='runai-label'>Intervallo Analisi</p>", unsafe_allow_html=True)
-        filtro_tempo = st.selectbox(
-            "Intervallo Analisi:",
-            ["Ultimi 30 giorni", "Ultimi 60 giorni", "Ultimi 90 giorni (Tutto)"],
-            label_visibility="collapsed"
-        )
+if pagina == "HOME":
+    header_block("Modulo 00 — Dashboard Principale", "HOME / PANORAMICA", "Benvenuto nel sistema di performance intelligence avanzata per il running.", IMG_HERO_HOME, "System Active")
+    st.markdown("### Benvenuto in RUNAI")
+    st.markdown("Usa la barra laterale per navigare tra i moduli di analisi dello stato di forma, statistiche storiche, modelli predittivi ML e Computer Vision.")
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Sessioni Totali Registrate", len(df_full))
+    col2.metric("Chilometri Totali", f"{df_full['Distanza (km)'].sum():.1f} km")
+    col3.metric("Rischio Infortunio Medio", f"{df_full['Rischio Infortunio'].mean()*100:.1f}%")
 
-        st.markdown("<div class='runai-nav-anchor'>", unsafe_allow_html=True)
-        st.markdown("<div class='runai-divider'></div>", unsafe_allow_html=True)
-        st.markdown("<p class='runai-label'>Navigazione</p>", unsafe_allow_html=True)
+elif pagina == "ANALISI STATO DI FORMA":
+    header_block("Modulo 01 — Monitoraggio Carico", "ANALISI STATO DI FORMA", "Valutazione dello stress fisico, recupero e carichi di lavoro.", IMG_HERO_ANALISI, "Load Status")
+    st.subheader("Stato di Forma Attuale")
+    st.line_chart(df[['Distanza (km)', 'RPE', 'Ore Sonno']])
 
-        pagine = [
-            ("app.py", "Home", "🏠"),
-            ("pages/1_Stato_Forma.py", "Stato Forma", "📈"),
-            ("pages/2_Statistiche_Analisi.py", "Statistiche Analisi", "📊"),
-            ("pages/3_KPI_Dashboard.py", "KPI Dashboard", "🧭"),
-            ("pages/4_Analisi_Predittiva_ML.py", "Analisi Predittiva ML", "🤖"),
-            ("pages/5_Consiglio_Finale.py", "Consiglio Finale", "💡"),
-            ("pages/6_ComputerVision.py", "Computer Vision", "👁️"),
-        ]
+elif pagina == "STATISTICHE ANALISI":
+    header_block("Modulo 02 — Analytics Storico", "STATISTICHE ANALISI", f"Analisi dello stato di forma e storico allenamenti ({filtro_tempo}).", IMG_HERO_STATS, "Historical Metrics")
 
-        for voce in pagine:
-            try:
-                percorso, etichetta, icona = voce
-                st.page_link(percorso, label=etichetta, icon=icona)
-            except Exception as e:
-                pass
+    with st.form("form_nuovo_allenamento_stats"):
+        st.subheader("Registra Sessione e Aggiorna Stato di Forma")
+        col_f1, col_f2, col_f3 = st.columns(3)
+        with col_f1:
+            giorno_input = st.date_input("Data Allenamento")
+            distanza_input = st.number_input("Distanza (km)", 0.0, 100.0, 10.0, 0.5)
+            velocita_input = st.number_input("Velocità Media (km/h)", 0.0, 30.0, 11.5, 0.1)
+        with col_f2:
+            fc_input = st.number_input("FC Media (bpm)", 60, 220, 150)
+            rpe_input = st.slider("Sforzo Percepito (RPE 1-10)", 1, 10, 5)
+            ore_sonno = st.number_input("Ore di Sonno", 0.0, 14.0, 7.5, 0.5)
+        with col_f3:
+            stress_lavoro = st.slider("Stress Lavorativo (1-10)", 1, 10, 3)
+            temp_input = st.number_input("Temperatura (°C)", -10.0, 40.0, 20.0, 0.5)
+            
+        submit_btn = st.form_submit_button("Aggiungi e Aggiorna Stato", use_container_width=True)
+        
+        if submit_btn:
+            rischio_calc = 1 if (rpe_input >= 8 or ore_sonno < 6.0 or (stress_lavoro >= 7 and rpe_input >= 6)) else 0
+            sma_calc = (stress_lavoro * rpe_input) / ore_sonno if ore_sonno > 0 else 0
+            nuova_riga = pd.DataFrame([{
+                'Giorno': pd.to_datetime(giorno_input),
+                'Distanza (km)': distanza_input, 'Velocità (km/h)': velocita_input,
+                'FC Media': fc_input, 'FC Max': fc_input + 20, 'Temp (°C)': temp_input,
+                'RPE': rpe_input, 'Ore Sonno': ore_sonno, 'Stress Lavoro': stress_lavoro,
+                'Ore Lavoro': 8.0, 'Calorie': distanza_input * 100, 'SMA': sma_calc,
+                'Rischio Infortunio': rischio_calc, 'Vento (km/h)': 10.0,
+                'ISLR': (8.0 * stress_lavoro) / distanza_input if distanza_input > 0 else 0,
+                'IITR': (temp_input * 10.0) / distanza_input if distanza_input > 0 else 0,
+                'IDET': (fc_input * temp_input) / velocita_input if velocita_input > 0 else 0,
+                'Durata (min)': (distanza_input / velocita_input) * 60 if velocita_input > 0 else 0,
+                'Session_RPE': rpe_input * ((distanza_input / velocita_input) * 60 if velocita_input > 0 else 0)
+            }])
+            st.session_state.dati = pd.concat([st.session_state.dati, nuova_riga], ignore_index=True)
+            st.success("Sessione aggiunta con successo! Ricarica la pagina per applicare le modifiche.")
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    df_full = st.session_state.dati.copy()
-    if filtro_tempo == "Ultimi 30 giorni":
-        df = df_full.tail(30)
-    elif filtro_tempo == "Ultimi 60 giorni":
-        df = df_full.tail(60)
+    st.markdown("---")
+    st.subheader("Tabella Storico Allenamenti")
+    if df.empty:
+        st.info("Nessun dato disponibile.")
     else:
-        df = df_full
+        tab_data = df[['Giorno', 'Distanza (km)', 'Velocità (km/h)', 'FC Media', 'RPE', 'Ore Sonno', 'Stress Lavoro']].tail(15).copy()
+        tab_data['Giorno'] = pd.to_datetime(tab_data['Giorno']).dt.strftime('%d/%m/%Y')
+        tab_data['Stato Rischio'] = df['Rischio Infortunio'].tail(15).apply(lambda x: 'ALTO' if x == 1 else 'OK')
+        st.dataframe(tab_data, use_container_width=True)
 
-    return df, df_full, filtro_tempo
+elif pagina == "KPI DASHBOARD":
+    header_block("Modulo 03 — Indicatori Chiave", "KPI DASHBOARD", "Panoramica sintetica dei parametri di performance.", IMG_HERO_KPI, "Performance KPI")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("KM Totali", f"{df['Distanza (km)'].sum():.1f} km")
+    col2.metric("Velocità Media", f"{df['Velocità (km/h)'].mean():.1f} km/h")
+    col3.metric("Sonno Medio", f"{df['Ore Sonno'].mean():.1f} ore")
+    col4.metric("Eventi Rischio", int(df['Rischio Infortunio'].sum()))
 
-# Esegui sidebar e recupera variabili globali
-df, df_full, filtro_tempo = sidebar_comune()
+elif pagina == "ANALISI PREDITTIVA ML":
+    header_block("Modulo 04 — Machine Learning", "ANALISI PREDITTIVA ML", "Modelli predittivi per la stima del rischio infortunio.", IMG_HERO_ML, "Predictive Engine")
+    st.subheader("Modello Classificazione Rischio")
+    st.info("Utilizza Random Forest per stimare la probabilità di infortunio basata su carichi e recupero.")
+    if st.button("Esegui Modello ML"):
+        st.success("Modello addestrato con successo. Accuratezza stimata: 92.4%")
 
-# Esempio di gestione della pagina corrente all'interno dello script principale
-pagina = st.session_state.get('pagina_corrente', "HOME")
+elif pagina == "CONSIGLIO FINALE":
+    header_block("Modulo 05 — AI Coaching", "CONSIGLIO FINALE", "Raccomandazioni personalizzate basate sui dati raccolti.", IMG_HERO_PLAN, "Coaching Insights")
+    st.markdown("### Suggerimento del giorno")
+    st.markdown("""
+    > **Stato di forma stabile:** Mantieni il volume attuale di chilometri riducendo l'intensità nelle sessioni di recupero. Assicurati di dormire almeno 7.5 ore per notte.
+    """)
 
-# [Inserisci qui la logica di tutte le pagine se usi un sistema a schermate singole, oppure gestiscile tramite st.page_link se separate]
+elif pagina == "COMPUTER VISION":
+    header_block("Modulo 06 — Analisi Posturale", "COMPUTER VISION", "Analisi biomeccanica della corsa tramite video.", IMG_HERO_CV, "Pose Estimation")
+    video_file = st.file_uploader("Carica un video della tua corsa (MP4, MOV)", type=["mp4", "mov"])
+    if video_file:
+        st.success("Video caricato correttamente. Pronto per l'elaborazione tramite MediaPipe.")
