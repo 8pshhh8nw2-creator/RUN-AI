@@ -18,7 +18,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import roc_curve
 from sklearn.metrics import r2_score
-from sklearn.metrics mean_squared_error
+from sklearn.metrics import mean_squared_error
 from sklearn.metrics import silhouette_score
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.ensemble import IsolationForest
@@ -32,7 +32,6 @@ try:
 except ImportError:
     SHAP_AVAILABLE = False
 
-# Esempio di gestione pagine (assicurati che 'pagina' e 'df' siano definiti a monte)
 if 'pagina' not in locals():
     pagina = "STATISTICHE ANALISI"
 
