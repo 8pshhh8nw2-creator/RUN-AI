@@ -16,6 +16,7 @@ _CSS = """
     }
     .stApp { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
 
+    /* --- Contenitore sidebar: flex column, per poter riordinare i blocchi --- */
     section[data-testid="stSidebar"] {
         background: linear-gradient(180deg, #070B12 0%, #060910 100%) !important;
         border-right: 1px solid #161D2B;
@@ -23,6 +24,11 @@ _CSS = """
     section[data-testid="stSidebar"] > div:first-child {
         display: flex; flex-direction: column; min-height: 100vh; padding-top: 4px;
     }
+
+    /* --- Riordino: il contenuto scritto da noi (device + filtro) va PRIMA,
+           la nav automatica delle pagine va DOPO --- */
+    section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { order: 1; }
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] { order: 2; margin-top: 4px; }
 
     /* --- Selectbox più curata --- */
     section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
@@ -82,10 +88,74 @@ _CSS = """
         100% { box-shadow: 0 0 0 0 rgba(0,245,160,0); }
     }
 
+    /* --- Restyle della nav automatica delle pagine --- */
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] {
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+        padding-left: 0; padding-right: 0;
+        position: relative;
+    }
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"]::before {
+        content: "Selezione Pagine";
+        display: block;
+        color: #566178;
+        font-size: 0.68em;
+        font-family: "JetBrains Mono", monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        margin: 0 0 10px 2px;
+    }
+    /* nasconde l'eventuale intestazione "app" generata di default */
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] > span,
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] > div > span {
+        display: none;
+    }
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] ul {
+        padding: 0; margin: 0;
+    }
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] li {
+        list-style: none;
+    }
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] a {
+        display: flex; align-items: center;
+        color: var(--text-dim) !important;
+        font-family: "Inter", sans-serif;
+        font-size: 0.88em;
+        font-weight: 500;
+        padding: 8px 10px;
+        margin: 2px 0;
+        border-radius: 8px;
+        border-left: 2px solid transparent;
+        text-decoration: none !important;
+        transition: all 0.15s ease;
+    }
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] a:hover {
+        background: rgba(0,229,255,0.06);
+        color: var(--text) !important;
+        border-left-color: rgba(0,229,255,0.4);
+    }
+    /* pagina attiva */
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] a[aria-current="page"] {
+        background: linear-gradient(90deg, rgba(0,229,255,0.12), rgba(0,245,160,0.03));
+        color: var(--cyan) !important;
+        font-weight: 600;
+        border-left-color: var(--cyan);
+    }
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"]::-webkit-scrollbar { width: 4px; }
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"]::-webkit-scrollbar-thumb {
+        background: var(--line); border-radius: 4px;
+    }
+
     .runai-footer {
+        order: 3;
         margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line);
         color: #3d4658; font-family: "JetBrains Mono", monospace; font-size: 0.68em;
         letter-spacing: 0.08em; text-transform: uppercase;
+        padding: 18px 0 4px 2px;
     }
 </style>
 """
@@ -123,8 +193,8 @@ def _filtra_per_tempo(df_full: pd.DataFrame, filtro_tempo: str) -> pd.DataFrame:
 def sidebar_comune():
     """
     Disegna la sidebar comune a tutte le pagine (logo, connessione device,
-    filtro temporale), applica il CSS del design system e ritorna i dati
-    filtrati in base al periodo selezionato.
+    filtro temporale, nav pagine in fondo), applica il CSS del design system
+    e ritorna i dati filtrati in base al periodo selezionato.
 
     Va chiamata all'inizio di ogni file dentro pages/, DOPO aver popolato
     st.session_state.dati con il DataFrame generato da genera_dati().
@@ -194,10 +264,7 @@ def sidebar_comune():
         )
         st.session_state.filtro_tempo = filtro_tempo
 
-        st.markdown(
-            "<div class='runai-footer'>RUNAI · Data-Driven Training</div>",
-            unsafe_allow_html=True,
-        )
+        st.markdown("<div class='runai-footer'>RUNAI · Data-Driven Training</div>", unsafe_allow_html=True)
 
     df_full = st.session_state.get("dati", pd.DataFrame())
     df = _filtra_per_tempo(df_full, filtro_tempo)
