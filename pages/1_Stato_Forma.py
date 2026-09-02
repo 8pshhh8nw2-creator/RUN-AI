@@ -5,7 +5,7 @@ from utils.style import carica_css
 from utils.data import genera_dati
 from utils.components import header_block, get_svg_url
 from utils.sidebar import sidebar_comune
-
+from utils.components import header_block, get_svg_url, IMG_HERO_ANALISI
 # 1. Configurazione pagina
 st.set_page_config(page_title="Nome Pagina", layout="wide")
 carica_css()
