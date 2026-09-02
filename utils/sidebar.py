@@ -10,152 +10,187 @@ _CSS = """
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
     :root {
-        --bg: #080B12; --panel: #0E1420; --line: #1c2333;
+        --bg: #080B12; --panel: #0E1420; --line: #1a2130;
         --cyan: #00E5FF; --mint: #00F5A0; --amber: #FFB020;
-        --text: #E8ECF2; --text-dim: #8792A3;
+        --text: #E8ECF2; --text-dim: #7A8499; --text-faint: #4A5568;
+        --ease: cubic-bezier(0.4, 0, 0.2, 1);
     }
     .stApp { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
 
-    /* --- Contenitore sidebar: flex column, per poter riordinare i blocchi --- */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #070B12 0%, #060910 100%) !important;
-        border-right: 1px solid #161D2B;
+        background: linear-gradient(180deg, #070A10 0%, #05070C 100%) !important;
+        border-right: 1px solid #12151f;
     }
     section[data-testid="stSidebar"] > div:first-child {
-        display: flex; flex-direction: column; min-height: 100vh; padding-top: 4px;
+        display: flex; flex-direction: column; min-height: 100vh;
+        padding-top: 6px; padding-bottom: 8px;
     }
 
-    /* --- Riordino: il contenuto scritto da noi (device + filtro) va PRIMA,
-           la nav automatica delle pagine va DOPO --- */
+    /* Ordine: contenuto nostro (device + filtro) sopra, nav pagine sotto */
     section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { order: 1; }
-    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] { order: 2; margin-top: 4px; }
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] { order: 2; }
 
-    /* --- Selectbox più curata --- */
+    /* --- Selectbox --- */
     section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
-        background-color: var(--panel) !important;
+        background-color: rgba(255,255,255,0.02) !important;
         border: 1px solid var(--line) !important;
-        border-radius: 8px !important;
-        transition: border-color 0.15s ease;
+        border-radius: 9px !important;
+        transition: border-color 0.2s var(--ease), background-color 0.2s var(--ease);
     }
     section[data-testid="stSidebar"] div[data-baseweb="select"] > div:hover {
         border-color: #2a3348 !important;
+        background-color: rgba(255,255,255,0.035) !important;
     }
     section[data-testid="stSidebar"] div[data-baseweb="select"] > div:focus-within {
         border-color: var(--cyan) !important;
-        box-shadow: 0 0 0 1px rgba(0,229,255,0.25);
+        box-shadow: 0 0 0 3px rgba(0,229,255,0.10);
     }
 
     /* --- Bottone connetti --- */
     section[data-testid="stSidebar"] .stButton > button {
-        background: linear-gradient(135deg, rgba(0,229,255,0.12), rgba(0,245,160,0.12));
-        border: 1px solid rgba(0,229,255,0.35);
+        background: rgba(0,229,255,0.06);
+        border: 1px solid rgba(0,229,255,0.28);
         color: var(--cyan);
         font-family: "JetBrains Mono", monospace;
-        font-size: 0.78em;
+        font-size: 0.74em;
         letter-spacing: 0.08em;
-        border-radius: 8px;
-        transition: all 0.15s ease;
+        border-radius: 9px;
+        padding: 0.5em 0.8em;
+        transition: all 0.2s var(--ease);
     }
     section[data-testid="stSidebar"] .stButton > button:hover {
-        background: linear-gradient(135deg, rgba(0,229,255,0.22), rgba(0,245,160,0.22));
+        background: rgba(0,229,255,0.14);
         border-color: var(--cyan);
         color: #ffffff;
+        transform: translateY(-1px);
+    }
+    section[data-testid="stSidebar"] .stButton > button:active {
+        transform: translateY(0);
     }
 
     .runai-card {
-        background: linear-gradient(180deg, #0E1420 0%, #0A0F18 100%);
-        border: 1px solid var(--line); border-radius: 10px; padding: 16px;
-        box-shadow: 0 4px 18px rgba(0,0,0,0.25);
+        background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.005) 100%);
+        border: 1px solid var(--line); border-radius: 12px; padding: 16px;
+        animation: runai-fadein 0.3s var(--ease);
+    }
+    @keyframes runai-fadein {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     .runai-label {
-        color: #566178; font-size: 0.68em; font-family: "JetBrains Mono", monospace;
-        letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 8px 2px;
+        color: var(--text-faint); font-size: 0.66em; font-family: "JetBrains Mono", monospace;
+        letter-spacing: 0.16em; text-transform: uppercase; margin: 0 0 10px 2px;
     }
-    .runai-row { display: flex; justify-content: space-between; margin: 7px 0; font-family: "JetBrains Mono", monospace; font-size: 0.9em; }
+    .runai-row { display: flex; justify-content: space-between; margin: 8px 0; font-family: "JetBrains Mono", monospace; font-size: 0.88em; }
     .runai-row span:first-child { color: var(--text-dim); font-family: "Inter", sans-serif; }
     .runai-row span:last-child { color: var(--text); font-weight: 600; }
 
-    /* --- Badge live sync con pulse --- */
     .runai-live-dot {
-        display: inline-block; width: 7px; height: 7px; border-radius: 50%;
-        background: var(--mint); margin-right: 6px;
+        display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+        background: var(--mint); margin-right: 7px;
         box-shadow: 0 0 0 0 rgba(0,245,160,0.6);
-        animation: runai-pulse 1.8s infinite;
+        animation: runai-pulse 2s infinite;
     }
     @keyframes runai-pulse {
-        0%   { box-shadow: 0 0 0 0 rgba(0,245,160,0.55); }
-        70%  { box-shadow: 0 0 0 7px rgba(0,245,160,0); }
+        0%   { box-shadow: 0 0 0 0 rgba(0,245,160,0.45); }
+        70%  { box-shadow: 0 0 0 6px rgba(0,245,160,0); }
         100% { box-shadow: 0 0 0 0 rgba(0,245,160,0); }
     }
 
-    /* --- Restyle della nav automatica delle pagine --- */
+    /* =========================================================
+       NAV PAGINE — restyle fluido
+    ========================================================= */
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"] {
-        border-top: 1px solid var(--line);
-        padding-top: 14px;
-        padding-left: 0; padding-right: 0;
+        margin-top: 28px;
+        padding: 18px 6px 0 6px;
         position: relative;
+        max-height: none;
+        overflow: visible;
     }
+    /* linea sottile invece di un bordo netto */
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"]::before {
-        content: "Selezione Pagine";
-        display: block;
-        color: #566178;
-        font-size: 0.68em;
-        font-family: "JetBrains Mono", monospace;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        margin: 0 0 10px 2px;
+        content: "";
+        position: absolute; top: 0; left: 6px; right: 6px; height: 1px;
+        background: linear-gradient(90deg, rgba(0,229,255,0.25), transparent 70%);
     }
-    /* nasconde l'eventuale intestazione "app" generata di default */
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"]::after {
+        content: "Naviga";
+        display: block;
+        color: var(--text-faint);
+        font-size: 0.66em;
+        font-family: "JetBrains Mono", monospace;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        margin: 14px 0 6px 8px;
+        order: -1;
+    }
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"] > span,
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"] > div > span {
         display: none;
     }
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"] ul {
         padding: 0; margin: 0;
+        display: flex; flex-direction: column; gap: 1px;
     }
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"] li {
         list-style: none;
     }
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"] a {
+        position: relative;
         display: flex; align-items: center;
         color: var(--text-dim) !important;
         font-family: "Inter", sans-serif;
-        font-size: 0.88em;
+        font-size: 0.87em;
         font-weight: 500;
-        padding: 8px 10px;
-        margin: 2px 0;
+        padding: 9px 12px 9px 16px;
         border-radius: 8px;
-        border-left: 2px solid transparent;
         text-decoration: none !important;
-        transition: all 0.15s ease;
+        transition: color 0.2s var(--ease), background-color 0.25s var(--ease), padding-left 0.2s var(--ease);
+    }
+    /* indicatore attivo: barretta verticale che appare/scorre invece di un bordo fisso */
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] a::before {
+        content: "";
+        position: absolute; left: 0; top: 50%;
+        width: 3px; height: 0;
+        background: linear-gradient(180deg, var(--cyan), var(--mint));
+        border-radius: 0 3px 3px 0;
+        transform: translateY(-50%);
+        transition: height 0.25s var(--ease);
     }
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"] a:hover {
-        background: rgba(0,229,255,0.06);
+        background: rgba(255,255,255,0.03);
         color: var(--text) !important;
-        border-left-color: rgba(0,229,255,0.4);
+        padding-left: 20px;
     }
-    /* pagina attiva */
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"] a[aria-current="page"] {
-        background: linear-gradient(90deg, rgba(0,229,255,0.12), rgba(0,245,160,0.03));
-        color: var(--cyan) !important;
+        background: linear-gradient(90deg, rgba(0,229,255,0.09), transparent 85%);
+        color: #ffffff !important;
         font-weight: 600;
-        border-left-color: var(--cyan);
     }
-    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] {
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    section[data-testid="stSidebar"] [data-testid="stSidebarNav"]::-webkit-scrollbar { width: 4px; }
-    section[data-testid="stSidebar"] [data-testid="stSidebarNav"]::-webkit-scrollbar-thumb {
-        background: var(--line); border-radius: 4px;
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] a[aria-current="page"]::before {
+        height: 60%;
     }
 
     .runai-footer {
         order: 3;
-        margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line);
-        color: #3d4658; font-family: "JetBrains Mono", monospace; font-size: 0.68em;
-        letter-spacing: 0.08em; text-transform: uppercase;
-        padding: 18px 0 4px 2px;
+        margin-top: auto;
+        padding: 18px 8px 2px 8px;
+        color: var(--text-faint);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.65em;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        opacity: 0.7;
+    }
+
+    /* scroll generale più morbido se il contenuto della sidebar eccede */
+    section[data-testid="stSidebar"] > div:first-child {
+        scrollbar-width: thin;
+        scrollbar-color: #232b3d transparent;
+    }
+    section[data-testid="stSidebar"] > div:first-child::-webkit-scrollbar { width: 4px; }
+    section[data-testid="stSidebar"] > div:first-child::-webkit-scrollbar-thumb {
+        background: #232b3d; border-radius: 4px;
     }
 </style>
 """
@@ -254,7 +289,7 @@ def sidebar_comune():
                 unsafe_allow_html=True,
             )
 
-        st.markdown("<div style='height:22px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
         st.markdown("<p class='runai-label'>Filtro Temporale</p>", unsafe_allow_html=True)
         filtro_tempo = st.selectbox(
             "Intervallo",
