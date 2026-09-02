@@ -1,4 +1,6 @@
 import streamlit as st
+import pandas as pd
+from datetime import timedelta
 
 # =========================================================
 #   CSS CONDIVISO (design system RUNAI)
@@ -9,24 +11,82 @@ _CSS = """
 <style>
     :root {
         --bg: #080B12; --panel: #0E1420; --line: #1c2333;
-        --cyan: #00E5FF; --mint: #00F5A0; --text: #E8ECF2; --text-dim: #8792A3;
+        --cyan: #00E5FF; --mint: #00F5A0; --amber: #FFB020;
+        --text: #E8ECF2; --text-dim: #8792A3;
     }
     .stApp { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
 
-    section[data-testid="stSidebar"] { background-color: #070B12 !important; border-right: 1px solid #161D2B; }
-    section[data-testid="stSidebar"] > div:first-child { display: flex; flex-direction: column; min-height: 100vh; }
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #070B12 0%, #060910 100%) !important;
+        border-right: 1px solid #161D2B;
+    }
+    section[data-testid="stSidebar"] > div:first-child {
+        display: flex; flex-direction: column; min-height: 100vh; padding-top: 4px;
+    }
+
+    /* --- Selectbox più curata --- */
+    section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
+        background-color: var(--panel) !important;
+        border: 1px solid var(--line) !important;
+        border-radius: 8px !important;
+        transition: border-color 0.15s ease;
+    }
+    section[data-testid="stSidebar"] div[data-baseweb="select"] > div:hover {
+        border-color: #2a3348 !important;
+    }
+    section[data-testid="stSidebar"] div[data-baseweb="select"] > div:focus-within {
+        border-color: var(--cyan) !important;
+        box-shadow: 0 0 0 1px rgba(0,229,255,0.25);
+    }
+
+    /* --- Bottone connetti --- */
+    section[data-testid="stSidebar"] .stButton > button {
+        background: linear-gradient(135deg, rgba(0,229,255,0.12), rgba(0,245,160,0.12));
+        border: 1px solid rgba(0,229,255,0.35);
+        color: var(--cyan);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.78em;
+        letter-spacing: 0.08em;
+        border-radius: 8px;
+        transition: all 0.15s ease;
+    }
+    section[data-testid="stSidebar"] .stButton > button:hover {
+        background: linear-gradient(135deg, rgba(0,229,255,0.22), rgba(0,245,160,0.22));
+        border-color: var(--cyan);
+        color: #ffffff;
+    }
 
     .runai-card {
         background: linear-gradient(180deg, #0E1420 0%, #0A0F18 100%);
-        border: 1px solid #1c2333; border-radius: 10px; padding: 16px;
+        border: 1px solid var(--line); border-radius: 10px; padding: 16px;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.25);
     }
     .runai-label {
         color: #566178; font-size: 0.68em; font-family: "JetBrains Mono", monospace;
         letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 8px 2px;
     }
     .runai-row { display: flex; justify-content: space-between; margin: 7px 0; font-family: "JetBrains Mono", monospace; font-size: 0.9em; }
-    .runai-row span:first-child { color: #8792A3; font-family: "Inter", sans-serif; }
-    .runai-row span:last-child { color: #E8ECF2; font-weight: 600; }
+    .runai-row span:first-child { color: var(--text-dim); font-family: "Inter", sans-serif; }
+    .runai-row span:last-child { color: var(--text); font-weight: 600; }
+
+    /* --- Badge live sync con pulse --- */
+    .runai-live-dot {
+        display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+        background: var(--mint); margin-right: 6px;
+        box-shadow: 0 0 0 0 rgba(0,245,160,0.6);
+        animation: runai-pulse 1.8s infinite;
+    }
+    @keyframes runai-pulse {
+        0%   { box-shadow: 0 0 0 0 rgba(0,245,160,0.55); }
+        70%  { box-shadow: 0 0 0 7px rgba(0,245,160,0); }
+        100% { box-shadow: 0 0 0 0 rgba(0,245,160,0); }
+    }
+
+    .runai-footer {
+        margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line);
+        color: #3d4658; font-family: "JetBrains Mono", monospace; font-size: 0.68em;
+        letter-spacing: 0.08em; text-transform: uppercase;
+    }
 </style>
 """
 
@@ -41,14 +101,38 @@ def _init_state():
         st.session_state.filtro_tempo = "Ultimi 30 giorni"
 
 
+def _filtra_per_tempo(df_full: pd.DataFrame, filtro_tempo: str) -> pd.DataFrame:
+    """Applica il filtro temporale al DataFrame, se presente una colonna data riconoscibile."""
+    if df_full is None or df_full.empty:
+        return df_full if df_full is not None else pd.DataFrame()
+
+    colonna_data = next(
+        (c for c in ["data", "date", "Data", "timestamp"] if c in df_full.columns),
+        None,
+    )
+    if colonna_data is None or filtro_tempo == "Tutto":
+        return df_full.copy()
+
+    df = df_full.copy()
+    df[colonna_data] = pd.to_datetime(df[colonna_data])
+    giorni = 30 if filtro_tempo == "Ultimi 30 giorni" else 60
+    soglia = df[colonna_data].max() - timedelta(days=giorni)
+    return df[df[colonna_data] >= soglia]
+
+
 def sidebar_comune():
     """
     Disegna la sidebar comune a tutte le pagine (logo, connessione device,
-    filtro temporale) e applica il CSS del design system.
-    Va chiamata all'inizio di ogni file dentro pages/.
+    filtro temporale), applica il CSS del design system e ritorna i dati
+    filtrati in base al periodo selezionato.
+
+    Va chiamata all'inizio di ogni file dentro pages/, DOPO aver popolato
+    st.session_state.dati con il DataFrame generato da genera_dati().
+
+    Ritorna:
+        df (DataFrame filtrato), df_full (DataFrame completo), filtro_tempo (str)
     """
     _init_state()
-
     st.markdown(_CSS, unsafe_allow_html=True)
 
     with st.sidebar:
@@ -89,7 +173,9 @@ def sidebar_comune():
             st.markdown(
                 f"""
                 <div class='runai-card' style='margin-top: 12px;'>
-                    <div style='color: #00F5A0; font-family:"JetBrains Mono",monospace; font-size:0.75em; margin-bottom:6px;'>&#9679; LIVE SYNC ACTIVE</div>
+                    <div style='color: #00F5A0; font-family:"JetBrains Mono",monospace; font-size:0.75em; margin-bottom:6px;'>
+                        <span class='runai-live-dot'></span>LIVE SYNC ACTIVE
+                    </div>
                     <div class='runai-row'><span>Dispositivo</span><span>{info['nome']}</span></div>
                     <div class='runai-row'><span>FC</span><span>{info['fc']} bpm</span></div>
                     <div class='runai-row'><span>Batteria</span><span>{info['battery']}%</span></div>
@@ -98,7 +184,7 @@ def sidebar_comune():
                 unsafe_allow_html=True,
             )
 
-        st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:22px;'></div>", unsafe_allow_html=True)
         st.markdown("<p class='runai-label'>Filtro Temporale</p>", unsafe_allow_html=True)
         filtro_tempo = st.selectbox(
             "Intervallo",
@@ -108,4 +194,12 @@ def sidebar_comune():
         )
         st.session_state.filtro_tempo = filtro_tempo
 
-    return filtro_tempo
+        st.markdown(
+            "<div class='runai-footer'>RUNAI · Data-Driven Training</div>",
+            unsafe_allow_html=True,
+        )
+
+    df_full = st.session_state.get("dati", pd.DataFrame())
+    df = _filtra_per_tempo(df_full, filtro_tempo)
+
+    return df, df_full, filtro_tempo
