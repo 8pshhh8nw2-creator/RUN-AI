@@ -15,6 +15,12 @@ if 'dati' not in st.session_state or st.session_state.dati is None:
     st.session_state.dati = genera_dati()
 if 'device_connected' not in st.session_state:
     st.session_state.device_connected = False
+if 'diario_note' not in st.session_state:
+    st.session_state.diario_note = []
+if 'analisi_fatta' not in st.session_state:
+    st.session_state.analisi_fatta = False
+if 'risultati_analisi' not in st.session_state:
+    st.session_state.risultati_analisi = {}
 
 # 3. Chiamata sidebar comune per ottenere dati e filtri sincronizzati
 sidebar_result = sidebar_comune()
