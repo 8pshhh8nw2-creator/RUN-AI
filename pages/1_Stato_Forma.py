@@ -30,9 +30,8 @@ else:
     df_full = st.session_state.dati.copy()
     df = df_full
     filtro_tempo = "Ultimi 30 giorni"
-IMG_HERO_ANALISI = get_svg_url("nome-icona-o-file")  # sostituisci con la chiave/percorso corretto
-# --- DA QUI IN POI INSERISCI IL CONTENUTO SPECIFICO DELLA PAGINA ---
 
+# --- DA QUI IN POI CONTENUTO SPECIFICO DELLA PAGINA ---
 # ---------------------------------------------------------
 # PAGINA 1: ANALISI STATO DI FORMA
 # ---------------------------------------------------------
