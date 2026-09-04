@@ -8,6 +8,7 @@ from utils.sidebar import sidebar_comune
 from utils.style import carica_css
 from utils.data import genera_dati
 from utils.components import header_block, get_svg_url
+from utils.kpi_engine import calcola_kpi_giornalieri
 
 st.set_page_config(page_title="Consiglio Finale", layout="wide")
 carica_css()
@@ -164,6 +165,15 @@ else:
     recovery_score = max(0, 100 - abs(r.get('ore_sonno', 7.5) - 7.5) * 13.33)
     sma = (r.get('stress_lavoro', 5) * r.get('rpe_previsto', 5)) / r.get('ore_sonno', 7.5) if r.get('ore_sonno', 7.5) > 0 else 0
 
+    # Recupero di tutti i KPI proprietari della tesi (non solo la SMA)
+    try:
+        kpi_oggi = calcola_kpi_giornalieri(r)
+    except Exception:
+        kpi_oggi = {"SMA": sma, "ISLR": None, "IITR": None, "IDET": None}
+    islr_val = kpi_oggi.get("ISLR")
+    iitr_val = kpi_oggi.get("IITR")
+    idet_val = kpi_oggi.get("IDET")
+
     distanza_target = r.get('distanza_oggi', 10.0)
     distanza_consigliata = distanza_target if risk_score < 40 else distanza_target * 0.6 if risk_score < 70 else 0.0
 
@@ -278,6 +288,24 @@ else:
             <div class='sr-value' style='color:{C_AMBRA};'>{sma:.1f}</div>
             <div class='sr-ref'>(Stress × RPE) / Sonno</div>
             <div class='sr-note'>Indice composito di sovraccarico del sistema nervoso centrale. Livello odierno: {liv.upper()}.</div>
+        </div>
+        <div class='split-row'>
+            <div class='sr-label'>Sforzo Lavorativo (ISLR)</div>
+            <div class='sr-value' style='color:{C_STRESS};'>{f"{islr_val:.1f}" if islr_val is not None and not pd.isna(islr_val) else "N/D"}</div>
+            <div class='sr-ref'>(Ore Lavoro × Stress) / Distanza</div>
+            <div class='sr-note'>Misura quanto lo stress extra-sportivo pesa su ogni km percorso. Sopra 6.3 il carico occupazionale satura le risorse per l'allenamento.</div>
+        </div>
+        <div class='split-row'>
+            <div class='sr-label'>Impatto Termico (IITR)</div>
+            <div class='sr-value' style='color:{TXT_PRIMARY};'>{f"{iitr_val:.1f}" if iitr_val is not None and not pd.isna(iitr_val) else "N/D"}</div>
+            <div class='sr-ref'>(Temperatura × Vento) / Distanza</div>
+            <div class='sr-note'>Quantifica l'attrito ambientale della seduta odierna: valori alti segnalano condizioni meteo più severe da compensare con un pacing più prudente.</div>
+        </div>
+        <div class='split-row'>
+            <div class='sr-label'>Degradazione Termica (IDET)</div>
+            <div class='sr-value' style='color:{C_VIOLA};'>{f"{idet_val:.1f}" if idet_val is not None and not pd.isna(idet_val) else "N/D"}</div>
+            <div class='sr-ref'>(FC Media × Temperatura) / Velocità</div>
+            <div class='sr-note'>Corregge la deriva cardiaca dovuta al caldo, evitando di scambiare un normale adattamento termico per un segnale di overtraining.</div>
         </div>
     </div>
     """)
