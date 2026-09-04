@@ -3,9 +3,8 @@ import pandas as pd
 
 from utils.style import carica_css
 from utils.data import genera_dati
-from utils.components import header_block, get_svg_url
+from utils.components import header_block, get_svg_url, SVG_ANALISI
 from utils.sidebar import sidebar_comune
-
 # 1. Configurazione pagina
 st.set_page_config(page_title="Nome Pagina", layout="wide")
 carica_css()
@@ -30,6 +29,7 @@ else:
     df_full = st.session_state.dati.copy()
     df = df_full
     filtro_tempo = "Ultimi 30 giorni"
+IMG_HERO_ANALISI = get_svg_url(SVG_ANALISI)
 
 # --- DA QUI IN POI CONTENUTO SPECIFICO DELLA PAGINA ---
 # ---------------------------------------------------------
