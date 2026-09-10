@@ -4,6 +4,10 @@ pages/04_Centro_KPI.py
 Dashboard unificata con i 4 KPI proprietari della tesi (SMA, ISLR, IITR, IDET).
 Design High-Tech rigoroso, privo di emoji, con layout verticale esteso,
 cruscotto indicatore grafico a stanghetta/gauge ingrandito per il rischio e griglia 2x2 sottostante.
+
+NOTA: testi rivisti per essere comprensibili anche a chi non ha background
+tecnico/scientifico. Il rigore accademico resta nei pannelli "theory-panel"
+(Razionale Scientifico), che restano riservati a chi vuole approfondire.
 """
 
 import streamlit as st
@@ -104,14 +108,14 @@ else:
 IMG_HERO_KPI = get_svg_url(SVG_KPI)
 
 header_block(
-    "Modulo 04 — Centro KPI & Masterclass Intelligence",
-    "PROPRIETARY KPI ENGINE",
-    "Analisi metrica avanzata per singolo indicatore con disposizione verticale estesa e griglia analitica 2x2 sottostante.",
-    IMG_HERO_KPI, "Proprietary KPI & AI Engine"
+    "Modulo 04 — Centro KPI",
+    "I TUOI 4 INDICATORI DI RISCHIO",
+    "Qui trovi i tuoi 4 indicatori personali, uno per scheda, con i grafici che ne spiegano l'andamento nel tempo.",
+    IMG_HERO_KPI, "Centro KPI"
 )
 
 if not st.session_state.get('analisi_fatta', False):
-    st.warning("Completare preliminarmente il questionario nella pagina 'ANALISI STATO DI FORMA' per inizializzare il calcolo dei KPI.")
+    st.warning("Prima di vedere i tuoi KPI, completa il questionario nella pagina 'ANALISI STATO DI FORMA'.")
     st.stop()
 
 
@@ -163,6 +167,13 @@ def _calcola_percentile(valore, serie):
         return None
 
 
+def _testo_percentile(perc):
+    """Trasforma il percentile in una frase semplice da leggere."""
+    if perc is None:
+        return "N/D — servono più sessioni per un confronto"
+    return f"Più alto del {perc:.0f}% delle tue sessioni passate"
+
+
 # ==================================================================
 # CALCOLO DATI DI OGGI + STORICO
 # ==================================================================
@@ -203,12 +214,12 @@ col_head_testo, col_head_gauge = st.columns([1.2, 1.2], gap="large")
 with col_head_testo:
     st.markdown(f"""
     <div class='kpi-main-container'>
-        <div style='color: #8792A3; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1.5px;'>Stato di Prontezza Operativa</div>
+        <div style='color: #8792A3; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1.5px;'>Come stai oggi</div>
         <div style='font-size: 2.2em; font-weight: 800; color: {status_color}; margin-top: 4px;'>
-            INDICE DI RISCHIO {status_text} <span style='font-size: 0.65em; font-weight: 400; color: #FFFFFF;'>({risk_score:.0f}%)</span>
+            RISCHIO {status_text} <span style='font-size: 0.65em; font-weight: 400; color: #FFFFFF;'>({risk_score:.0f}%)</span>
         </div>
         <div style='color: #B8C2D0; font-size: 0.85em; line-height: 1.4; margin-top: 10px;'>
-            Il punteggio aggrega i vettori KPI pesandoli direttamente sulla reale Feature Importance estratta dal Random Forest.
+            Questo punteggio combina i tuoi 4 indicatori, dando più peso a quelli che si sono dimostrati più importanti nel prevedere il rischio di sovraccarico.
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -250,11 +261,11 @@ st.markdown("---")
 
 # TABS PRINCIPALI PER I 4 KPI E IL MACHINE LEARNING
 tab_sma, tab_islr, tab_iitr, tab_idet, tab_ml = st.tabs([
-    "01. SMA", 
-    "02. ISLR", 
-    "03. IITR", 
-    "04. IDET", 
-    "05. Machine Learning Integration"
+    "01. SMA",
+    "02. ISLR",
+    "03. IITR",
+    "04. IDET",
+    "05. Dai KPI alle previsioni"
 ])
 
 giorni_asse = df_base['Giorno'].tail(14).tolist() if (kpi_storico is not None and 'Giorno' in df_base.columns and len(df_base) >= 14) else list(range(14))
@@ -263,65 +274,65 @@ giorni_asse = df_base['Giorno'].tail(14).tolist() if (kpi_storico is not None an
 # TAB 1 — SMA (Stress Mentale dell'Allenamento)
 # ==================================================================
 with tab_sma:
-    st.markdown("### Modulo Analitico — SMA (Stress Mentale dell'Allenamento)")
-    st.markdown("Analisi metrica avanzata finalizzata alla quantificazione della vulnerabilità neurale e psicofisica.")
-    
+    st.markdown("### SMA — Stress Mentale dell'Allenamento")
+    st.markdown("Quanto la tua mente e il tuo corpo sono sotto pressione oggi.")
+
     colore_sma, _ = _colore_e_stato(kpi_oggi["SMA"], 10, 15)
     delta_sma = _delta_vs_storico(kpi_oggi["SMA"], kpi_storico["SMA"] if kpi_storico is not None else None)
     perc_sma = _calcola_percentile(kpi_oggi["SMA"], kpi_storico["SMA"] if kpi_storico is not None else None)
-    
+
     st.markdown(f"""
     <div class='metric-card-horizontal'>
         <div>
-            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Valore Istantaneo</div>
+            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Valore di Oggi</div>
             <div style='color: {colore_sma}; font-size: 2.5em; font-weight: 800; margin: 4px 0;'>{kpi_oggi['SMA']:.2f}</div>
         </div>
         <div>
-            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Variazione Temporale</div>
+            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Rispetto all'ultima sessione</div>
             <div style='margin-top: 8px;'>{_badge_delta(delta_sma)}</div>
         </div>
         <div>
-            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Posizione Statistica</div>
-            <div style='color: #FFFFFF; font-size: 1.1em; font-weight: 600; margin-top: 4px;'>{f"{perc_sma:.0f}° percentile" if perc_sma is not None else "N/D"} rispetto allo storico</div>
+            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Rispetto al tuo storico</div>
+            <div style='color: #FFFFFF; font-size: 1.1em; font-weight: 600; margin-top: 4px;'>{_testo_percentile(perc_sma)}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
+
     st.latex(r"SMA = \frac{\text{Stress Giornata} \times \text{RPE}}{\text{Ore Sonno}}")
-    st.markdown("<div class='tech-box'><strong>Interpretazione Operativa:</strong> Valori elevati di SMA evidenziano una sproporzione tra la fatica cognitiva accumulata e la capacità di ripristino sistemico garantita dal sonno.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='tech-box'><strong>Cosa significa:</strong> se questo numero è alto, vuol dire che ti sei stancato più di quanto il sonno sia riuscito a recuperarti.</div>", unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("#### Scomposizione Analitica (Griglia di Controllo 2x2)")
-    
+    st.markdown("#### I tuoi ultimi 14 giorni, in 4 grafici")
+
     if kpi_storico is not None and 'SMA' in kpi_storico.columns:
         row1_c1, row1_c2 = st.columns(2, gap="medium")
         row2_c1, row2_c2 = st.columns(2, gap="medium")
 
         with row1_c1:
             fig_sma_1 = go.Figure(go.Scatter(x=giorni_asse, y=kpi_storico['SMA'].tail(14), mode='lines+markers', line=dict(color='#00E5FF', width=2.5)))
-            fig_sma_1.update_layout(title="1. Trend Longitudinale", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_sma_1.update_layout(title="1. Andamento nel tempo", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_sma_1), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Evoluzione temporale dell'indice SMA. Picchi improvvisi segnalano scarso riposo associato a stress lavorativo intenso.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> se vedi un picco improvviso, di solito vuol dire poco riposo unito a un giorno di lavoro pesante.</div>", unsafe_allow_html=True)
 
         with row1_c2:
             fig_sma_2 = go.Figure(go.Histogram(x=kpi_storico['SMA'], marker_color='#00E5FF', opacity=0.8, nbinsx=20))
-            fig_sma_2.update_layout(title="2. Densità di Popolazione", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_sma_2.update_layout(title="2. Quanto spesso ti capita questo valore", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_sma_2), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Distribuzione statistica sull'intero set di dati per verificare se il valore odierno si colloca nella norma o nelle code.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> ti mostra se il valore di oggi è nella norma per te, o è un'eccezione.</div>", unsafe_allow_html=True)
 
         with row2_c1:
             fig_sma_3 = go.Figure(go.Box(y=kpi_storico['SMA'], marker_color='#00E5FF', boxmean=True))
-            fig_sma_3.update_layout(title="3. Analisi dei Quartili", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_sma_3.update_layout(title="3. Dove ti collochi di solito", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_sma_3), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Boxplot di controllo per isolare eventuali valori anomali nella risposta neurale e di recupero dell'atleta.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> evidenzia le sessioni fuori dal tuo range abituale di stress e recupero.</div>", unsafe_allow_html=True)
 
         with row2_c2:
             fig_sma_4 = go.Figure(go.Scatter(y=kpi_storico['SMA'].rolling(3).mean(), mode='lines', line=dict(color='#FFB020', width=2)))
-            fig_sma_4.update_layout(title="4. Media Mobile (3 Sessioni)", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_sma_4.update_layout(title="4. Tendenza delle ultime 3 sessioni", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_sma_4), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Trend smussato a breve termine per evidenziare l'accumulo latente della fatica cognitiva nelle ultime sedute.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> mostra se la fatica mentale si sta accumulando piano piano nelle ultime uscite.</div>", unsafe_allow_html=True)
     else:
-        st.info("Dataset storico insufficiente per la generazione dei grafici multi-asse.")
+        st.info("Servono ancora più sessioni per generare questi grafici di confronto.")
 
     st.markdown("""
     <div class='theory-panel'>
@@ -333,68 +344,68 @@ with tab_sma:
 # TAB 2 — ISLR (Indice di Sforzo Lavorativo Residuo)
 # ==================================================================
 with tab_islr:
-    st.markdown("### Modulo Analitico — ISLR (Indice di Sforzo Lavorativo Residuo)")
-    st.markdown("Indicatore core per la profilazione dell'atleta amatore (*worker-athlete*).")
+    st.markdown("### ISLR — Indice di Sforzo Lavorativo Residuo")
+    st.markdown("Quanto il lavoro sta 'rubando' energie alla tua corsa.")
 
     colore_islr, _ = _colore_e_stato(kpi_oggi["ISLR"], 4.5, 6.3)
     delta_islr = _delta_vs_storico(kpi_oggi["ISLR"], kpi_storico["ISLR"] if kpi_storico is not None else None)
     perc_islr = _calcola_percentile(kpi_oggi["ISLR"], kpi_storico["ISLR"] if kpi_storico is not None else None)
-    
+
     st.markdown(f"""
     <div class='metric-card-horizontal'>
         <div>
-            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Valore Istantaneo</div>
+            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Valore di Oggi</div>
             <div style='color: {colore_islr}; font-size: 2.5em; font-weight: 800; margin: 4px 0;'>{kpi_oggi['ISLR']:.2f}</div>
         </div>
         <div>
-            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Variazione Temporale</div>
+            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Rispetto all'ultima sessione</div>
             <div style='margin-top: 8px;'>{_badge_delta(delta_islr)}</div>
         </div>
         <div>
-            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Posizione Statistica</div>
-            <div style='color: #FFFFFF; font-size: 1.1em; font-weight: 600; margin-top: 4px;'>{f"{perc_islr:.0f}° percentile" if perc_islr is not None else "N/D"} rispetto allo storico</div>
+            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Rispetto al tuo storico</div>
+            <div style='color: #FFFFFF; font-size: 1.1em; font-weight: 600; margin-top: 4px;'>{_testo_percentile(perc_islr)}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
+
     st.latex(r"ISLR = \frac{\text{Ore Lavoro} \times \text{Stress Mentale}}{\text{Distanza (km)}}")
-    st.markdown("<div class='tech-box'><strong>Interpretazione Operativa:</strong> Quantifica la densità di stress non-atletico per unità di distanza percorsa[cite: 2]. Superamento della soglia critica fissata a 6.3 unità.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='tech-box'><strong>Cosa significa:</strong> misura quanto lo stress da lavoro ha pesato su questa corsa, chilometro per chilometro. Sopra 6.3 sei in zona di attenzione.</div>", unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("#### Scomposizione Analitica (Griglia di Controllo 2x2)")
-    
+    st.markdown("#### I tuoi ultimi 14 giorni, in 4 grafici")
+
     if kpi_storico is not None and 'ISLR' in kpi_storico.columns:
         row1_c1, row1_c2 = st.columns(2, gap="medium")
         row2_c1, row2_c2 = st.columns(2, gap="medium")
 
         with row1_c1:
             fig_islr_1 = go.Figure(go.Scatter(x=giorni_asse, y=kpi_storico['ISLR'].tail(14), mode='lines+markers', line=dict(color='#FF6A3D', width=2.5)))
-            fig_islr_1.update_layout(title="1. Trend Longitudinale", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_islr_1.update_layout(title="1. Andamento nel tempo", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_islr_1), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Monitora l'andamento nel tempo dell'ISLR, evidenziando i giorni in cui i carichi lavorativi professionali hanno pesato sul chilometraggio.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> evidenzia i giorni in cui il lavoro ha pesato di più sulla corsa.</div>", unsafe_allow_html=True)
 
         with row1_c2:
             fig_islr_2 = go.Figure(go.Box(y=kpi_storico['ISLR'], marker_color='#FF6A3D', boxmean=True))
-            fig_islr_2.update_layout(title="2. Analisi di Dispersione", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_islr_2.update_layout(title="2. Quanto varia questo valore", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_islr_2), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Boxplot della variabilità dell'ISLR, utile per individuare le sessioni eseguite sotto estremo stress occupazionale.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> utile per individuare le sessioni corse sotto forte stress da lavoro.</div>", unsafe_allow_html=True)
 
         with row2_c1:
             fig_islr_3 = go.Figure(go.Histogram(x=kpi_storico['ISLR'], marker_color='#FF6A3D', opacity=0.8, nbinsx=20))
-            fig_islr_3.update_layout(title="3. Distribuzione di Frequenza", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_islr_3.update_layout(title="3. Quanto spesso ti capita questo valore", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_islr_3), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Istogramma che mostra la concentrazione dei valori di sforzo residuo rispetto alla soglia limite di sicurezza.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> mostra dove si concentrano i tuoi valori rispetto alla soglia di attenzione.</div>", unsafe_allow_html=True)
 
         with row2_c2:
             fig_islr_4 = go.Figure(go.Scatter(y=kpi_storico['ISLR'].rolling(3).mean(), mode='lines', line=dict(color='#00E5FF', width=2)))
-            fig_islr_4.update_layout(title="4. Media Mobile (3 Sessioni)", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_islr_4.update_layout(title="4. Tendenza delle ultime 3 sessioni", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_islr_4), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Trend mobile per valutare la persistenza del carico lavorativo extra-sportivo nel breve periodo.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> valuta se il carico di lavoro extra-sportivo sta persistendo nel breve periodo.</div>", unsafe_allow_html=True)
     else:
-        st.info("Dataset storico insufficiente per la generazione dei grafici multi-asse.")
+        st.info("Servono ancora più sessioni per generare questi grafici di confronto.")
 
     if kpi_oggi["ISLR"] >= 6.3:
-        st.markdown("<div style='background: rgba(255,106,61,0.08); border-left: 3px solid #FF6A3D; padding: 12px; border-radius: 0 6px 6px 0; margin-top: 10px; color: #FF6A3D;'><strong>Avviso di Sistema:</strong> Il carico lavorativo odierno satura le risorse energetiche. Si raccomanda la rimodulazione dell'intensità.</div>", unsafe_allow_html=True)
+        st.markdown("<div style='background: rgba(255,106,61,0.08); border-left: 3px solid #FF6A3D; padding: 12px; border-radius: 0 6px 6px 0; margin-top: 10px; color: #FF6A3D;'><strong>Attenzione:</strong> oggi il carico di lavoro sta pesando molto sulle tue energie. Valuta di alleggerire l'allenamento.</div>", unsafe_allow_html=True)
 
     st.markdown("""
     <div class='theory-panel'>
@@ -406,65 +417,65 @@ with tab_islr:
 # TAB 3 — IITR (Indice Impatto Termico e Resistenza)
 # ==================================================================
 with tab_iitr:
-    st.markdown("### Modulo Analitico — IITR (Indice Impatto Termico e Resistenza)")
-    st.markdown("Indicatore ambientale finalizzato alla misurazione della severità meteorologica esogena.")
+    st.markdown("### IITR — Indice Impatto Termico e Resistenza")
+    st.markdown("Quanto caldo e vento hanno reso più dura la sessione.")
 
     colore_iitr, _ = _colore_e_stato(dettaglio_scores.get("IITR", 50), 40, 70)
     delta_iitr = _delta_vs_storico(kpi_oggi["IITR"], kpi_storico["IITR"] if kpi_storico is not None else None)
     perc_iitr = _calcola_percentile(kpi_oggi["IITR"], kpi_storico["IITR"] if kpi_storico is not None else None)
-    
+
     st.markdown(f"""
     <div class='metric-card-horizontal'>
         <div>
-            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Valore Istantaneo</div>
+            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Valore di Oggi</div>
             <div style='color: {colore_iitr}; font-size: 2.5em; font-weight: 800; margin: 4px 0;'>{kpi_oggi['IITR']:.2f}</div>
         </div>
         <div>
-            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Variazione Temporale</div>
+            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Rispetto all'ultima sessione</div>
             <div style='margin-top: 8px;'>{_badge_delta(delta_iitr)}</div>
         </div>
         <div>
-            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Posizione Statistica</div>
-            <div style='color: #FFFFFF; font-size: 1.1em; font-weight: 600; margin-top: 4px;'>{f"{perc_iitr:.0f}° percentile" if perc_iitr is not None else "N/D"} rispetto allo storico</div>
+            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Rispetto al tuo storico</div>
+            <div style='color: #FFFFFF; font-size: 1.1em; font-weight: 600; margin-top: 4px;'>{_testo_percentile(perc_iitr)}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
+
     st.latex(r"IITR = \frac{\text{Temperatura} \times \text{Vento}}{\text{Distanza (km)}}")
-    st.markdown("<div class='tech-box'><strong>Interpretazione Operativa:</strong> Pesa le forze resistive esterne (termiche e aerodinamiche) per chilometro[cite: 2], evidenziando contesti ad alto attrito metabolico.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='tech-box'><strong>Cosa significa:</strong> misura quanto caldo e vento hanno reso più faticosa la corsa, per ogni chilometro percorso.</div>", unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("#### Scomposizione Analitica (Griglia di Controllo 2x2)")
-    
+    st.markdown("#### I tuoi ultimi 14 giorni, in 4 grafici")
+
     if kpi_storico is not None and 'IITR' in kpi_storico.columns:
         row1_c1, row1_c2 = st.columns(2, gap="medium")
         row2_c1, row2_c2 = st.columns(2, gap="medium")
 
         with row1_c1:
             fig_iitr_1 = go.Figure(go.Scatter(x=giorni_asse, y=kpi_storico['IITR'].tail(14), mode='lines+markers', line=dict(color='#FFB020', width=2.5)))
-            fig_iitr_1.update_layout(title="1. Trend Longitudinale", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_iitr_1.update_layout(title="1. Andamento nel tempo", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_iitr_1), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Serie temporale dell'IITR per evidenziare la gravità delle condizioni meteorologiche incontrate nelle sedute.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> evidenzia quanto sono state impegnative le condizioni meteo nelle tue sessioni.</div>", unsafe_allow_html=True)
 
         with row1_c2:
             fig_iitr_2 = go.Figure(go.Scatter(y=kpi_storico['IITR'], fill='tozeroy', marker_color='#FFB020', opacity=0.3))
-            fig_iitr_2.update_layout(title="2. Profilo Cumulativo", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_iitr_2.update_layout(title="2. Accumulo nel tempo", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_iitr_2), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Area plot che illustra l'accumulo di stress esogeno derivato da temperature elevate e ventilazione contraria.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> mostra come si è accumulato lo stress da caldo e vento nel tempo.</div>", unsafe_allow_html=True)
 
         with row2_c1:
             fig_iitr_3 = go.Figure(go.Histogram(x=kpi_storico['IITR'], marker_color='#FFB020', opacity=0.8, nbinsx=20))
-            fig_iitr_3.update_layout(title="3. Distribuzione di Frequenza", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_iitr_3.update_layout(title="3. Quanto spesso ti capita questo valore", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_iitr_3), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Istogramma della popolazione termica per identificare le sessioni esposte a microclimi critici.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> aiuta a individuare le sessioni corse nelle condizioni climatiche più difficili.</div>", unsafe_allow_html=True)
 
         with row2_c2:
             fig_iitr_4 = go.Figure(go.Box(y=kpi_storico['IITR'], marker_color='#FFB020', boxmean=True))
-            fig_iitr_4.update_layout(title="4. Analisi dei Quartili", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_iitr_4.update_layout(title="4. Dove ti collochi di solito", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_iitr_4), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Boxplot di controllo per valutare la dispersione dei fattori climatici resistivi nel corso del periodo considerato.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> valuta quanto variano le condizioni climatiche affrontate nel periodo considerato.</div>", unsafe_allow_html=True)
     else:
-        st.info("Dataset storico insufficiente per la generazione dei grafici multi-asse.")
+        st.info("Servono ancora più sessioni per generare questi grafici di confronto.")
 
     st.markdown("""
     <div class='theory-panel'>
@@ -476,67 +487,67 @@ with tab_iitr:
 # TAB 4 — IDET (Indice di Degradazione Termica)
 # ==================================================================
 with tab_idet:
-    st.markdown("### Modulo Analitico — IDET (Indice di Degradazione Termica)")
-    st.markdown("Indicatore cinematico e termoregolatorio per il controllo della deriva cardiaca.")
+    st.markdown("### IDET — Indice di Degradazione Termica")
+    st.markdown("Se il cuore ha lavorato più del normale a causa del caldo.")
 
     val_idet = kpi_oggi["IDET"] if pd.notna(kpi_oggi["IDET"]) else 0.0
 
     colore_idet, _ = _colore_e_stato(dettaglio_scores.get("IDET", 50), 40, 70)
     delta_idet = _delta_vs_storico(val_idet, kpi_storico["IDET"] if kpi_storico is not None else None)
     perc_idet = _calcola_percentile(val_idet, kpi_storico["IDET"] if kpi_storico is not None else None)
-    
+
     st.markdown(f"""
     <div class='metric-card-horizontal'>
         <div>
-            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Valore Istantaneo</div>
+            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Valore di Oggi</div>
             <div style='color: {colore_idet}; font-size: 2.5em; font-weight: 800; margin: 4px 0;'>{val_idet:.2f}</div>
         </div>
         <div>
-            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Variazione Temporale</div>
+            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Rispetto all'ultima sessione</div>
             <div style='margin-top: 8px;'>{_badge_delta(delta_idet)}</div>
         </div>
         <div>
-            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Posizione Statistica</div>
-            <div style='color: #FFFFFF; font-size: 1.1em; font-weight: 600; margin-top: 4px;'>{f"{perc_idet:.0f}° percentile" if perc_idet is not None else "N/D"} rispetto allo storico</div>
+            <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Rispetto al tuo storico</div>
+            <div style='color: #FFFFFF; font-size: 1.1em; font-weight: 600; margin-top: 4px;'>{_testo_percentile(perc_idet)}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
+
     st.latex(r"IDET = \frac{\text{FC Media} \times \text{Temperatura}}{\text{Velocità (km/h)}}")
-    st.markdown("<div class='tech-box'><strong>Interpretazione Operativa:</strong> Mappa l'efficienza cardiaca in regime di stress termico, prevenendo falsi positivi nei modelli di overtraining[cite: 2].</div>", unsafe_allow_html=True)
+    st.markdown("<div class='tech-box'><strong>Cosa significa:</strong> misura quanto il tuo cuore ha lavorato più del dovuto per via del caldo, evitando falsi allarmi di sovrallenamento nei giorni più caldi.</div>", unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("#### Scomposizione Analitica (Griglia di Controllo 2x2)")
-    
+    st.markdown("#### I tuoi ultimi 14 giorni, in 4 grafici")
+
     if kpi_storico is not None and 'IDET' in kpi_storico.columns:
         row1_c1, row1_c2 = st.columns(2, gap="medium")
         row2_c1, row2_c2 = st.columns(2, gap="medium")
 
         with row1_c1:
             fig_idet_1 = go.Figure(go.Scatter(x=giorni_asse, y=kpi_storico['IDET'].tail(14), mode='lines+markers', line=dict(color='#00F5A0', width=2.5)))
-            fig_idet_1.update_layout(title="1. Trend Longitudinale", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_idet_1.update_layout(title="1. Andamento nel tempo", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_idet_1), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Andamento temporale dell'IDET per evidenziare i giorni in cui la frequenza cardiaca ha subito alterazioni per il calore.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> evidenzia i giorni in cui il caldo ha fatto lavorare di più il tuo cuore.</div>", unsafe_allow_html=True)
 
         with row1_c2:
             fig_idet_2 = go.Figure(go.Violin(y=kpi_storico['IDET'], marker_color='#00F5A0', box_visible=True, meanline_visible=True))
-            fig_idet_2.update_layout(title="2. Analisi di Densità", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_idet_2.update_layout(title="2. Distribuzione dei tuoi valori", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_idet_2), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Grafico a violino che unisce il boxplot alla densità di probabilità, mostrando la concentrazione dei costi cardiaci-termici.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> mostra dove si concentra di solito il costo cardiaco legato al caldo.</div>", unsafe_allow_html=True)
 
         with row2_c1:
             fig_idet_3 = go.Figure(go.Histogram(x=kpi_storico['IDET'], marker_color='#00F5A0', opacity=0.8, nbinsx=20))
-            fig_idet_3.update_layout(title="3. Distribuzione di Frequenza", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_idet_3.update_layout(title="3. Quanto spesso ti capita questo valore", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_idet_3), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Istogramma di frequenza dell'indice di degradazione per valutare la stabilità termoregolatoria nel lungo periodo.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> aiuta a valutare quanto sei stabile nella gestione del caldo nel lungo periodo.</div>", unsafe_allow_html=True)
 
         with row2_c2:
             fig_idet_4 = go.Figure(go.Scatter(y=kpi_storico['IDET'].rolling(3).mean(), mode='lines', line=dict(color='#FF6A3D', width=2)))
-            fig_idet_4.update_layout(title="4. Media Mobile (3 Sessioni)", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            fig_idet_4.update_layout(title="4. Tendenza delle ultime 3 sessioni", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(style_fig(fig_idet_4), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Spiegazione:</strong> Trend mobile della deriva cardiaca per monitorare l'adattamento progressivo dell'atleta alle condizioni climatiche.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> mostra se ti stai adattando progressivamente alle condizioni di caldo.</div>", unsafe_allow_html=True)
     else:
-        st.info("Dataset storico insufficiente per la generazione dei grafici multi-asse.")
+        st.info("Servono ancora più sessioni per generare questi grafici di confronto.")
 
     st.markdown("""
     <div class='theory-panel'>
@@ -548,19 +559,19 @@ with tab_idet:
 # TAB 5 — UNIONE CON MACHINE LEARNING
 # ==================================================================
 with tab_ml:
-    st.markdown("### Convergenza Architetturale: Dai KPI Proprietari al Machine Learning")
+    st.markdown("### Dai KPI alle previsioni")
     st.markdown("""
-    I quattro indicatori non operano in modo isolato, ma costituiscono l'architettura di *feature engineering* che alimenta i modelli predittivi supervisionati (Random Forest e regressioni)[cite: 2].
+    I quattro indicatori non restano numeri isolati: alimentano i modelli che provano a prevedere il rischio di sovraccarico prima che si presenti.
     """)
 
     c_m1, c_m2 = st.columns(2, gap="large")
     with c_m1:
-        st.markdown("#### Ponderazione Algoritmica (Feature Importance)")
+        st.markdown("#### Quali fattori contano di più nel calcolo del rischio")
         st.plotly_chart(feature_importance_chart(style_fig), use_container_width=True)
-        st.markdown("<div class='tech-box'><strong>Evidenza di Tesi:</strong> L'algoritmo individua nell'<strong>ISLR</strong> e nella qualità del sonno i driver decisionali primari, gestendo oltre il 50% della varianza associata al rischio di sovraccarico[cite: 2].</div>", unsafe_allow_html=True)
+        st.markdown("<div class='tech-box'><strong>Cosa dicono i dati:</strong> l'<strong>ISLR</strong> (stress da lavoro) e la qualità del sonno sono i fattori che pesano di più nel prevedere il rischio di sovraccarico.</div>", unsafe_allow_html=True)
 
     with c_m2:
-        st.markdown("#### Scomposizione Analitica del Rischio Odierno")
+        st.markdown("#### Da cosa dipende il rischio di oggi")
         if dettaglio_scores:
             nomi = list(dettaglio_scores.keys())
             valori = [dettaglio_scores[k] for k in nomi]
@@ -570,14 +581,14 @@ with tab_ml:
                 marker=dict(color=valori, colorscale=[[0, "#00F5A0"], [0.5, "#FFB020"], [1, "#FF6A3D"]])
             ))
             fig_breakdown.update_layout(
-                height=350, xaxis_title="Contributo al Rischio Complessivo (0-100)",
+                height=350, xaxis_title="Contributo al rischio complessivo (0-100)",
                 margin=dict(l=20, r=20, t=20, b=20), plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(style_fig(fig_breakdown), use_container_width=True)
-            st.markdown("<div class='tech-box'><strong>Trasparenza Computazionale:</strong> L'output probabilistico viene disaggregato per isolare il contributo specifico di ciascun KPI, eliminando la criticità della 'scatola nera' algoritmica[cite: 2].</div>", unsafe_allow_html=True)
+            st.markdown("<div class='tech-box'><strong>Perché è utile:</strong> vedi subito quale dei 4 indicatori sta pesando di più sul tuo rischio di oggi, invece di ricevere solo un numero senza spiegazione.</div>", unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("""
-    ### Sintesi Metodologica per la Discussione di Tesi
-    L'integrazione strutturata tra l'ingegneria delle feature (SMA, ISLR, IITR, IDET) e il machine learning supervisionato trasforma la raccolta dati in un sistema di supporto decisionale proattivo di livello enterprise[cite: 2].
+    ### In sintesi
+    Unendo i 4 indicatori (SMA, ISLR, IITR, IDET) ai modelli predittivi, i dati grezzi diventano un aiuto concreto per decidere quando allenarsi e quando riposare[cite: 2].
     """)
