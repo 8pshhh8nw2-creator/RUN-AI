@@ -155,13 +155,8 @@ for col, m in zip(colonne_moduli, moduli):
                 <div style='width:52px; height:52px;'>{svg_icona}</div>
                 <span style='font-family:"JetBrains Mono",monospace; font-size:0.7em; color:#566178;
                              letter-spacing:0.1em;'>{m['num']}</span>
-            </div>
-            <h3 style='color:{m['colore']}; margin-top:10px; margin-bottom:8px; font-size:1.15em;'>{m['titolo']}</h3>
-            <p style='color:#8792A3; font-size:0.88em; line-height:1.5; margin-bottom:14px;'>{m['desc']}</p>
-            <div style='position:absolute; bottom:16px; left:20px; right:20px;'>
-                <span style='font-family:"JetBrains Mono",monospace; font-size:0.7em; color:{m['colore']};
-                             background:rgba(255,255,255,0.04); padding:4px 10px; border-radius:20px;
-                             letter-spacing:0.05em;'>● {m['tag']}</span>
+            </div> style='color:{m['colore']}; margin-top:10px; margin-bottom:2px; font-size:1.15em; font-weight:700;'>{m['titolo']}</div>
+<div style='color:#8792A3; font-size:0.86em; line-height:1.35; margin:0;'>{m['desc']}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
