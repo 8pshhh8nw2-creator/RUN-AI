@@ -129,12 +129,12 @@ forme = {
 }
 
 moduli = [
-    {"num": "01", "titolo": "Stato di Forma", "colore": "#00E5FF", "id": 1, "icona": forme["pulse"], "desc": "Configura i parametri biologici giornalieri, sonno e stress per avviare il calcolo predittivo dell'allenamento.", "tag": "Input Giornaliero"},
-    {"num": "02", "titolo": "Statistiche & Analisi", "colore": "#00F5A0", "id": 2, "icona": forme["bars"], "desc": "Esplora lo storico delle sessioni con grafici e statistiche descrittive su volumi, ritmi e andamento nel tempo.", "tag": "Storico Sessioni"},
-    {"num": "03", "titolo": "KPI Dashboard", "colore": "#FFB020", "id": 3, "icona": forme["radar"], "desc": "Colpo d'occhio sugli indicatori chiave di performance: carico, recupero e stato generale dell'atleta.", "tag": "Metriche Chiave"},
-    {"num": "04", "titolo": "Analisi Predittiva ML", "colore": "#FF6A3D", "id": 4, "icona": forme["network"], "desc": "Random Forest, Regressioni e Cluster K-Means per comprendere i pattern nascosti nel tuo storico e prevedere il rischio.", "tag": "5 Modelli Attivi"},
-    {"num": "05", "titolo": "Consiglio Finale", "colore": "#00E5FF", "id": 5, "icona": forme["check"], "desc": "Sintesi operativa: distanza consigliata, zone cardiache e raccomandazioni per la sessione odierna.", "tag": "Report Giornaliero"},
-    {"num": "06", "titolo": "Computer Vision", "colore": "#00F5A0", "id": 6, "icona": forme["skeleton"], "desc": "Analisi biomeccanica della falcata tramite video e stima del rischio associato ai sovraccarichi articolari.", "tag": "Pose Estimation"},
+    {"num": "01", "titolo": "Stato di Forma", "colore": "#00E5FF", "id": 1, "icona": forme["pulse"], "desc": "Configura i parametri biologici giornalieri, sonno e stress per avviare il calcolo predittivo dell'allenamento.",  "tag": "Input Giornaliero"},
+    {"num": "02", "titolo": "Statistiche & Analisi", "colore": "#00F5A0", "id": 2, "icona": forme["bars"], "desc": "Esplora lo storico delle sessioni con grafici e statistiche descrittive su volumi, ritmi e andamento nel tempo.",  "tag": "Storico Sessioni"},
+    {"num": "03", "titolo": "KPI Dashboard", "colore": "#FFB020", "id": 3, "icona": forme["radar"], "desc": "Colpo d'occhio sugli indicatori chiave di performance: carico, recupero e stato generale dell'atleta.",  "tag": "Metriche Chiave"},
+    {"num": "04", "titolo": "Analisi Predittiva ML", "colore": "#FF6A3D", "id": 4, "icona": forme["network"], "desc": "Random Forest, Regressioni e Cluster K-Means per comprendere i pattern nascosti nel tuo storico e prevedere il rischio.",  "tag": "5 Modelli Attivi"},
+    {"num": "05", "titolo": "Consiglio Finale", "colore": "#00E5FF", "id": 5, "icona": forme["check"], "desc": "Sintesi operativa: distanza consigliata, zone cardiache e raccomandazioni per la sessione odierna.",  "tag": "Report Giornaliero"},
+    {"num": "06", "titolo": "Computer Vision", "colore": "#00F5A0", "id": 6, "icona": forme["skeleton"], "desc": "Analisi biomeccanica della falcata tramite video e stima del rischio associato ai sovraccarichi articolari.",  "tag": "Pose Estimation"},
 ]
 
 riga1 = st.columns(3)
