@@ -129,12 +129,12 @@ forme = {
 }
 
 moduli = [
-    {"num": "01", "titolo": "Stato di Forma", "colore": "#00E5FF", "id": 1, "icona": forme["pulse"], "desc":"Configura i parametri biologici giornalieri, sonno e stress per avviare il calcolo predittivo dell'allenamento.", "tag":   "Input Giornaliero"},
-    {"num": "02", "titolo": "Statistiche & Analisi", "colore": "#00F5A0", "id": 2, "icona": forme["bars"], "desc":"Esplora lo storico delle sessioni con grafici e statistiche descrittive su volumi, ritmi e andamento nel tempo.", "tag":   "Storico Sessioni"},
-    {"num": "03", "titolo": "KPI Dashboard", "colore": "#FFB020", "id": 3, "icona": forme["radar"], "desc":"Colpo d'occhio sugli indicatori chiave di performance: carico, recupero e stato generale dell'atleta.", "tag":   "Metriche Chiave"},
-    {"num": "04", "titolo": "Analisi Predittiva ML", "colore": "#FF6A3D", "id": 4, "icona": forme["network"], "desc":"Random Forest, Regressioni e Cluster K-Means per comprendere i pattern nascosti nel tuo storico e prevedere il rischio.",  "tag":   "5 Modelli Attivi"},
-    {"num": "05", "titolo": "Consiglio Finale", "colore": "#00E5FF", "id": 5, "icona": forme["check"], "desc":"Sintesi operativa: distanza consigliata, zone cardiache e raccomandazioni per la sessione odierna.", "tag":   "Report Giornaliero"},
-    {"num": "06", "titolo": "Computer Vision", "colore": "#00F5A0", "id": 6, "icona": forme["skeleton"], "desc":"Analisi biomeccanica della falcata tramite video e stima del rischio associato ai sovraccarichi articolari.", "tag":   "Pose Estimation"},
+    {"num": "01", "titolo": "Stato di Forma", "colore": "#00E5FF", "id": 1, "icona": forme["pulse"], "desc":"Configura i parametri biologici giornalieri, sonno e stress per avviare il calcolo predittivo dell'allenamento.", "tag": "Input Giornaliero"},
+    {"num": "02", "titolo": "Statistiche & Analisi", "colore": "#00F5A0", "id": 2, "icona": forme["bars"], "desc":"Esplora lo storico delle sessioni con grafici e statistiche descrittive su volumi, ritmi e andamento nel tempo.", "tag": "Storico Sessioni"},
+    {"num": "03", "titolo": "KPI Dashboard", "colore": "#FFB020", "id": 3, "icona": forme["radar"], "desc":"Colpo d'occhio sugli indicatori chiave di performance: carico, recupero e stato generale dell'atleta.", "tag": "Metriche Chiave"},
+    {"num": "04", "titolo": "Analisi Predittiva ML", "colore": "#FF6A3D", "id": 4, "icona": forme["network"], "desc":"Random Forest, Regressioni e Cluster K-Means per comprendere i pattern nascosti nel tuo storico e prevedere il rischio.", "tag": "5 Modelli Attivi"},
+    {"num": "05", "titolo": "Consiglio Finale", "colore": "#00E5FF", "id": 5, "icona": forme["check"], "desc":"Sintesi operativa: distanza consigliata, zone cardiache e raccomandazioni per la sessione odierna.", "tag": "Report Giornaliero"},
+    {"num": "06", "titolo": "Computer Vision", "colore": "#00F5A0", "id": 6, "icona": forme["skeleton"], "desc":"Analisi biomeccanica della falcata tramite video e stima del rischio associato ai sovraccarichi articolari.", "tag": "Pose Estimation"},
 ]
 
 riga1 = st.columns(3)
@@ -155,8 +155,17 @@ for col, m in zip(colonne_moduli, moduli):
                 <div style='width:52px; height:52px;'>{svg_icona}</div>
                 <span style='font-family:"JetBrains Mono",monospace; font-size:0.7em; color:#566178;
                              letter-spacing:0.1em;'>{m['num']}</span>
-            </div> style='color:{m['colore']}; margin-top:10px; margin-bottom:2px; font-size:1.15em; font-weight:700;'>{m['titolo']}</div>
-<div style='color:#8792A3; font-size:0.86em; line-height:1.35; margin:0;'>{m['desc']}</div>
+            </div>
+            <div style='color:{m['colore']}; margin-top:12px; margin-bottom:2px; font-size:1.15em; font-weight:700;'>
+                {m['titolo']}
+            </div>
+            <div style='color:#8792A3; font-size:0.86em; line-height:1.35; margin:0;'>
+                {m['desc']}
+            </div>
+            <div style='position:absolute; bottom:16px; left:20px; right:20px;'>
+                <span style='font-family:"JetBrains Mono",monospace; font-size:0.7em; color:{m['colore']};
+                             background:rgba(255,255,255,0.04); padding:4px 10px; border-radius:20px;
+                             letter-spacing:0.05em;'>● {m['tag']}</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
