@@ -512,7 +512,7 @@ try:
         st.plotly_chart(style_fig(fig_sens_dist), use_container_width=True)
         st.markdown("<div class='explain-text'><strong>Come usare questo grafico:</strong> mostra a quale distanza il rischio inizia a salire rapidamente, tenendo fissi gli altri tuoi parametri attuali — utile per capire il tuo 'punto di rottura' personale di oggi.</div>", unsafe_allow_html=True)
 
-   # =========================================================
+  # =========================================================
     # TAB 7 — CONFRONTO MODELLI (versione avanzata)
     # =========================================================
     with t_ml7:
@@ -551,17 +551,23 @@ try:
 
         # ---------------------------------------------------
         # HERO: badge vincitore + punteggio complessivo
+        # (tutte le stringhe calcolate PRIMA, mai letterali dentro
+        # le graffe delle f-string, per evitare conflitti di virgolette)
         # ---------------------------------------------------
         col_win = C_CYAN if vincitore == "Random Forest" else C_AMBER
+        punteggio_vincente = score_rf if vincitore == "Random Forest" else score_log
+        punteggio_altro = score_log if vincitore == "Random Forest" else score_rf
+        nota_scarto = "netto" if margine > 8 else "risicato, i due modelli si equivalgono quasi"
+
         st.markdown(f"""
         <div class='mlx-hero' style='padding:26px 30px;'>
             <div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:18px; position:relative; z-index:1;'>
                 <div>
                     <p class='mlx-eyebrow'>Verdetto complessivo</p>
                     <h2 class='mlx-hero-title' style='margin-bottom:6px;'>🏆 {vincitore} vince sul tuo storico</h2>
-                    <p class='mlx-hero-msg'>Punteggio medio su 5 metriche: <strong style='color:#fff;'>{score_rf if vincitore=="Random Forest" else score_log:.1f}/100</strong>
-                    contro <strong style='color:#fff;'>{score_log if vincitore=="Random Forest" else score_rf:.1f}/100</strong> dell'altro modello
-                    (scarto di {margine:.1f} punti — {"netto" if margine > 8 else "risicato, i due modelli si equivalgono quasi"}).</p>
+                    <p class='mlx-hero-msg'>Punteggio medio su 5 metriche: <strong style='color:#fff;'>{punteggio_vincente:.1f}/100</strong>
+                    contro <strong style='color:#fff;'>{punteggio_altro:.1f}/100</strong> dell'altro modello
+                    (scarto di {margine:.1f} punti — {nota_scarto}).</p>
                 </div>
                 <div style='text-align:center; background: rgba(255,255,255,0.03); border:1px solid {BD}; border-radius:14px; padding:14px 26px;'>
                     <div style='font-family:"JetBrains Mono",monospace; font-size:2.1rem; font-weight:700; color:{col_win};'>{max(score_rf, score_log):.0f}<span style='font-size:1.1rem; color:{TXT_TER};'>/100</span></div>
@@ -625,17 +631,20 @@ try:
         # ---------------------------------------------------
         mlx_section("Guida alla scelta", "Pro, contro e quando usarli", C_GREEN)
 
+        chip_rf = mlx_chip("Precisione", C_CYAN) if prec_rf >= prec_log else ""
+        chip_log = mlx_chip("Trasparenza", C_AMBER)
+
         col_rf, col_log = st.columns(2)
         with col_rf:
             st.markdown(f"""
             <div class='kpi-card' style='text-align:left; background: linear-gradient(135deg, #0E1420 0%, #0F1C24 100%); border:1px solid {C_CYAN}44;'>
                 <div style='display:flex; align-items:center; gap:10px; margin-bottom:12px;'>
                     <h3 style='color:{C_CYAN}; margin:0;'>🌲 Random Forest</h3>
-                    {mlx_chip("Precisione", C_CYAN) if prec_rf >= prec_log else ""}
+                    {chip_rf}
                 </div>
-                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Punti di forza:</strong> cattura pattern complessi e non lineari (es. "il rischio esplode solo se poco sonno E alto stress si combinano insieme"). Robusta agli outlier.</p>
-                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Limiti:</strong> è una "scatola nera": più difficile spiegare esattamente perché ha dato un certo responso in un singolo caso.</p>
-                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Usala quando:</strong> vuoi la previsione più accurata possibile e ti fidi del modello come "consulente esperto".</p>
+                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Punti di forza:</strong> cattura pattern complessi e non lineari (es. il rischio esplode solo se poco sonno e alto stress si combinano insieme). Robusta agli outlier.</p>
+                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Limiti:</strong> è una scatola nera — più difficile spiegare esattamente perché ha dato un certo responso in un singolo caso.</p>
+                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Usala quando:</strong> vuoi la previsione più accurata possibile e ti fidi del modello come consulente esperto.</p>
             </div>
             """, unsafe_allow_html=True)
         with col_log:
@@ -643,11 +652,11 @@ try:
             <div class='kpi-card' style='text-align:left; background: linear-gradient(135deg, #0E1420 0%, #241a0f 100%); border:1px solid {C_AMBER}44;'>
                 <div style='display:flex; align-items:center; gap:10px; margin-bottom:12px;'>
                     <h3 style='color:{C_AMBER}; margin:0;'>📐 Logistic Regression</h3>
-                    {mlx_chip("Trasparenza", C_AMBER) if True else ""}
+                    {chip_log}
                 </div>
-                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Punti di forza:</strong> ogni fattore ha un peso dichiarato e leggibile (vedi tab "Logistic Regression"). Facile da spiegare a chiunque.</p>
+                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Punti di forza:</strong> ogni fattore ha un peso dichiarato e leggibile (vedi tab Logistic Regression). Facile da spiegare a chiunque.</p>
                 <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Limiti:</strong> assume relazioni lineari — se il rischio dipende da combinazioni complesse di fattori, può perdersele.</p>
-                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Usala quando:</strong> vuoi capire "il perché" dietro un consiglio, non solo il risultato finale.</p>
+                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Usala quando:</strong> vuoi capire il perché dietro un consiglio, non solo il risultato finale.</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -669,4 +678,3 @@ try:
             distanza...) sta spingendo il rischio verso l'alto — insieme coprono sia la previsione che la spiegazione.
         </div>
         """, unsafe_allow_html=True)
-    st.error(f"Errore caricamento modelli ML: {str(e)}")
