@@ -53,13 +53,49 @@ def header_block(kicker, title, subtitle, image_url=None, image_tag=None):
 
 # =========================================================
 # COSTANTI SVG — icone hero per ogni pagina
+#
+# Filosofia comune a tutte: niente cliché da "dashboard generica"
+# (radar/crosshair, grafo a nodi astratto, gauge a ciambella, omino
+# stilizzato in piedi). Ogni pagina mostra un oggetto vero del mondo
+# della corsa data-driven: un percorso GPS, la cadenza come battito,
+# un cronografo, una previsione con banda di incertezza, un profilo
+# altimetrico verso l'obiettivo, uno scheletro di corsa a metà falcata.
+# Firma visiva condivisa: linea/i con gradiente cyan -> mint -> amber
+# che sfuma a trasparente ai bordi, glow morbido, sfondo trasparente,
+# nessun bordo o riquadro.
 # =========================================================
-SVG_HOME = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400"><rect width="900" height="400" fill="#080B12"/><circle cx="450" cy="200" r="140" fill="none" stroke="#00E5FF" stroke-width="2" opacity="0.3"/><circle cx="450" cy="200" r="90" fill="none" stroke="#00F5A0" stroke-width="2" opacity="0.4"/><path d="M200,200 L700,200" stroke="#1c2333" stroke-width="2"/><path d="M450,50 L450,350" stroke="#1c2333" stroke-width="2"/><circle cx="450" cy="200" r="25" fill="#00E5FF"/><circle cx="600" cy="130" r="8" fill="#FF6A3D"/><path d="M450,200 L600,130" stroke="#FFB020" stroke-width="2" stroke-dasharray="4,4"/></svg>"""
 
-# Ridisegnata: curva morbida (non più spezzata) con gradiente cyan -> mint -> amber
-# che sfuma a trasparente sui due estremi, glow sottile sulla linea e sui marker,
-# sfondo trasparente (nessun rettangolo pieno) cosi' l'illustrazione si fonde con
-# lo sfondo della pagina invece di sembrare incorniciata in un riquadro.
+# HOME — traccia GPS di un percorso corso, con punto di partenza,
+# "posizione live" pulsante e un waypoint successivo.
+SVG_HOME = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400">
+<defs>
+    <linearGradient id="homeRoute" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#00E5FF" stop-opacity="0"/>
+        <stop offset="8%" stop-color="#00E5FF" stop-opacity="0.9"/>
+        <stop offset="45%" stop-color="#00F5A0" stop-opacity="0.95"/>
+        <stop offset="75%" stop-color="#FFB020" stop-opacity="0.9"/>
+        <stop offset="92%" stop-color="#00E5FF" stop-opacity="0.85"/>
+        <stop offset="100%" stop-color="#00E5FF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="homeGlow" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="7" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+</defs>
+<g opacity="0.08">
+    <path d="M0,90 C220,60 380,120 560,80 C700,50 820,90 900,70" stroke="#8792A3" fill="none" stroke-width="1"/>
+    <path d="M0,330 C200,360 420,300 620,340 C740,362 830,320 900,340" stroke="#8792A3" fill="none" stroke-width="1"/>
+</g>
+<path d="M0,260 C90,260 120,190 190,175 C250,162 260,225 315,245 C375,267 400,315 465,295 C525,277 525,200 590,188 C655,176 685,235 755,215 C805,200 855,188 900,192"
+      fill="none" stroke="url(#homeRoute)" stroke-width="3.5" stroke-linecap="round" filter="url(#homeGlow)"/>
+<circle cx="190" cy="175" r="10" fill="none" stroke="#00E5FF" stroke-width="1.5" opacity="0.5"/>
+<circle cx="465" cy="295" r="9" fill="#00F5A0" filter="url(#homeGlow)"/>
+<circle cx="465" cy="295" r="20" fill="none" stroke="#00F5A0" stroke-width="1.5" opacity="0.35"/>
+<circle cx="465" cy="295" r="32" fill="none" stroke="#00F5A0" stroke-width="1" opacity="0.18"/>
+<circle cx="755" cy="215" r="7" fill="#FFB020" filter="url(#homeGlow)"/>
+</svg>"""
+
+# ANALISI STATO DI FORMA — tracciato a battito (invariato dalla scorsa modifica).
 SVG_ANALISI = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400">
 <defs>
     <linearGradient id="analisiLineGrad" x1="0" y1="0" x2="1" y2="0">
@@ -88,8 +124,193 @@ SVG_ANALISI = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400">
 <circle cx="370" cy="235" r="6" fill="#FF6A3D" filter="url(#analisiGlow)"/>
 </svg>"""
 
-SVG_STATS = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400"><rect width="900" height="400" fill="#080B12"/><rect x="150" y="150" width="40" height="150" fill="#00E5FF" opacity="0.3"/><rect x="250" y="200" width="40" height="100" fill="#00E5FF" opacity="0.5"/><rect x="350" y="100" width="40" height="200" fill="#00F5A0" opacity="0.8"/><rect x="450" y="220" width="40" height="80" fill="#00E5FF" opacity="0.4"/><rect x="550" y="70" width="40" height="230" fill="#FFB020" opacity="0.9"/><rect x="650" y="180" width="40" height="120" fill="#00E5FF" opacity="0.6"/><path d="M170,150 L270,200 L370,100 L470,220 L570,70 L670,180" stroke="#fff" stroke-width="3" fill="none"/><circle cx="570" cy="70" r="5" fill="#FF6A3D"/></svg>"""
-SVG_KPI = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400"><rect width="900" height="400" fill="#080B12"/><path d="M300,300 A 150 150 0 1 1 600,300" fill="none" stroke="#1c2333" stroke-width="20"/><path d="M300,300 A 150 150 0 0 1 500,170" fill="none" stroke="#00F5A0" stroke-width="20"/><circle cx="450" cy="270" r="10" fill="#00E5FF"/><line x1="450" y1="270" x2="520" y2="150" stroke="#00E5FF" stroke-width="4"/><text x="400" y="330" fill="#E8ECF2" font-family="monospace" font-size="28" font-weight="bold">98.2%</text></svg>"""
-SVG_ML = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400"><rect width="900" height="400" fill="#080B12"/><circle cx="200" cy="200" r="8" fill="#00E5FF"/><circle cx="350" cy="100" r="12" fill="#00F5A0"/><circle cx="350" cy="300" r="12" fill="#FFB020"/><circle cx="550" cy="150" r="15" fill="#FF6A3D"/><circle cx="550" cy="250" r="10" fill="#00E5FF"/><circle cx="750" cy="200" r="20" fill="#00F5A0"/><line x1="200" y1="200" x2="350" y2="100" stroke="#1c2333" stroke-width="2"/><line x1="200" y1="200" x2="350" y2="300" stroke="#1c2333" stroke-width="2"/><line x1="350" y1="100" x2="550" y2="150" stroke="#00E5FF" stroke-width="2" stroke-dasharray="5,5"/><line x1="350" y1="300" x2="550" y2="150" stroke="#1c2333" stroke-width="2"/><line x1="350" y1="300" x2="550" y2="250" stroke="#00F5A0" stroke-width="2" stroke-dasharray="5,5"/><line x1="550" y1="150" x2="750" y2="200" stroke="#FF6A3D" stroke-width="3"/><line x1="550" y1="250" x2="750" y2="200" stroke="#00E5FF" stroke-width="2"/></svg>"""
-SVG_PLAN = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400"><rect width="900" height="400" fill="#080B12"/><circle cx="450" cy="200" r="120" fill="none" stroke="#1c2333" stroke-width="2"/><circle cx="450" cy="200" r="80" fill="none" stroke="#1c2333" stroke-width="2"/><circle cx="450" cy="200" r="40" fill="#00E5FF" opacity="0.2"/><circle cx="450" cy="200" r="10" fill="#00F5A0"/><path d="M450,200 L550,100" stroke="#FFB020" stroke-width="3"/><circle cx="550" cy="100" r="6" fill="#FFB020"/><path d="M450,200 L300,250" stroke="#FF6A3D" stroke-width="3"/><circle cx="300" cy="250" r="6" fill="#FF6A3D"/></svg>"""
-SVG_CV = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400"><rect width="900" height="400" fill="#080B12"/><circle cx="450" cy="150" r="20" fill="#00E5FF"/><line x1="450" y1="170" x2="450" y2="260" stroke="#00F5A0" stroke-width="4"/><line x1="450" y1="200" x2="380" y2="240" stroke="#FFB020" stroke-width="3"/><line x1="450" y1="200" x2="520" y2="240" stroke="#FFB020" stroke-width="3"/><line x1="450" y1="260" x2="400" y2="340" stroke="#FF6A3D" stroke-width="4"/><line x1="450" y1="260" x2="500" y2="340" stroke="#00E5FF" stroke-width="4"/></svg>"""
+# STATISTICHE — cadenza/passo come striscia a "equalizzatore" (photo-finish),
+# non più barre da SaaS-card: 24 battiti di ampiezza variabile + linea di
+# tendenza che li attraversa.
+SVG_STATS = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400">
+<defs>
+    <linearGradient id="statsFade" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#00E5FF" stop-opacity="0"/>
+        <stop offset="10%" stop-color="#00E5FF" stop-opacity="1"/>
+        <stop offset="90%" stop-color="#FFB020" stop-opacity="1"/>
+        <stop offset="100%" stop-color="#FFB020" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="statsGlow" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+</defs>
+<g opacity="0.10"><line x1="0" y1="340" x2="900" y2="340" stroke="#8792A3" stroke-width="1"/></g>
+<g fill="url(#statsFade)">
+    <rect x="30"  y="322" width="8" height="18"  rx="3" opacity="0.12"/>
+    <rect x="65"  y="310" width="8" height="30"  rx="3" opacity="0.30"/>
+    <rect x="100" y="285" width="8" height="55"  rx="3" opacity="0.55"/>
+    <rect x="135" y="255" width="8" height="85"  rx="3" opacity="0.78"/>
+    <rect x="170" y="225" width="8" height="115" rx="3" opacity="0.9"/>
+    <rect x="205" y="190" width="8" height="150" rx="3" opacity="0.92"/>
+    <rect x="240" y="160" width="8" height="180" rx="3" opacity="0.92"/>
+    <rect x="275" y="135" width="8" height="205" rx="3" opacity="0.92"/>
+    <rect x="310" y="115" width="8" height="225" rx="3" opacity="0.92"/>
+    <rect x="345" y="135" width="8" height="205" rx="3" opacity="0.9"/>
+    <rect x="380" y="165" width="8" height="175" rx="3" opacity="0.9"/>
+    <rect x="415" y="190" width="8" height="150" rx="3" opacity="0.85"/>
+    <rect x="450" y="170" width="8" height="170" rx="3" opacity="0.85"/>
+    <rect x="485" y="140" width="8" height="200" rx="3" opacity="0.9"/>
+    <rect x="520" y="105" width="8" height="235" rx="3" opacity="0.92"/>
+    <rect x="555" y="85"  width="8" height="255" rx="3" opacity="0.94"/>
+    <rect x="590" y="110" width="8" height="230" rx="3" opacity="0.9"/>
+    <rect x="625" y="145" width="8" height="195" rx="3" opacity="0.85"/>
+    <rect x="660" y="180" width="8" height="160" rx="3" opacity="0.78"/>
+    <rect x="695" y="215" width="8" height="125" rx="3" opacity="0.65"/>
+    <rect x="730" y="245" width="8" height="95"  rx="3" opacity="0.5"/>
+    <rect x="765" y="270" width="8" height="70"  rx="3" opacity="0.35"/>
+    <rect x="800" y="298" width="8" height="42"  rx="3" opacity="0.2"/>
+    <rect x="835" y="318" width="8" height="22"  rx="3" opacity="0.1"/>
+</g>
+<path d="M30,300 C100,290 140,225 205,180 C260,142 300,105 345,120 C390,135 415,205 450,220 C490,237 530,150 590,105 C640,68 690,190 730,235 C765,270 800,285 835,305"
+      fill="none" stroke="#ffffff" stroke-width="2" opacity="0.5" filter="url(#statsGlow)"/>
+<circle cx="555" cy="85" r="6" fill="#FF6A3D" filter="url(#statsGlow)"/>
+</svg>"""
+
+# KPI DASHBOARD — quadrante da cronometro sportivo: ghiera con 12 tacche,
+# arco di completamento (dash-array sulla circonferenza, niente trigonometria
+# manuale), lancetta e lettura digitale al centro come un vero subdial.
+SVG_KPI = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400">
+<defs>
+    <linearGradient id="kpiArc" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0%" stop-color="#00E5FF"/>
+        <stop offset="55%" stop-color="#00F5A0"/>
+        <stop offset="100%" stop-color="#FFB020"/>
+    </linearGradient>
+    <filter id="kpiGlow" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="6" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+</defs>
+<circle cx="450" cy="200" r="155" fill="none" stroke="#8792A3" stroke-width="1" opacity="0.15"/>
+<g stroke="#8792A3" stroke-width="2" opacity="0.35">
+    <g transform="rotate(0 450 200)"><line x1="450" y1="48" x2="450" y2="60"/></g>
+    <g transform="rotate(30 450 200)"><line x1="450" y1="48" x2="450" y2="60"/></g>
+    <g transform="rotate(60 450 200)"><line x1="450" y1="48" x2="450" y2="60"/></g>
+    <g transform="rotate(90 450 200)"><line x1="450" y1="48" x2="450" y2="60"/></g>
+    <g transform="rotate(120 450 200)"><line x1="450" y1="48" x2="450" y2="60"/></g>
+    <g transform="rotate(150 450 200)"><line x1="450" y1="48" x2="450" y2="60"/></g>
+    <g transform="rotate(180 450 200)"><line x1="450" y1="48" x2="450" y2="60"/></g>
+    <g transform="rotate(210 450 200)"><line x1="450" y1="48" x2="450" y2="60"/></g>
+    <g transform="rotate(240 450 200)"><line x1="450" y1="48" x2="450" y2="60"/></g>
+    <g transform="rotate(270 450 200)"><line x1="450" y1="48" x2="450" y2="60"/></g>
+    <g transform="rotate(300 450 200)"><line x1="450" y1="48" x2="450" y2="60"/></g>
+    <g transform="rotate(330 450 200)"><line x1="450" y1="48" x2="450" y2="60"/></g>
+</g>
+<circle cx="450" cy="200" r="130" fill="none" stroke="#1c2333" stroke-width="14" opacity="0.6"/>
+<circle cx="450" cy="200" r="130" fill="none" stroke="url(#kpiArc)" stroke-width="14" stroke-linecap="round"
+        stroke-dasharray="673 817" transform="rotate(-90 450 200)" filter="url(#kpiGlow)"/>
+<line x1="450" y1="200" x2="450" y2="82" stroke="#00E5FF" stroke-width="2" opacity="0.5" transform="rotate(216 450 200)"/>
+<circle cx="450" cy="200" r="7" fill="#00E5FF" filter="url(#kpiGlow)"/>
+<text x="450" y="212" fill="#E8ECF2" font-family="'JetBrains Mono', monospace" font-size="30" font-weight="700" text-anchor="middle">82.4%</text>
+</svg>"""
+
+# ML / PREVISIONE — non un grafo di nodi astratto, ma quello che l'ML fa
+# davvero qui: prolunga il trend osservato in una previsione, con una banda
+# di confidenza che si allarga quanto più ci si spinge nel futuro.
+SVG_ML = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400">
+<defs>
+    <linearGradient id="mlHist" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#00E5FF" stop-opacity="0"/>
+        <stop offset="12%" stop-color="#00E5FF" stop-opacity="0.9"/>
+        <stop offset="100%" stop-color="#00F5A0" stop-opacity="0.95"/>
+    </linearGradient>
+    <linearGradient id="mlForecast" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#00F5A0"/>
+        <stop offset="100%" stop-color="#FFB020"/>
+    </linearGradient>
+    <linearGradient id="mlCone" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#FFB020" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="#FFB020" stop-opacity="0.05"/>
+    </linearGradient>
+    <filter id="mlGlow" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="6" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+</defs>
+<line x1="480" y1="70" x2="480" y2="320" stroke="#8792A3" stroke-width="1" stroke-dasharray="3,5" opacity="0.3"/>
+<path d="M480,205 C560,180 620,150 700,120 C760,100 820,85 900,50 L900,130 C820,155 760,160 700,175 C620,195 560,205 480,225 Z"
+      fill="url(#mlCone)"/>
+<path d="M0,260 C80,255 130,230 190,205 C250,180 290,150 350,170 C400,186 420,230 480,215"
+      fill="none" stroke="url(#mlHist)" stroke-width="3.5" stroke-linecap="round" filter="url(#mlGlow)"/>
+<path d="M480,215 C560,192 620,165 700,148 C760,135 820,112 900,90"
+      fill="none" stroke="url(#mlForecast)" stroke-width="3" stroke-linecap="round" stroke-dasharray="2,10" filter="url(#mlGlow)"/>
+<circle cx="480" cy="215" r="6" fill="#00F5A0" filter="url(#mlGlow)"/>
+</svg>"""
+
+# PIANO ALLENAMENTO — profilo altimetrico dei blocchi di carico verso il
+# giorno gara: il colore della linea segue l'intensità di fase (base -> build
+# -> picco), e non è decorazione ma codifica l'informazione del periodo.
+SVG_PLAN = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400">
+<defs>
+    <linearGradient id="planLine" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.3"/>
+        <stop offset="15%" stop-color="#00E5FF" stop-opacity="0.95"/>
+        <stop offset="45%" stop-color="#00F5A0" stop-opacity="0.95"/>
+        <stop offset="72%" stop-color="#FFB020" stop-opacity="0.95"/>
+        <stop offset="88%" stop-color="#FF6A3D" stop-opacity="0.95"/>
+        <stop offset="100%" stop-color="#FF6A3D" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="planFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#00F5A0" stop-opacity="0.20"/>
+        <stop offset="100%" stop-color="#00F5A0" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="planGlow" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="6" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+</defs>
+<path d="M0,340 L60,335 C100,330 120,290 150,260 C180,232 200,290 230,300 C270,313 300,250 360,220 C400,200 415,255 430,270 C460,297 500,205 560,170 C600,148 610,215 630,230 C670,258 700,140 760,110 C800,90 850,150 900,190 L900,340 Z"
+      fill="url(#planFill)"/>
+<path d="M0,340 L60,335 C100,330 120,290 150,260 C180,232 200,290 230,300 C270,313 300,250 360,220 C400,200 415,255 430,270 C460,297 500,205 560,170 C600,148 610,215 630,230 C670,258 700,140 760,110 C800,90 850,150 900,190"
+      fill="none" stroke="url(#planLine)" stroke-width="3.5" stroke-linecap="round" filter="url(#planGlow)"/>
+<line x1="760" y1="110" x2="760" y2="65" stroke="#FF6A3D" stroke-width="2.5" filter="url(#planGlow)"/>
+<path d="M760,65 L760,90 L792,78 Z" fill="#FF6A3D" filter="url(#planGlow)"/>
+</svg>"""
+
+# COMPUTER VISION — non un omino fermo in piedi, ma uno scheletro di
+# pose-estimation su un vero atleta a metà falcata: ginocchio in spinta,
+# gamba di appoggio dietro, braccia in opposizione.
+SVG_CV = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400">
+<defs>
+    <filter id="cvGlow" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+</defs>
+<g opacity="0.25" stroke="#00E5FF" stroke-width="1.5" fill="none">
+    <path d="M330,325 C300,300 285,275 275,245" stroke-dasharray="2,6"/>
+    <path d="M545,195 C570,185 590,178 610,168" stroke-dasharray="2,6"/>
+</g>
+<g stroke="#8792A3" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.9">
+    <path d="M465,125 L430,135"/>
+    <path d="M465,125 L495,120"/>
+    <path d="M430,135 L395,110"/>
+    <path d="M495,120 L525,155"/>
+    <path d="M465,125 L455,205"/>
+    <path d="M455,205 L470,200"/>
+    <path d="M455,205 L440,210"/>
+    <path d="M440,210 L400,255"/>
+    <path d="M470,200 L530,230"/>
+</g>
+<path d="M395,110 L365,85" stroke="#FF6A3D" stroke-width="3.5" stroke-linecap="round" filter="url(#cvGlow)"/>
+<path d="M525,155 L555,190" stroke="#FF6A3D" stroke-width="3.5" stroke-linecap="round" filter="url(#cvGlow)"/>
+<path d="M400,255 L345,320" stroke="#FFB020" stroke-width="3.5" stroke-linecap="round" filter="url(#cvGlow)"/>
+<path d="M530,230 L495,260" stroke="#00F5A0" stroke-width="3.5" stroke-linecap="round" filter="url(#cvGlow)"/>
+<circle cx="485" cy="95" r="15" fill="#00E5FF" filter="url(#cvGlow)"/>
+<circle cx="465" cy="125" r="5" fill="#00E5FF" filter="url(#cvGlow)"/>
+<circle cx="430" cy="135" r="5" fill="#00F5A0" filter="url(#cvGlow)"/>
+<circle cx="495" cy="120" r="5" fill="#00F5A0" filter="url(#cvGlow)"/>
+<circle cx="365" cy="85" r="5" fill="#FF6A3D" filter="url(#cvGlow)"/>
+<circle cx="555" cy="190" r="5" fill="#FF6A3D" filter="url(#cvGlow)"/>
+<circle cx="455" cy="205" r="5" fill="#E8ECF2" filter="url(#cvGlow)"/>
+<circle cx="400" cy="255" r="5" fill="#FFB020" filter="url(#cvGlow)"/>
+<circle cx="530" cy="230" r="5" fill="#00F5A0" filter="url(#cvGlow)"/>
+<circle cx="345" cy="320" r="5" fill="#FFB020" filter="url(#cvGlow)"/>
+<circle cx="495" cy="260" r="5" fill="#00F5A0" filter="url(#cvGlow)"/>
+</svg>"""
