@@ -171,10 +171,11 @@ _CSS = """
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"] a {
         display: flex; align-items: center;
         color: var(--text) !important;
-        font-family: "Inter", sans-serif;
-        font-size: 0.95em;
-        font-weight: 500;
-        padding: 9px 12px;
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 1.12em;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        padding: 11px 12px;
         margin: 0;
         border-radius: 8px;
         text-decoration: none !important;
@@ -191,16 +192,16 @@ _CSS = """
         box-shadow: inset 3px 0 0 var(--cyan);
     }
 
-    .runai-footer {
-        order: 3;
-        margin-top: auto;
-        padding: 16px 8px 2px 8px;
-        color: var(--text-faint);
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.65em;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        opacity: 0.7;
+    /* --- Transizione fluida al cambio pagina ---
+       Ogni volta che una pagina viene (ri)renderizzata, il contenuto
+       principale entra con una dissolvenza morbida invece di comparire
+       di scatto: e' questo che rende il cambio pagina "fluido". */
+    [data-testid="stAppViewContainer"] .main .block-container {
+        animation: runai-page-enter 0.28s var(--ease);
+    }
+    @keyframes runai-page-enter {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
     }
 
     section[data-testid="stSidebar"] > div:first-child {
@@ -361,8 +362,6 @@ def sidebar_comune():
             key="sb_filtro_tempo",
         )
         st.session_state.filtro_tempo = filtro_tempo
-
-        st.markdown("<div class='runai-footer'>RUNAI · Data-Driven Training</div>", unsafe_allow_html=True)
 
     df_full = st.session_state.get("dati", pd.DataFrame())
     df = _filtra_per_tempo(df_full, filtro_tempo)
