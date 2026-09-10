@@ -22,7 +22,7 @@ _CSS = """
         border-right: 1px solid #12151f;
     }
     section[data-testid="stSidebar"] > div:first-child {
-        display: flex; flex-direction: column; min-height: 100vh;
+        display: flex; flex-direction: column;
         padding-top: 6px; padding-bottom: 8px;
     }
 
@@ -148,8 +148,8 @@ _CSS = """
        NAV PAGINE - pulita, leggibile, stabile al click
     ========================================================= */
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"] {
-        margin-top: 20px;
-        padding: 14px 0 0 0;
+        margin-top: 10px;
+        padding: 10px 0 0 0;
         position: relative;
     }
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"]::before {
