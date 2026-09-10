@@ -171,7 +171,7 @@ st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
 st.markdown("""
 <div style='text-align:center; padding:18px 0 4px 0; border-top:1px solid #1c2333;'>
     <p style='color:#566178; font-size:0.75em; font-family:"JetBrains Mono",monospace; letter-spacing:0.08em;'>
-        RUNAI PERFORMANCE INTELLIGENCE SYSTEM — Master Thesis Project
+        RUNAI PERFORMANCE INTELLIGENCE SYSTEM — Master Thesis Project - ANDREA LAZZARI
     </p>
 </div>
 """, unsafe_allow_html=True)
