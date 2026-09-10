@@ -376,7 +376,7 @@ else:
             <span>Indicatore</span><span>Valore</span><span>Riferimento</span><span>Cosa significa</span>
         </div>
         <div class='split-row'>
-            <div class='sr-label'><span class='row-icon'>🏃</span>Distanza Target</div>
+            <div class='sr-label'><span class='row-icon'></span>Distanza Target</div>
             <div class='sr-value'><span class='value-pill' style='color:{TXT_PRIMARY}; background:{TXT_PRIMARY}14;'>{distanza_consigliata:.1f}<span class='unit'>km</span></span></div>
             <div class='sr-ref'>Piano originale: {distanza_target} km</div>
             <div class='sr-note'>La distanza è stata ridotta del {100 - (distanza_consigliata/distanza_target*100 if distanza_target>0 else 0):.0f}% per non stressare troppo muscoli e articolazioni.</div>
