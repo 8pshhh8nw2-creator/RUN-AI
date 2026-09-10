@@ -556,14 +556,20 @@ with tab_idet:
     """, unsafe_allow_html=True)
 
 # ==================================================================
-# TAB 5 — UNIONE CON MACHINE LEARNING
+# TAB 5 — UNIONE CON MACHINE LEARNING (VERSIONE ARRICCHITA)
 # ==================================================================
 with tab_ml:
     st.markdown("### Dai KPI alle previsioni")
     st.markdown("""
-    I quattro indicatori non restano numeri isolati: alimentano i modelli che provano a prevedere il rischio di sovraccarico prima che si presenti.
+    I quattro indicatori non restano numeri isolati: alimentano i modelli che provano a prevedere
+    il rischio di sovraccarico prima che si presenti. Qui sotto trovi il quadro completo: cosa pesa
+    di più, come si muovono nel tempo insieme, dove potrebbero andare nei prossimi giorni, e cosa
+    cambierebbe se modificassi le tue abitudini.
     """)
 
+    # ---------------------------------------------------------
+    # RIGA 1 — Feature importance + breakdown del rischio odierno
+    # ---------------------------------------------------------
     c_m1, c_m2 = st.columns(2, gap="large")
     with c_m1:
         st.markdown("#### Quali fattori contano di più nel calcolo del rischio")
@@ -586,6 +592,228 @@ with tab_ml:
             )
             st.plotly_chart(style_fig(fig_breakdown), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Perché è utile:</strong> vedi subito quale dei 4 indicatori sta pesando di più sul tuo rischio di oggi, invece di ricevere solo un numero senza spiegazione.</div>", unsafe_allow_html=True)
+        else:
+            st.info("Dettaglio non disponibile per questa sessione.")
+
+    st.markdown("---")
+
+    # ---------------------------------------------------------
+    # RIGA 2 — Radar del profilo + correlazione tra indicatori
+    # ---------------------------------------------------------
+    st.markdown("#### Il tuo profilo a colpo d'occhio")
+    col_radar, col_corr = st.columns([1.1, 1], gap="large")
+
+    percentili_disponibili = {
+        "SMA": perc_sma if 'perc_sma' in dir() else None,
+        "ISLR": perc_islr if 'perc_islr' in dir() else None,
+        "IITR": perc_iitr if 'perc_iitr' in dir() else None,
+        "IDET": perc_idet if 'perc_idet' in dir() else None,
+    }
+
+    with col_radar:
+        categorie = ["SMA", "ISLR", "IITR", "IDET"]
+        valori_radar = [percentili_disponibili[c] if percentili_disponibili[c] is not None else 50 for c in categorie]
+        categorie_chiuse = categorie + [categorie[0]]
+        valori_chiusi = valori_radar + [valori_radar[0]]
+        media_chiusa = [50] * len(categorie_chiuse)
+
+        fig_radar = go.Figure()
+        fig_radar.add_trace(go.Scatterpolar(
+            r=media_chiusa, theta=categorie_chiuse, mode='lines',
+            line=dict(color='#566178', width=1, dash='dot'), name='Il tuo storico medio'
+        ))
+        fig_radar.add_trace(go.Scatterpolar(
+            r=valori_chiusi, theta=categorie_chiuse, fill='toself',
+            fillcolor='rgba(0,229,255,0.18)', line=dict(color='#00E5FF', width=2.5),
+            name='Oggi'
+        ))
+        fig_radar.update_layout(
+            polar=dict(
+                radialaxis=dict(visible=True, range=[0, 100], gridcolor='rgba(255,255,255,0.08)', tickfont=dict(size=10)),
+                angularaxis=dict(gridcolor='rgba(255,255,255,0.08)', tickfont=dict(size=12, color="#D1D5DB")),
+                bgcolor='rgba(0,0,0,0)'
+            ),
+            showlegend=True, legend=dict(orientation="h", y=-0.1),
+            height=360, margin=dict(l=50, r=50, t=30, b=30),
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+        st.plotly_chart(style_fig(fig_radar), use_container_width=True)
+        st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> ogni punta è il percentile di oggi rispetto al tuo storico su quell'indicatore. Più ti allontani dal centro, più quel valore è alto rispetto al tuo normale — non rispetto ad altre persone.</div>", unsafe_allow_html=True)
+
+    with col_corr:
+        if kpi_storico is not None and all(c in kpi_storico.columns for c in ["SMA", "ISLR", "IITR", "IDET"]) and len(kpi_storico.dropna(how="all")) >= 5:
+            corr_df = kpi_storico[["SMA", "ISLR", "IITR", "IDET"]].corr()
+            fig_corr = go.Figure(go.Heatmap(
+                z=corr_df.values, x=list(corr_df.columns), y=list(corr_df.columns),
+                colorscale=[[0, "#FF6A3D"], [0.5, "#0F172A"], [1, "#00E5FF"]], zmid=0, zmin=-1, zmax=1,
+                text=np.round(corr_df.values, 2), texttemplate="%{text}",
+                textfont=dict(size=13, color="#FFFFFF"), showscale=False
+            ))
+            fig_corr.update_layout(
+                height=360, margin=dict(l=20, r=20, t=30, b=20),
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
+            )
+            st.plotly_chart(style_fig(fig_corr), use_container_width=True)
+            st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> quando due indicatori si muovono spesso insieme (colore acceso), un peggioramento nell'uno tende ad accompagnarsi all'altro.</div>", unsafe_allow_html=True)
+        else:
+            st.info("Servono più sessioni storiche per calcolare le correlazioni tra indicatori.")
+
+    st.markdown("---")
+
+    # ---------------------------------------------------------
+    # RIGA 3 — Andamento combinato storico + proiezione
+    # ---------------------------------------------------------
+    st.markdown("#### Dove sta andando il tuo rischio")
+
+    if kpi_storico is not None and len(kpi_storico.dropna(how="all")) >= 5:
+        cols_kpi = [c for c in ["SMA", "ISLR", "IITR", "IDET"] if c in kpi_storico.columns]
+        norm_df = pd.DataFrame(index=kpi_storico.index)
+        for c in cols_kpi:
+            serie = kpi_storico[c]
+            rng = serie.max() - serie.min()
+            norm_df[c] = ((serie - serie.min()) / rng * 100) if pd.notna(rng) and rng > 0 else 50
+
+        indice_combinato = norm_df.mean(axis=1).tail(14).reset_index(drop=True)
+        x_storico = list(range(len(indice_combinato)))
+
+        proiezione_x, proiezione_y = [], []
+        y_validi = indice_combinato.dropna()
+        if len(y_validi) >= 3:
+            x_validi = np.arange(len(y_validi))
+            coeff = np.polyfit(x_validi, y_validi.values, 1)
+            ultimo_x = x_storico[-1]
+            proiezione_x = list(range(ultimo_x, ultimo_x + 6))
+            proiezione_y = [float(np.clip(coeff[0] * px + coeff[1], 0, 100)) for px in range(len(x_validi) - 1, len(x_validi) + 5)]
+
+        fig_proj = go.Figure()
+        fig_proj.add_hrect(y0=0, y1=33, fillcolor="rgba(0,245,160,0.05)", line_width=0)
+        fig_proj.add_hrect(y0=33, y1=66, fillcolor="rgba(255,176,32,0.05)", line_width=0)
+        fig_proj.add_hrect(y0=66, y1=100, fillcolor="rgba(255,106,61,0.05)", line_width=0)
+        fig_proj.add_trace(go.Scatter(
+            x=x_storico, y=indice_combinato, mode='lines+markers',
+            line=dict(color='#00E5FF', width=2.5), name='Storico (ultimi 14gg)'
+        ))
+        if proiezione_x:
+            fig_proj.add_trace(go.Scatter(
+                x=proiezione_x, y=proiezione_y, mode='lines',
+                line=dict(color='#FFB020', width=2.5, dash='dash'), name='Proiezione stimata'
+            ))
+        fig_proj.update_layout(
+            height=300, margin=dict(l=20, r=20, t=20, b=20),
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+            yaxis_title="Indice combinato (0-100)", yaxis_range=[0, 100],
+            legend=dict(orientation="h", y=1.15)
+        )
+        st.plotly_chart(style_fig(fig_proj), use_container_width=True)
+        st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> la linea tratteggiata è una stima basata sull'andamento recente, non una previsione certa: se continui con lo stesso ritmo di sonno, lavoro e allenamento, è lì che potresti dirigerti nei prossimi giorni.</div>", unsafe_allow_html=True)
+    else:
+        st.info("Servono più sessioni storiche per calcolare una proiezione affidabile.")
+
+    st.markdown("---")
+
+    # ---------------------------------------------------------
+    # RIGA 4 — Simulatore what-if
+    # ---------------------------------------------------------
+    st.markdown("#### Simulatore: cosa succederebbe se...")
+    st.markdown("Muovi i cursori per vedere come cambierebbe il tuo rischio con abitudini diverse, a parità di tutto il resto.")
+
+    sonno_attuale = float(r.get(COL_SONNO, r.get("ore_sonno", 7.0)))
+    volume_attuale = float(r.get("volume_settimanale_km", df_base[COL_DISTANZA].tail(7).sum() if COL_DISTANZA in df_base else 25.0))
+    passo_attuale = float(r.get("passo_medio", 5.0))
+
+    sim_c1, sim_c2, sim_c3 = st.columns(3)
+    with sim_c1:
+        sonno_sim = st.slider("Ore di sonno", 3.0, 10.0, sonno_attuale, 0.5, key="sim_sonno")
+    with sim_c2:
+        volume_sim = st.slider("Volume settimanale (km)", 0.0, 100.0, min(volume_attuale, 100.0), 1.0, key="sim_volume")
+    with sim_c3:
+        passo_sim = st.slider("Passo medio (min/km)", 3.5, 8.0, min(max(passo_attuale, 3.5), 8.0), 0.1, key="sim_passo")
+
+    try:
+        risk_sim, _ = calcola_risk_score_pesato(
+            oggi={
+                "ISLR": kpi_oggi["ISLR"],
+                "IDET": kpi_oggi["IDET"] if pd.notna(kpi_oggi["IDET"]) else 0,
+                "Ore Sonno": sonno_sim,
+                "Volume Settimanale": volume_sim,
+                "Passo Medio": passo_sim,
+            },
+            storico=kpi_storico if kpi_storico is not None else pd.DataFrame(),
+        )
+    except Exception:
+        risk_sim = risk_score
+
+    delta_sim = risk_sim - risk_score
+    colore_sim = "#00F5A0" if risk_sim < 25 else "#FFB020" if risk_sim < 60 else "#FF6A3D"
+
+    sim_res1, sim_res2 = st.columns([1, 1.4], gap="large")
+    with sim_res1:
+        fig_gauge_sim = go.Figure(go.Indicator(
+            mode="gauge+number+delta",
+            value=risk_sim,
+            number={'suffix': "%", 'font': {'color': "#FFFFFF", 'size': 30}},
+            delta={'reference': risk_score, 'increasing': {'color': '#FF6A3D'}, 'decreasing': {'color': '#00F5A0'}},
+            gauge={
+                'axis': {'range': [0, 100], 'tickfont': {'size': 11}},
+                'bar': {'color': colore_sim, 'thickness': 0.65},
+                'bgcolor': "rgba(255,255,255,0.02)",
+                'steps': [
+                    {'range': [0, 25], 'color': "rgba(0,245,160,0.1)"},
+                    {'range': [25, 60], 'color': "rgba(255,176,32,0.1)"},
+                    {'range': [60, 100], 'color': "rgba(255,106,61,0.1)"}
+                ],
+            }
+        ))
+        fig_gauge_sim.update_layout(height=220, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor='rgba(0,0,0,0)')
+        st.plotly_chart(style_fig(fig_gauge_sim), use_container_width=True)
+
+    with sim_res2:
+        if delta_sim > 0.5:
+            verso, colore_verso = "aumenterebbe", "#FF6A3D"
+        elif delta_sim < -0.5:
+            verso, colore_verso = "diminuirebbe", "#00F5A0"
+        else:
+            verso, colore_verso = "resterebbe stabile", "#8792A3"
+        st.markdown(f"""
+        <div class='tech-box' style='font-size:1em; border-left-color: {colore_verso};'>
+            Con queste abitudini, il tuo rischio <strong style='color:{colore_verso};'>{verso}</strong>
+            di circa <strong>{abs(delta_sim):.1f} punti</strong> rispetto a oggi
+            (<strong>{risk_score:.0f}%</strong> → <strong>{risk_sim:.0f}%</strong>).
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class='tech-box'>
+            Stai simulando: <strong>{sonno_sim:.1f}h</strong> di sonno,
+            <strong>{volume_sim:.0f} km</strong> di volume settimanale,
+            passo medio <strong>{passo_sim:.1f} min/km</strong>.
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # ---------------------------------------------------------
+    # RIGA 5 — Raccomandazione basata sul driver principale
+    # ---------------------------------------------------------
+    if dettaglio_scores:
+        driver_principale = max(dettaglio_scores, key=dettaglio_scores.get)
+        mappa_consigli = {
+            "ISLR": "Il lavoro sta pesando più del solito sulle tue energie: se puoi, oggi valuta un allenamento più corto o più leggero.",
+            "IITR": "Le condizioni climatiche stanno rendendo le uscite più dure del normale: idratati di più e considera orari più freschi.",
+            "IDET": "Il tuo cuore sta lavorando più del dovuto per via del caldo: non è un allarme di forma, ma di temperatura.",
+            "SMA": "Stress e fatica percepita sono alti rispetto al sonno recuperato: dai priorità al riposo prima del prossimo allenamento.",
+        }
+        st.markdown(f"""
+        <div class='metric-card-horizontal' style='border-left: 3px solid #00E5FF;'>
+            <div>
+                <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Indicatore che sta pesando di più oggi</div>
+                <div style='color: #00E5FF; font-size: 1.8em; font-weight: 800; margin: 4px 0;'>{driver_principale}</div>
+            </div>
+            <div style='flex: 1; min-width: 250px;'>
+                <div style='color: #8792A3; font-size: 0.8em; text-transform: uppercase;'>Cosa vuol dire in pratica</div>
+                <div style='color: #FFFFFF; font-size: 1em; margin-top: 4px; line-height: 1.4;'>{mappa_consigli.get(driver_principale, "Continua a monitorare i tuoi indicatori nei prossimi giorni.")}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("""
