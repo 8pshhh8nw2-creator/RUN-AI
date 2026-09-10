@@ -264,7 +264,7 @@ else:
         marker_x = (score / 100) * svg_width
         
         return f"""
-        <svg viewBox="0 0 {svg_width} {svg_height + 25}" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:auto;">
+        <svg viewBox="0 -28 {svg_width} {svg_height + 53}" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:auto; display:block;">
             <line x1="0" y1="{svg_height}" x2="{svg_width}" y2="{svg_height}" stroke="{TXT_TERTIARY}" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"/>
             {"".join(elements)}
             <g transform="translate({marker_x}, 0)">
@@ -301,6 +301,28 @@ else:
     radar_svg = disegna_telemetria_rischio(risk_score)
     gauge_svg = disegna_gauge_circolare(risk_score, col)
 
+    # Inserisce un SVG a schermo trasparente, così si fonde con lo sfondo
+    # della pagina invece di creare un riquadro grigio separato, e con
+    # spazio extra così non taglia mai nulla ai bordi.
+    def embed_svg(svg_code, height, extra_padding=6):
+        st.components.v1.html(f"""
+        <html>
+        <head>
+        <style>
+            html, body {{ margin:0; padding:0; background:transparent; height:100%; }}
+            .svg-wrap {{
+                display:flex; align-items:center; justify-content:center;
+                width:100%; height:100%; background:transparent;
+                padding:{extra_padding}px; box-sizing:border-box;
+            }}
+        </style>
+        </head>
+        <body>
+            <div class="svg-wrap">{svg_code}</div>
+        </body>
+        </html>
+        """, height=height, scrolling=False)
+
     # =========================================================
     # HERO SECTION — IL PRIMO COLPO D'OCCHIO
     # =========================================================
@@ -332,11 +354,11 @@ else:
 
     gc1, gc2 = st.columns([1, 2.2])
     with gc1:
-        st.components.v1.html(f"<div style='background:{PANEL_BG}; display:flex; justify-content:center; align-items:center; padding:6px;'>{gauge_svg}</div>", height=225)
+        embed_svg(gauge_svg, height=245, extra_padding=8)
     with gc2:
         md("<p class='eyebrow' style='margin-top:6px;'>Dettaglio soglie di rischio</p>")
         md("<p class='mini-caption'>Più la barra bianca è a destra, più alto è il rischio di allenarti oggi.</p>")
-        st.components.v1.html(f"<div style='background:{PANEL_BG}; padding:10px; border-radius:12px;'>{radar_svg}</div>", height=155)
+        embed_svg(radar_svg, height=185, extra_padding=10)
 
     md("<div style='height:24px;'></div>")
 
@@ -360,31 +382,31 @@ else:
             <div class='sr-note'>La distanza è stata ridotta del {100 - (distanza_consigliata/distanza_target*100 if distanza_target>0 else 0):.0f}% per non stressare troppo muscoli e articolazioni.</div>
         </div>
         <div class='split-row'>
-            <div class='sr-label'><span class='row-icon'></span>Recovery Score</div>
+            <div class='sr-label'><span class='row-icon'>😴</span>Recovery Score</div>
             <div class='sr-value'><span class='value-pill' style='color:{C_SONNO}; background:{C_SONNO}14;'>{recovery_score:.0f}<span class='unit'>%</span></span></div>
             <div class='sr-ref'>Base: {ore_s:.1f}h di sonno</div>
             <div class='sr-note'>{sonno_delta_txt}. Il sonno è il motore principale del recupero: dormire bene vuol dire correre meglio.</div>
         </div>
         <div class='split-row'>
-            <div class='sr-label'><span class='row-icon'></span>Carico Mentale (SMA)</div>
+            <div class='sr-label'><span class='row-icon'>🧠</span>Carico Mentale (SMA)</div>
             <div class='sr-value'><span class='value-pill' style='color:{C_AMBRA}; background:{C_AMBRA}14;'>{sma:.1f}</span></div>
             <div class='sr-ref'>(Stress × Fatica prevista) / Sonno</div>
             <div class='sr-note'>Misura quanto sei "carico" tra testa e corpo insieme. Livello di oggi: {liv.upper()}.</div>
         </div>
         <div class='split-row'>
-            <div class='sr-label'><span class='row-icon'></span>Sforzo Lavorativo (ISLR)</div>
+            <div class='sr-label'><span class='row-icon'>💼</span>Sforzo Lavorativo (ISLR)</div>
             <div class='sr-value'><span class='value-pill' style='color:{C_STRESS}; background:{C_STRESS}14;'>{f"{islr_val:.1f}" if islr_val is not None and not pd.isna(islr_val) else "N/D"}</span></div>
             <div class='sr-ref'>(Ore Lavoro × Stress) / Distanza</div>
             <div class='sr-note'>Quanto il lavoro "ruba" energie alla corsa. Sopra 6.3 vuol dire che lo stress da lavoro sta consumando troppe risorse per allenarti bene.</div>
         </div>
         <div class='split-row'>
-            <div class='sr-label'><span class='row-icon'></span>Impatto Termico (IITR)</div>
+            <div class='sr-label'><span class='row-icon'>🌡️</span>Impatto Termico (IITR)</div>
             <div class='sr-value'><span class='value-pill' style='color:{TXT_PRIMARY}; background:{TXT_PRIMARY}14;'>{f"{iitr_val:.1f}" if iitr_val is not None and not pd.isna(iitr_val) else "N/D"}</span></div>
             <div class='sr-ref'>(Temperatura × Vento) / Distanza</div>
             <div class='sr-note'>Dice quanto il meteo di oggi (caldo, vento) rende la corsa più dura. Più alto il numero, più conviene rallentare.</div>
         </div>
         <div class='split-row'>
-            <div class='sr-label'><span class='row-icon'></span>Degradazione Termica (IDET)</div>
+            <div class='sr-label'><span class='row-icon'>❤️</span>Degradazione Termica (IDET)</div>
             <div class='sr-value'><span class='value-pill' style='color:{C_VIOLA}; background:{C_VIOLA}14;'>{f"{idet_val:.1f}" if idet_val is not None and not pd.isna(idet_val) else "N/D"}</span></div>
             <div class='sr-ref'>(FC Media × Temperatura) / Velocità</div>
             <div class='sr-note'>Capisce se il cuore batte più forte solo per il caldo, così non scambi un normale adattamento per un segnale di troppo allenamento.</div>
@@ -413,7 +435,7 @@ else:
         dinamica_rec = "Yoga nidra o stretching passivo lungo. Se hai muscoli tesi, meglio il calore del ghiaccio."
 
     coach_content = {
-        " 1. Prima di Correre (Warm-Up)": {
+        "🔥 1. Prima di Correre (Warm-Up)": {
             "colore": C_SONNO,
             "blocchi": [
                 ("Attivazione Neurale e Meccanica", [
@@ -428,7 +450,7 @@ else:
                 ])
             ],
         },
-        " 2. Durante la Corsa": {
+        "⚡ 2. Durante la Corsa": {
             "colore": C_AMBRA,
             "blocchi": [
                 ("Postura e Ritmo", [
@@ -443,7 +465,7 @@ else:
                 ])
             ],
         },
-        " 3. Dopo la Corsa (Recupero)": {
+        "🧊 3. Dopo la Corsa (Recupero)": {
             "colore": C_RPE,
             "blocchi": [
                 ("Rientro alla Calma", [
@@ -456,7 +478,7 @@ else:
                 ])
             ],
         },
-        " 4. Sera e Sonno": {
+        "🌙 4. Sera e Sonno": {
             "colore": C_VIOLA,
             "blocchi": [
                 ("Rilassare il Sistema Nervoso", [
@@ -617,7 +639,7 @@ else:
         fig_acwr.update_layout(**layout_base, yaxis_title="Rapporto Fatica", yaxis=dict(range=[0.5, 2.0]))
         
         if acwr_attuale > 1.3:
-            acwr_txt = " Sei sopra la zona verde: <strong>ti stai affaticando troppo in fretta</strong> rispetto al mese scorso. Rallenta, o rischi un infortunio da sovraccarico (es. tendinite)."
+            acwr_txt = "⚠️ Sei sopra la zona verde: <strong>ti stai affaticando troppo in fretta</strong> rispetto al mese scorso. Rallenta, o rischi un infortunio da sovraccarico (es. tendinite)."
         elif acwr_attuale < 0.8:
             acwr_txt = "🔵 Sei sotto la zona verde: ti stai allenando meno o più piano del solito. Se continua così, rischi di perdere un po' di forma."
         else:
