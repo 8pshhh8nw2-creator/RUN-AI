@@ -512,42 +512,161 @@ try:
         st.plotly_chart(style_fig(fig_sens_dist), use_container_width=True)
         st.markdown("<div class='explain-text'><strong>Come usare questo grafico:</strong> mostra a quale distanza il rischio inizia a salire rapidamente, tenendo fissi gli altri tuoi parametri attuali — utile per capire il tuo 'punto di rottura' personale di oggi.</div>", unsafe_allow_html=True)
 
-    # =========================================================
-    # TAB 7 — CONFRONTO MODELLI
+   # =========================================================
+    # TAB 7 — CONFRONTO MODELLI (versione avanzata)
     # =========================================================
     with t_ml7:
-        st.markdown("### Confronto tra Modelli")
-        st.markdown("<div class='explain-text'>Non tutti i modelli sono uguali: ognuno ha punti di forza diversi. Ecco un confronto diretto per capire quale approccio si adatta meglio ai tuoi dati.</div>", unsafe_allow_html=True)
+        mlx_section("Testa a testa", "Random Forest vs Logistic Regression", C_AMBER)
+        mlx_insight(
+            "Due modelli, due filosofie diverse. La <strong>Random Forest</strong> è come una giuria di 100 esperti che votano: "
+            "cattura relazioni complesse ma è più difficile da spiegare in due parole. La <strong>Logistic Regression</strong> è "
+            "come una formula matematica trasparente: ogni fattore ha un peso preciso e dichiarato. Qui li mettiamo a confronto "
+            "su ogni metrica, tutte calcolate su dati che i modelli non hanno mai visto durante l'addestramento.",
+            C_AMBER
+        )
 
-        acc_log = ((y_proba_log >= 0.5).astype(int) == y_train_class).mean() * 100
+        # ---------------------------------------------------
+        # Calcolo di TUTTE le metriche per entrambi i modelli
+        # ---------------------------------------------------
+        y_pred_log_bin = (y_proba_log >= 0.5).astype(int)
+
+        acc_log = (y_pred_log_bin == y_train_class).mean() * 100
+        prec_log = precision_score(y_train_class, y_pred_log_bin, zero_division=0) * 100
+        rec_log = recall_score(y_train_class, y_pred_log_bin, zero_division=0) * 100
+        f1_log = f1_score(y_train_class, y_pred_log_bin, zero_division=0) * 100
+
+        f1_rf_final = f1_score(y_train_class, y_pred_rf, zero_division=0) * 100
         auc_rf_final = auc(*roc_curve(y_train_class, y_proba_rf)[:2])
         auc_log_final = auc(*roc_curve(y_train_class, y_proba_log)[:2])
 
-        comp_data = pd.DataFrame({
-            'Modello': ['Random Forest', 'Logistic Regression'],
-            'Accuratezza (%)': [acc_rf, acc_log],
-            'AUC': [auc_rf_final, auc_log_final]
-        })
-        c1, c2 = st.columns(2)
-        with c1:
-            fig_comp1 = px.bar(comp_data, x='Modello', y='Accuratezza (%)', color='Modello', color_discrete_sequence=['#00E5FF', '#FFB020'], text='Accuratezza (%)')
-            fig_comp1.update_traces(texttemplate='%{text:.1f}%', hovertemplate="Modello: %{x}<br>Accuratezza: %{y:.1f}%<extra></extra>")
-            fig_comp1.update_layout(height=320, title="Accuratezza a Confronto", showlegend=False)
-            st.plotly_chart(style_fig(fig_comp1), use_container_width=True)
-        with c2:
-            fig_comp2 = px.bar(comp_data, x='Modello', y='AUC', color='Modello', color_discrete_sequence=['#00E5FF', '#FFB020'], text='AUC')
-            fig_comp2.update_traces(texttemplate='%{text:.2f}', hovertemplate="Modello: %{x}<br>AUC: %{y:.2f}<extra></extra>")
-            fig_comp2.add_hline(y=0.5, line_dash="dash", line_color="#8792A3", annotation_text="Livello Casuale")
-            fig_comp2.update_layout(height=320, title="Capacità Discriminante (AUC) a Confronto", showlegend=False)
-            st.plotly_chart(style_fig(fig_comp2), use_container_width=True)
+        metriche_labels = ["Accuratezza", "Precisione", "Sensibilità", "F1-Score", "AUC ×100"]
+        rf_values = [acc_rf, prec_rf, rec_rf, f1_rf_final, auc_rf_final * 100]
+        log_values = [acc_log, prec_log, rec_log, f1_log, auc_log_final * 100]
 
-        vincitore = "Random Forest" if auc_rf_final >= auc_log_final else "Logistic Regression"
+        # Punteggio complessivo: media delle 5 metriche, usato per il verdetto finale
+        score_rf = float(np.mean(rf_values))
+        score_log = float(np.mean(log_values))
+        vincitore = "Random Forest" if score_rf >= score_log else "Logistic Regression"
+        margine = abs(score_rf - score_log)
+
+        # ---------------------------------------------------
+        # HERO: badge vincitore + punteggio complessivo
+        # ---------------------------------------------------
+        col_win = C_CYAN if vincitore == "Random Forest" else C_AMBER
         st.markdown(f"""
-        <div class='kpi-card' style='text-align:left; margin-top:10px; background: linear-gradient(135deg, #0E1420 0%, #131427 100%);'>
-            <h3 style='color:#FFB020; margin-bottom:15px;'>Verdetto Finale</h3>
-            <p style='color:#B8C2D0;'>Sul tuo storico attuale, valutato su dati mai visti durante l'addestramento, il modello più affidabile risulta essere <strong style='color:#fff;'>{vincitore}</strong>. La Random Forest tende a catturare meglio relazioni complesse e non lineari tra le variabili, mentre la Logistic Regression offre maggiore trasparenza su "quanto" pesa ciascun fattore. Usali insieme: uno per prevedere, l'altro per capire il "perché".</p>
+        <div class='mlx-hero' style='padding:26px 30px;'>
+            <div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:18px; position:relative; z-index:1;'>
+                <div>
+                    <p class='mlx-eyebrow'>Verdetto complessivo</p>
+                    <h2 class='mlx-hero-title' style='margin-bottom:6px;'>🏆 {vincitore} vince sul tuo storico</h2>
+                    <p class='mlx-hero-msg'>Punteggio medio su 5 metriche: <strong style='color:#fff;'>{score_rf if vincitore=="Random Forest" else score_log:.1f}/100</strong>
+                    contro <strong style='color:#fff;'>{score_log if vincitore=="Random Forest" else score_rf:.1f}/100</strong> dell'altro modello
+                    (scarto di {margine:.1f} punti — {"netto" if margine > 8 else "risicato, i due modelli si equivalgono quasi"}).</p>
+                </div>
+                <div style='text-align:center; background: rgba(255,255,255,0.03); border:1px solid {BD}; border-radius:14px; padding:14px 26px;'>
+                    <div style='font-family:"JetBrains Mono",monospace; font-size:2.1rem; font-weight:700; color:{col_win};'>{max(score_rf, score_log):.0f}<span style='font-size:1.1rem; color:{TXT_TER};'>/100</span></div>
+                    <div style='font-family:"Inter",sans-serif; font-size:.72rem; color:{TXT_TER}; text-transform:uppercase; letter-spacing:.08em;'>Punteggio {vincitore}</div>
+                </div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
-except Exception as e:
+        # ---------------------------------------------------
+        # RADAR: le 5 metriche fianco a fianco
+        # ---------------------------------------------------
+        c1, c2 = st.columns([1.1, 1])
+        with c1:
+            fig_radar = go.Figure()
+            fig_radar.add_trace(go.Scatterpolar(
+                r=rf_values + [rf_values[0]], theta=metriche_labels + [metriche_labels[0]],
+                fill='toself', name='Random Forest', line=dict(color=C_CYAN, width=2),
+                fillcolor='rgba(0,229,255,0.15)'
+            ))
+            fig_radar.add_trace(go.Scatterpolar(
+                r=log_values + [log_values[0]], theta=metriche_labels + [metriche_labels[0]],
+                fill='toself', name='Logistic Regression', line=dict(color=C_AMBER, width=2),
+                fillcolor='rgba(255,176,32,0.15)'
+            ))
+            fig_radar.update_traces(hovertemplate="%{theta}: %{r:.1f}<extra></extra>")
+            fig_radar.update_layout(
+                height=380, title="Il profilo completo dei due modelli",
+                polar=dict(radialaxis=dict(visible=True, range=[0, 100]))
+            )
+            st.plotly_chart(style_fig(fig_radar), use_container_width=True)
+            mlx_insight(
+                "<strong>Come leggere la ragnatela:</strong> più l'area colorata è estesa, più quel modello è forte "
+                "su tutti i fronti insieme. Se una forma è più larga in un punto ma più stretta in un altro, significa "
+                "che i modelli hanno punti di forza diversi, non che uno è semplicemente 'migliore'.",
+                C_CYAN
+            )
+
+        with c2:
+            comp_data_full = pd.DataFrame({
+                'Metrica': metriche_labels * 2,
+                'Valore': rf_values + log_values,
+                'Modello': ['Random Forest'] * 5 + ['Logistic Regression'] * 5
+            })
+            fig_comp_full = px.bar(
+                comp_data_full, x='Metrica', y='Valore', color='Modello', barmode='group',
+                color_discrete_map={'Random Forest': C_CYAN, 'Logistic Regression': C_AMBER}
+            )
+            fig_comp_full.update_traces(hovertemplate="%{x}: %{y:.1f}<extra></extra>")
+            fig_comp_full.update_layout(height=380, title="Ogni metrica, fianco a fianco", legend=dict(orientation="h", y=-0.25))
+            st.plotly_chart(style_fig(fig_comp_full), use_container_width=True)
+            mlx_insight(
+                "<strong>Qual è la metrica più importante per te?</strong> Se preferisci non farti sorprendere da un "
+                "infortunio (meglio un falso allarme in più), guarda la <strong>Sensibilità</strong>. Se invece vuoi "
+                "fidarti degli allarmi senza esagerare, guarda la <strong>Precisione</strong>.",
+                C_AMBER
+            )
+
+        # ---------------------------------------------------
+        # TABELLA PRO / CONTRO — linguaggio semplice
+        # ---------------------------------------------------
+        mlx_section("Guida alla scelta", "Pro, contro e quando usarli", C_GREEN)
+
+        col_rf, col_log = st.columns(2)
+        with col_rf:
+            st.markdown(f"""
+            <div class='kpi-card' style='text-align:left; background: linear-gradient(135deg, #0E1420 0%, #0F1C24 100%); border:1px solid {C_CYAN}44;'>
+                <div style='display:flex; align-items:center; gap:10px; margin-bottom:12px;'>
+                    <h3 style='color:{C_CYAN}; margin:0;'>🌲 Random Forest</h3>
+                    {mlx_chip("Precisione", C_CYAN) if prec_rf >= prec_log else ""}
+                </div>
+                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Punti di forza:</strong> cattura pattern complessi e non lineari (es. "il rischio esplode solo se poco sonno E alto stress si combinano insieme"). Robusta agli outlier.</p>
+                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Limiti:</strong> è una "scatola nera": più difficile spiegare esattamente perché ha dato un certo responso in un singolo caso.</p>
+                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Usala quando:</strong> vuoi la previsione più accurata possibile e ti fidi del modello come "consulente esperto".</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_log:
+            st.markdown(f"""
+            <div class='kpi-card' style='text-align:left; background: linear-gradient(135deg, #0E1420 0%, #241a0f 100%); border:1px solid {C_AMBER}44;'>
+                <div style='display:flex; align-items:center; gap:10px; margin-bottom:12px;'>
+                    <h3 style='color:{C_AMBER}; margin:0;'>📐 Logistic Regression</h3>
+                    {mlx_chip("Trasparenza", C_AMBER) if True else ""}
+                </div>
+                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Punti di forza:</strong> ogni fattore ha un peso dichiarato e leggibile (vedi tab "Logistic Regression"). Facile da spiegare a chiunque.</p>
+                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Limiti:</strong> assume relazioni lineari — se il rischio dipende da combinazioni complesse di fattori, può perdersele.</p>
+                <p style='color:{TXT_SEC}; font-size:.88rem;'><strong style='color:#fff;'>Usala quando:</strong> vuoi capire "il perché" dietro un consiglio, non solo il risultato finale.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # ---------------------------------------------------
+        # VERDETTO FINALE ESTESO
+        # ---------------------------------------------------
+        differenza_auc = abs(auc_rf_final - auc_log_final)
+        nota_auc = (
+            "una differenza minima: sul piano puramente predittivo i due modelli si equivalgono quasi del tutto"
+            if differenza_auc < 0.03 else
+            f"una differenza di {differenza_auc:.2f} punti di AUC, non trascurabile sul tuo storico"
+        )
+        st.markdown(f"""
+        <div class='mlx-insight' style='--ic-color:{C_GREEN}; margin-top:22px;'>
+            <strong>Verdetto pratico:</strong> sul tuo storico attuale, valutato solo su allenamenti mai usati per l'addestramento,
+            il modello più accurato è <strong style='color:#fff;'>{vincitore}</strong> ({nota_auc}).
+            Il consiglio migliore però non è "usarne solo uno": lascia che la <strong>Random Forest</strong> ti dia l'allarme più
+            affidabile, e usa la <strong>Logistic Regression</strong> per capire subito quale fattore specifico (sonno, stress,
+            distanza...) sta spingendo il rischio verso l'alto — insieme coprono sia la previsione che la spiegazione.
+        </div>
+        """, unsafe_allow_html=True)
     st.error(f"Errore caricamento modelli ML: {str(e)}")
