@@ -204,15 +204,30 @@ def carica_css():
         div[data-testid="stMetricValue"] { font-family: 'JetBrains Mono', monospace !important; color: #fff !important; }
         div[data-testid="stMetricLabel"] { font-family: 'Inter', sans-serif !important; color: var(--text-faint) !important; }
 
+        /* =========================================================
+           HERO MEDIA — niente più scatola: nessun bordo, nessuno
+           sfondo proprio, nessun border-radius. L'illustrazione
+           sfuma nel nulla ai bordi (mask-image) e vive direttamente
+           sopra lo sfondo della pagina, come un tracciato di
+           telemetria piuttosto che un widget incorniciato.
+        ========================================================= */
         .hero-media {
-            border-radius: 16px; overflow: hidden; position: relative; margin-bottom: 6px; border: 1px solid var(--line);
-            background: var(--panel);
+            position: relative;
+            margin-bottom: 6px;
         }
-        .hero-media img { display:block; width: 100%; height: 220px; object-fit: cover; }
+        .hero-media img {
+            display: block;
+            width: 100%;
+            height: 240px;
+            object-fit: contain;
+            -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 14%, black 86%, transparent 100%);
+                    mask-image: linear-gradient(90deg, transparent 0%, black 14%, black 86%, transparent 100%);
+        }
         .hero-media .tag {
-            position:absolute; bottom:14px; left:14px; font-family:'JetBrains Mono', monospace; font-size:0.72em;
-            letter-spacing:0.12em; color:#fff; background: rgba(8,11,18,0.85); padding: 5px 10px; border-radius:6px;
-            border: 1px solid rgba(255,255,255,0.15); text-transform: uppercase;
+            position: absolute; bottom: 6px; left: 4px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.7em;
+            letter-spacing: 0.14em; text-transform: uppercase;
+            color: var(--text-faint);
         }
     </style>
     """, unsafe_allow_html=True)
