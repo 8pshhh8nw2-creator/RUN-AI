@@ -9,6 +9,7 @@ from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import StratifiedKFold, KFold, cross_val_predict
 from sklearn.metrics import (
     confusion_matrix, roc_curve, auc, precision_score, recall_score,
     f1_score, r2_score, mean_absolute_error, silhouette_score
@@ -50,9 +51,9 @@ IMG_HERO_ML = get_svg_url(SVG_ML)
 # PAGINA 4: ANALISI PREDITTIVA ML
 # ---------------------------------------------------------
 header_block(
-    "Modulo 04 — Model Explainability",
+    "Modulo 04 — Come funzionano i modelli",
     "ANALISI PREDITTIVA ML",
-    "Esplora i modelli di Machine Learning avanzati addestrati sul tuo storico biometrico e comportamentale.",
+    "Scopri come i modelli imparano dal tuo storico di allenamenti per prevedere il rischio e aiutarti a decidere.",
     IMG_HERO_ML, "Machine Learning Engine"
 )
 
@@ -61,7 +62,7 @@ df_base = st.session_state.dati.copy()
 st.markdown("""
 <div class='info-box'>
 <h3>Come opera il Machine Learning in RUN AI?</h3>
-<p style='color: #B8C2D0; font-family:"Inter",sans-serif;'>Il sistema analizza i tuoi dati storici mediante algoritmi di classificazione, regressione e clustering non supervisionato per individuare pattern invisibili e stimare con precisione la tua risposta biologica agli stimoli. In parole semplici: i modelli "imparano" dai tuoi allenamenti passati per prevedere cosa succederà con quelli futuri.</p>
+<p style='color: #B8C2D0; font-family:"Inter",sans-serif;'>Il sistema analizza il tuo storico di allenamenti con algoritmi di classificazione, regressione e clustering per individuare pattern nascosti e stimare come il tuo corpo reagisce ai carichi di lavoro. In parole semplici: i modelli "imparano" dai tuoi allenamenti passati per prevedere cosa succederà con quelli futuri.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -75,27 +76,55 @@ try:
     scaler = StandardScaler()
     X_scaled_class = scaler.fit_transform(X_train_class)
 
-    # Modelli addestrati una sola volta, riutilizzati in tutte le tab
+    # ---------------------------------------------------------------
+    # Modelli addestrati sui dati completi: servono per la feature
+    # importance, i coefficienti interpretativi e il simulatore
+    # What-If (qui è corretto usare tutti i dati disponibili, perché
+    # l'obiettivo non è misurare le performance ma dare al modello
+    # la massima informazione possibile per generare la spiegazione).
+    # ---------------------------------------------------------------
     rf_model = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=8, min_samples_split=5)
     rf_model.fit(X_scaled_class, y_train_class)
-    y_pred_rf = rf_model.predict(X_scaled_class)
-    y_proba_rf = rf_model.predict_proba(X_scaled_class)[:, 1]
 
     log_model = LogisticRegression(random_state=42)
     log_model.fit(X_scaled_class, y_train_class)
-    y_proba_log = log_model.predict_proba(X_scaled_class)[:, 1]
+
+    # ---------------------------------------------------------------
+    # Le METRICHE DI PERFORMANCE (accuratezza, precisione, AUC, ecc.)
+    # vengono invece calcolate con cross-validation: ogni previsione
+    # arriva da una versione del modello che NON ha visto quella
+    # sessione durante l'addestramento. Coerente con quanto dichiarato
+    # nel Capitolo 1 della tesi (validazione su dati mai visti).
+    # Il numero di fold si adatta automaticamente se le classi sono
+    # sbilanciate (poche sessioni a rischio rispetto a quelle sicure).
+    # ---------------------------------------------------------------
+    n_pos = int(y_train_class.sum())
+    n_neg = len(y_train_class) - n_pos
+    if n_pos > 0 and n_neg > 0:
+        n_splits = max(2, min(5, n_pos, n_neg))
+        cv_class = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+    else:
+        cv_class = KFold(n_splits=5, shuffle=True, random_state=42)
+
+    y_pred_rf = cross_val_predict(rf_model, X_scaled_class, y_train_class, cv=cv_class, method='predict')
+    y_proba_rf = cross_val_predict(rf_model, X_scaled_class, y_train_class, cv=cv_class, method='predict_proba')[:, 1]
+
+    y_pred_log = cross_val_predict(log_model, X_scaled_class, y_train_class, cv=cv_class, method='predict')
+    y_proba_log = cross_val_predict(log_model, X_scaled_class, y_train_class, cv=cv_class, method='predict_proba')[:, 1]
 
     # =========================================================
     # KPI PANORAMICA — colpo d'occhio prima di entrare nel dettaglio
     # =========================================================
     st.subheader("KPI Panoramica Modelli")
+    st.caption("Le metriche qui sotto sono calcolate con cross-validation: ogni previsione viene da un modello che non ha visto quella sessione durante l'addestramento, per una stima onesta della reale capacità predittiva.")
+
     acc_rf = (y_pred_rf == y_train_class).mean() * 100
     prec_rf = precision_score(y_train_class, y_pred_rf, zero_division=0) * 100
     rec_rf = recall_score(y_train_class, y_pred_rf, zero_division=0) * 100
     giorni_rischio_pct = (df_base['Rischio Infortunio'].sum() / len(df_base)) * 100
 
     kc1, kc2, kc3, kc4 = st.columns(4)
-    kc1.metric("Accuratezza Random Forest", f"{acc_rf:.1f}%", help="Su quanti giorni il modello ha indovinato correttamente se ci fosse rischio o meno.")
+    kc1.metric("Accuratezza Random Forest", f"{acc_rf:.1f}%", help="Su quanti giorni il modello ha indovinato correttamente se ci fosse rischio o meno (valutato su dati mai visti durante l'addestramento).")
     kc2.metric("Precisione (Precision)", f"{prec_rf:.1f}%", help="Quando il modello segnala 'rischio', quante volte ha ragione davvero.")
     kc3.metric("Sensibilità (Recall)", f"{rec_rf:.1f}%", help="Su tutti i giorni realmente a rischio, quanti ne ha individuati il modello.")
     kc4.metric("Giorni a Rischio Storici", f"{giorni_rischio_pct:.1f}%", help="Percentuale di giorni nel tuo storico classificati come a rischio infortunio.")
@@ -120,7 +149,7 @@ try:
             imp_data = sorted(list(zip(feature_names, importances)), key=lambda x: x[1], reverse=True)
             fig_imp = go.Figure(go.Bar(y=[x[0] for x in imp_data], x=[x[1]*100 for x in imp_data], orientation='h', marker_color='#00E5FF', text=[f'{x[1]*100:.1f}%' for x in imp_data], textposition='auto', name="Importanza Feature"))
             fig_imp.update_traces(hovertemplate="Feature: %{y}<br>Peso: %{x:.1f}%<extra></extra>")
-            fig_imp.update_layout(height=320, yaxis=dict(autorange="reversed"), title="Importanza delle Variabili")
+            fig_imp.update_layout(height=320, yaxis=dict(autorange="reversed"), title="Quali fattori pesano di più")
             st.plotly_chart(style_fig(fig_imp), use_container_width=True)
             top_feat = imp_data[0][0]
             st.markdown(f"<div class='explain-text'><strong>Cosa conta di più:</strong> tra tutte le metriche, <strong>{top_feat}</strong> è quella che pesa di più nella decisione del modello. Tienila d'occhio prima di aumentare i carichi.</div>", unsafe_allow_html=True)
@@ -129,7 +158,7 @@ try:
             cm = confusion_matrix(y_train_class, y_pred_rf)
             fig_cm = go.Figure(data=go.Heatmap(z=cm, x=['Pred: Sicuro', 'Pred: Rischio'], y=['Reale: Sicuro', 'Reale: Rischio'], text=cm, texttemplate='%{text}', textfont={"size": 20, "color": "#04121a"}, colorscale=[[0,'#0E1420'],[1,'#00E5FF']], showscale=False, name="Matrice"))
             fig_cm.update_traces(hovertemplate="Reale: %{y}<br>Predetto: %{x}<br>Casi: %{z}<extra></extra>")
-            fig_cm.update_layout(height=320, title="Matrice di Confusione")
+            fig_cm.update_layout(height=320, title="Quante volte ha indovinato")
             st.plotly_chart(style_fig(fig_cm), use_container_width=True)
             st.markdown("<div class='explain-text'><strong>Come leggerla:</strong> le due caselle in diagonale (in alto a sinistra e in basso a destra) sono le previsioni corrette. Più sono 'piene' rispetto alle altre due, più il modello è affidabile.</div>", unsafe_allow_html=True)
 
@@ -155,7 +184,7 @@ try:
                 <div style='display:flex; justify-content:space-between; margin:8px 0; color:#B8C2D0;'><span>Sensibilità</span><strong style='color:#fff; font-family:"JetBrains Mono",monospace;'>{rec_rf:.1f}%</strong></div>
             </div>
             """, unsafe_allow_html=True)
-            st.markdown("<div class='explain-text'><strong>AUC in parole povere:</strong> un valore vicino a 1.0 significa che il modello distingue quasi perfettamente i giorni a rischio da quelli sicuri. Un valore vicino a 0.5 equivale a tirare a indovinare.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>AUC in parole povere:</strong> un valore vicino a 1.0 significa che il modello distingue quasi perfettamente i giorni a rischio da quelli sicuri. Un valore vicino a 0.5 equivale a tirare a indovinare. Questo valore, come tutti gli altri in questa pagina, è calcolato su dati che il modello non ha usato per imparare.</div>", unsafe_allow_html=True)
 
     # =========================================================
     # TAB 2 — LOGISTIC REGRESSION
@@ -170,10 +199,10 @@ try:
         with c1:
             fig_log = go.Figure(go.Bar(x=feature_names, y=coefs, marker_color=colors, name="Coefficiente"))
             fig_log.update_traces(hovertemplate="Feature: %{x}<br>Impatto Lineare: %{y:.2f}<extra></extra>")
-            fig_log.update_layout(height=350, title="Coefficienti di Impatto (Logistic Regression)", yaxis_title="Peso Coefficiente")
+            fig_log.update_layout(height=350, title="Quanto pesa ogni fattore", yaxis_title="Peso Coefficiente")
             fig_log.add_hline(y=0, line_color="#E8ECF2", line_width=1)
             st.plotly_chart(style_fig(fig_log), use_container_width=True)
-            st.markdown("<div class='explain-text'><strong>Regressione Logistica:</strong> i coefficienti verdi agiscono come fattori protettivi (riducono il rischio), quelli arancioni aumentano le probabilità di sovraccarico.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Come leggerlo:</strong> le barre verdi agiscono come fattori protettivi (riducono il rischio), quelle arancioni aumentano le probabilità di sovraccarico.</div>", unsafe_allow_html=True)
         with c2:
             fpr_log, tpr_log, _ = roc_curve(y_train_class, y_proba_log)
             auc_log = auc(fpr_log, tpr_log)
@@ -181,9 +210,9 @@ try:
             fig_odds = go.Figure(go.Bar(x=feature_names, y=odds, marker_color='#00B8D4', name="Odds Ratio"))
             fig_odds.update_traces(hovertemplate="Feature: %{x}<br>Odds Ratio: %{y:.2f}x<extra></extra>")
             fig_odds.add_hline(y=1, line_dash="dash", line_color="#FFB020", annotation_text="Nessun effetto")
-            fig_odds.update_layout(height=350, title="Odds Ratio — Quante Volte Cambia il Rischio")
+            fig_odds.update_layout(height=350, title="Di quante volte cambia il rischio")
             st.plotly_chart(style_fig(fig_odds), use_container_width=True)
-            st.markdown(f"<div class='explain-text'><strong>Odds Ratio spiegato:</strong> un valore sopra 1 significa che quella variabile moltiplica il rischio; sotto 1, lo riduce. Modello valutato con AUC = {auc_log:.2f}.</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='explain-text'><strong>Come leggerlo:</strong> un valore sopra 1 significa che quella variabile moltiplica il rischio; sotto 1, lo riduce. Modello valutato su dati mai visti, con AUC = {auc_log:.2f}.</div>", unsafe_allow_html=True)
 
     # =========================================================
     # TAB 3 — LINEAR REGRESSION
@@ -196,26 +225,36 @@ try:
         y_lr = df_base['FC Media']
         lr_model = LinearRegression()
         lr_model.fit(X_lr, y_lr)
+
+        # Il grafico degli scostamenti usa le previsioni "sui dati di addestramento":
+        # qui va bene, perché lo scopo è individuare le sessioni anomale rispetto
+        # al pattern generale, non misurare quanto il modello generalizza.
         df_base['FC_Predetta'] = lr_model.predict(X_lr)
         df_base['Residuo'] = df_base['FC Media'] - df_base['FC_Predetta']
-        r2 = r2_score(y_lr, df_base['FC_Predetta'])
-        mae = mean_absolute_error(y_lr, df_base['FC_Predetta'])
+
+        # R² e MAE, invece, vengono calcolati con cross-validation: indicano quanto
+        # bene il modello prevede la FC su sessioni che non ha mai visto, una stima
+        # onesta e coerente con la metodologia dichiarata nella tesi.
+        cv_reg = KFold(n_splits=5, shuffle=True, random_state=42)
+        y_pred_cv_lr = cross_val_predict(lr_model, X_lr, y_lr, cv=cv_reg)
+        r2 = r2_score(y_lr, y_pred_cv_lr)
+        mae = mean_absolute_error(y_lr, y_pred_cv_lr)
 
         c1, c2 = st.columns(2)
         with c1:
             fig_lr = px.scatter(df_base, x='FC Media', y='FC_Predetta', color='RPE', color_continuous_scale=[[0,'#00E5FF'],[1,'#FF6A3D']], labels={'FC_Predetta':'FC Predetta Modello', 'FC Media':'FC Reale'})
             fig_lr.update_traces(hovertemplate="FC Reale: %{x} bpm<br>FC Predetta: %{y:.1f} bpm<extra></extra>")
             fig_lr.add_shape(type="line", x0=df_base['FC Media'].min(), y0=df_base['FC Media'].min(), x1=df_base['FC Media'].max(), y1=df_base['FC Media'].max(), line=dict(color="#00F5A0", dash="dash"))
-            fig_lr.update_layout(height=320, title="FC Reale vs FC Predetta")
+            fig_lr.update_layout(height=320, title="FC Reale vs FC Prevista")
             st.plotly_chart(style_fig(fig_lr), use_container_width=True)
-            st.markdown("<div class='explain-text'><strong>Previsione Lineare:</strong> la linea verde rappresenta la previsione perfetta. Deviazioni eccessive segnalano un affaticamento non spiegato dal passo o dal clima.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Come leggerlo:</strong> la linea verde rappresenta la previsione perfetta. Deviazioni eccessive segnalano un affaticamento non spiegato dal passo o dal clima.</div>", unsafe_allow_html=True)
         with c2:
             fig_resid = px.scatter(df_base, x='Giorno', y='Residuo', color='Residuo', color_continuous_scale=[[0,'#00F5A0'],[0.5,'#8792A3'],[1,'#FF6A3D']], labels={'Residuo':'Scostamento (bpm)'})
             fig_resid.add_hline(y=0, line_color="#E8ECF2", line_width=1)
             fig_resid.update_traces(hovertemplate="Data: %{x}<br>Scostamento: %{y:.1f} bpm<extra></extra>")
             fig_resid.update_layout(height=320, title="Andamento degli Scostamenti nel Tempo")
             st.plotly_chart(style_fig(fig_resid), use_container_width=True)
-            st.markdown(f"<div class='explain-text'><strong>Precisione del modello:</strong> spiega circa il <strong>{r2*100:.0f}%</strong> della variazione della tua FC, con un errore medio di <strong>±{mae:.1f} bpm</strong>. Punti sopra lo zero (arancioni) indicano giorni in cui il cuore ha lavorato più del previsto.</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='explain-text'><strong>Quanto è preciso il modello:</strong> su sessioni mai viste, spiega circa il <strong>{r2*100:.0f}%</strong> della variazione della tua FC, con un errore medio di <strong>±{mae:.1f} bpm</strong>. Nel grafico qui sopra, punti sopra lo zero (arancioni) indicano giorni in cui il cuore ha lavorato più del previsto.</div>", unsafe_allow_html=True)
 
     # =========================================================
     # TAB 4 — CLUSTER K-MEANS
@@ -224,7 +263,14 @@ try:
         st.markdown("### Cluster Analysis (K-Means)")
         st.markdown("<div class='explain-text'>Il modello raggruppa da solo i tuoi allenamenti in categorie simili tra loro, senza che tu gli dica nulla in anticipo. È utile per scoprire se ti stai davvero allenando in modo 'polarizzato' (facile + duro) o se resti sempre nella stessa zona intermedia, poco efficace.</div>", unsafe_allow_html=True)
 
-        X_clust = df_base[['Distanza (km)', 'FC Media']]
+        # Distanza (km, range ~0-42) e FC Media (bpm, range ~100-180) hanno scale
+        # molto diverse: senza standardizzare, il raggruppamento finirebbe per
+        # dare più peso alla FC solo perché i numeri sono più grandi, non perché
+        # conta davvero di più. Standardizziamo prima di raggruppare.
+        X_clust_raw = df_base[['Distanza (km)', 'FC Media']]
+        scaler_clust = StandardScaler()
+        X_clust = scaler_clust.fit_transform(X_clust_raw)
+
         c1, c2 = st.columns(2)
         with c1:
             inertias = []
@@ -235,7 +281,7 @@ try:
             fig_elbow = go.Figure(go.Scatter(x=list(k_range), y=inertias, mode='lines+markers', line=dict(color='#00E5FF', width=3), marker=dict(size=9)))
             fig_elbow.add_vline(x=3, line_dash="dash", line_color="#FFB020", annotation_text="Scelto: 3")
             fig_elbow.update_traces(hovertemplate="N. Cluster: %{x}<br>Inerzia: %{y:.0f}<extra></extra>")
-            fig_elbow.update_layout(height=320, title="Metodo del Gomito — Perché 3 Cluster?", xaxis_title="Numero di Cluster", yaxis_title="Inerzia")
+            fig_elbow.update_layout(height=320, title="Metodo del Gomito — Perché 3 Gruppi?", xaxis_title="Numero di Gruppi", yaxis_title="Inerzia (compattezza dei gruppi)")
             st.plotly_chart(style_fig(fig_elbow), use_container_width=True)
             st.markdown("<div class='explain-text'><strong>Metodo del gomito:</strong> si sceglie il punto dove la curva smette di scendere ripidamente — qui succede intorno a 3, motivo per cui usiamo quel numero di gruppi.</div>", unsafe_allow_html=True)
         with c2:
@@ -247,7 +293,7 @@ try:
             fig_km.update_traces(hovertemplate="Distanza: %{x} km<br>FC: %{y} bpm<extra></extra>")
             fig_km.update_layout(height=320, title=f"Segmentazione Allenamenti (Silhouette: {sil:.2f})")
             st.plotly_chart(style_fig(fig_km), use_container_width=True)
-            st.markdown("<div class='explain-text'><strong>Silhouette Score:</strong> più è vicino a 1, più i gruppi trovati sono ben separati e coerenti tra loro.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Silhouette Score:</strong> più è vicino a 1, più i gruppi trovati sono ben separati e coerenti tra loro (i valori tipici in dati reali sono spesso tra 0.3 e 0.6).</div>", unsafe_allow_html=True)
 
         st.markdown("#### Identikit di Ogni Cluster")
         cluster_profile = df_base.groupby('Cluster_Type')[['Distanza (km)', 'FC Media', 'RPE', 'Ore Sonno']].mean().reset_index()
@@ -279,7 +325,7 @@ try:
             fig_sp.add_hline(y=15, line_dash="dash", line_color="#FFB020", annotation_text="Soglia Critica")
             fig_sp.update_layout(height=320, title="Media Mobile Stress Sistemico (7 Giorni)")
             st.plotly_chart(style_fig(fig_sp), use_container_width=True)
-            st.markdown("<div class='explain-text'><strong>Analisi Serie Temporali:</strong> superare la soglia critica indica alto rischio di sovrallenamento cronico, non solo affaticamento passeggero.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='explain-text'><strong>Come leggerlo:</strong> superare la soglia critica indica alto rischio di sovrallenamento cronico, non solo affaticamento passeggero.</div>", unsafe_allow_html=True)
         with c2:
             giorni_sopra_soglia = int((df_stress['SMA_Rolling'] > 15).sum())
             pct_sopra_soglia = (giorni_sopra_soglia / len(df_stress)) * 100
@@ -307,6 +353,11 @@ try:
             sim_stress = st.slider("Stress simulato", 1, 10, int(base.get('stress_lavoro', 5)), key="sim_stress")
             sim_rpe = st.slider("RPE simulato", 1, 10, int(base.get('rpe_previsto', 6)), key="sim_rpe")
 
+        # NOTA METODOLOGICA: questa è una stima approssimata della FC attesa in
+        # base allo sforzo percepito simulato, non una previsione del modello di
+        # Linear Regression (che richiederebbe velocità e temperatura, non
+        # presenti tra gli slider di questo simulatore). Va trattata come un
+        # proxy plausibile, non come una previsione di precisione clinica.
         sim_fc = 100 + sim_rpe * 10
         sim_input = np.array([[sim_dist, sim_sonno, sim_stress, sim_fc, sim_rpe]])
         sim_prob = rf_model.predict_proba(scaler.transform(sim_input))[0][1] * 100
@@ -325,6 +376,7 @@ try:
             adv_col = "#00F5A0"
 
         st.markdown(f"<div class='info-box' style='border-left-color: {adv_col};'>{advice_msg}</div>", unsafe_allow_html=True)
+        st.caption("La frequenza cardiaca usata in questa simulazione è una stima approssimata basata sullo sforzo percepito impostato, non una misura reale né una previsione del modello di regressione lineare.")
 
         col_simg1, col_simg2 = st.columns(2)
         with col_simg1:
@@ -351,7 +403,7 @@ try:
         st.markdown("<div class='explain-text'><strong>Come usare questo grafico:</strong> mostra a quale distanza il rischio inizia a salire rapidamente, tenendo fissi gli altri tuoi parametri attuali — utile per capire il tuo 'punto di rottura' personale di oggi.</div>", unsafe_allow_html=True)
 
     # =========================================================
-    # TAB 7 — CONFRONTO MODELLI (NUOVO)
+    # TAB 7 — CONFRONTO MODELLI
     # =========================================================
     with t_ml7:
         st.markdown("### Confronto tra Modelli")
@@ -383,7 +435,7 @@ try:
         st.markdown(f"""
         <div class='kpi-card' style='text-align:left; margin-top:10px; background: linear-gradient(135deg, #0E1420 0%, #131427 100%);'>
             <h3 style='color:#FFB020; margin-bottom:15px;'>Verdetto Finale</h3>
-            <p style='color:#B8C2D0;'>Sul tuo storico attuale, il modello più affidabile risulta essere <strong style='color:#fff;'>{vincitore}</strong>. La Random Forest tende a catturare meglio relazioni complesse e non lineari tra le variabili, mentre la Logistic Regression offre maggiore trasparenza su "quanto" pesa ciascun fattore. Usali insieme: uno per prevedere, l'altro per capire il "perché".</p>
+            <p style='color:#B8C2D0;'>Sul tuo storico attuale, valutato su dati mai visti durante l'addestramento, il modello più affidabile risulta essere <strong style='color:#fff;'>{vincitore}</strong>. La Random Forest tende a catturare meglio relazioni complesse e non lineari tra le variabili, mentre la Logistic Regression offre maggiore trasparenza su "quanto" pesa ciascun fattore. Usali insieme: uno per prevedere, l'altro per capire il "perché".</p>
         </div>
         """, unsafe_allow_html=True)
 
