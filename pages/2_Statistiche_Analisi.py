@@ -64,27 +64,46 @@ with tab1:
         st.markdown("**KM per Settimana**")
         df_weekly = df.groupby(df['Giorno'].dt.to_period('W')).agg({'Distanza (km)': 'sum'}).reset_index()
         df_weekly['Giorno'] = df_weekly['Giorno'].astype(str)
-        fig1 = px.bar(df_weekly, x='Giorno', y='Distanza (km)', height=300, color='Distanza (km)', color_continuous_scale=[[0,'#0E4A57'],[1,'#00E5FF']], labels={'Distanza (km)':'Distanza'})
+        fig1 = px.bar(
+            df_weekly, x='Giorno', y='Distanza (km)', height=300, 
+            color='Distanza (km)', color_continuous_scale=[[0,'#0E4A57'],[1,'#00E5FF']], 
+            labels={'Distanza (km)':'Distanza'}, title=""
+        )
         fig1.update_traces(hovertemplate="Giorno: %{x}<br>Distanza: %{y} km<extra></extra>")
-        st.plotly_chart(style_fig(fig1), use_container_width=True)
+        fig1.update_layout(title=None, margin=dict(t=10, b=30))
+        fig1_styled = style_fig(fig1)
+        fig1_styled.update_layout(title=None)
+        st.plotly_chart(fig1_styled, use_container_width=True)
         st.markdown("<div class='explain-text'><strong>Analisi Volume:</strong> Verifica che le barre non presentino sbalzi improvvisi superiori al 10% da una settimana all'altra per prevenire sovraccarichi tendinei.</div>", unsafe_allow_html=True)
 
         st.markdown("**Carico per Giorno della Settimana**")
         df_copy = df.copy()
         df_copy['Giorno_Settimana'] = df_copy['Giorno'].dt.day_name()
         df_day = df_copy.groupby('Giorno_Settimana')['Distanza (km)'].mean().reindex(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']).reset_index()
-        fig_day = px.bar(df_day, x='Giorno_Settimana', y='Distanza (km)', height=300, color_discrete_sequence=['#00E5FF'], labels={'Distanza (km)':'Distanza (km)'})
+        fig_day = px.bar(
+            df_day, x='Giorno_Settimana', y='Distanza (km)', height=300, 
+            color_discrete_sequence=['#00E5FF'], labels={'Distanza (km)':'Distanza (km)'}, title=""
+        )
         fig_day.update_traces(hovertemplate="Giorno: %{x}<br>Distanza Media: %{y:.1f} km<extra></extra>")
-        st.plotly_chart(style_fig(fig_day), use_container_width=True)
+        fig_day.update_layout(title=None, margin=dict(t=10, b=30))
+        fig_day_styled = style_fig(fig_day)
+        fig_day_styled.update_layout(title=None)
+        st.plotly_chart(fig_day_styled, use_container_width=True)
         st.markdown("<div class='explain-text'><strong>Distribuzione:</strong> Evidenzia la distribuzione settimanale dei chilometri. Assicurati di alternare giorni di carico a giorni di recupero attivo.</div>", unsafe_allow_html=True)
 
     with col2:
         st.markdown("**Distanza Cumulativa**")
         df_copy = df.copy()
         df_copy['Cumulativa'] = df_copy['Distanza (km)'].cumsum()
-        fig_cum = px.line(df_copy, x='Giorno', y='Cumulativa', height=300, markers=True, labels={'Cumulativa':'Distanza Accumulata'})
+        fig_cum = px.line(
+            df_copy, x='Giorno', y='Cumulativa', height=300, 
+            markers=True, labels={'Cumulativa':'Distanza Accumulata'}, title=""
+        )
         fig_cum.update_traces(line_color="#00E5FF", hovertemplate="Giorno: %{x}<br>Distanza Cumulata: %{y:.1f} km<extra></extra>")
-        st.plotly_chart(style_fig(fig_cum), use_container_width=True)
+        fig_cum.update_layout(title=None, margin=dict(t=10, b=30))
+        fig_cum_styled = style_fig(fig_cum)
+        fig_cum_styled.update_layout(title=None)
+        st.plotly_chart(fig_cum_styled, use_container_width=True)
         st.markdown("<div class='explain-text'><strong>Progressione:</strong> Traccia la progressione lineare dei chilometri accumulati nel periodo di riferimento.</div>", unsafe_allow_html=True)
 
         record_km = df.loc[df['Distanza (km)'].idxmax()]
@@ -106,9 +125,16 @@ with tab2:
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("**FC Media vs Velocità**")
-        fig2 = px.scatter(df, x='Velocità (km/h)', y='FC Media', size='Distanza (km)', color='RPE', color_continuous_scale=[[0,'#0E4A57'],[0.5,'#00E5FF'],[1,'#FF6A3D']], height=300, labels={'FC Media':'Frequenza Cardiaca'})
+        fig2 = px.scatter(
+            df, x='Velocità (km/h)', y='FC Media', size='Distanza (km)', 
+            color='RPE', color_continuous_scale=[[0,'#0E4A57'],[0.5,'#00E5FF'],[1,'#FF6A3D']], 
+            height=300, labels={'FC Media':'Frequenza Cardiaca'}, title=""
+        )
         fig2.update_traces(hovertemplate="Velocità: %{x} km/h<br>FC: %{y} bpm<extra></extra>")
-        st.plotly_chart(style_fig(fig2), use_container_width=True)
+        fig2.update_layout(title=None, margin=dict(t=10, b=30))
+        fig2_styled = style_fig(fig2)
+        fig2_styled.update_layout(title=None)
+        st.plotly_chart(fig2_styled, use_container_width=True)
         st.markdown("<div class='explain-text'><strong>Efficienza:</strong> Relazione tra velocità e frequenza cardiaca. Una maggiore efficienza sposta i punti verso destra mantenendo i battiti bassi.</div>", unsafe_allow_html=True)
 
         st.markdown("**Ripartizione Zone Cardiache**")
@@ -117,46 +143,77 @@ with tab2:
         df_copy = df.copy()
         df_copy['Zone'] = pd.cut(df_copy['FC Media'], bins=bins, labels=labels)
         zone_counts = df_copy['Zone'].value_counts().reset_index()
-        fig_zones = px.pie(zone_counts, values='count', names='Zone', hole=0.6, height=300, color_discrete_sequence=['#00E5FF','#00B8D4','#0E4A57','#FFB020','#FF6A3D'])
+        fig_zones = px.pie(
+            zone_counts, values='count', names='Zone', hole=0.6, height=300, 
+            color_discrete_sequence=['#00E5FF','#00B8D4','#0E4A57','#FFB020','#FF6A3D'], title=""
+        )
         fig_zones.update_traces(hovertemplate="Zona: %{label}<br>Sessioni: %{value}<extra></extra>")
-        st.plotly_chart(style_fig(fig_zones), use_container_width=True)
+        fig_zones.update_layout(title=None, margin=dict(t=10, b=30))
+        fig_zones_styled = style_fig(fig_zones)
+        fig_zones_styled.update_layout(title=None)
+        st.plotly_chart(fig_zones_styled, use_container_width=True)
         st.markdown("<div class='explain-text'><strong>Polarizzazione:</strong> Distribuzione percentuale del tempo trascorso nelle diverse zone cardiache di allenamento.</div>", unsafe_allow_html=True)
 
     with col2:
         st.markdown("**Distribuzione RPE**")
-        fig3 = px.histogram(df, x='RPE', nbins=9, height=300, color_discrete_sequence=['#00E5FF'], labels={'RPE':'Valore RPE'})
+        fig3 = px.histogram(
+            df, x='RPE', nbins=9, height=300, 
+            color_discrete_sequence=['#00E5FF'], labels={'RPE':'Valore RPE'}, title=""
+        )
         fig3.update_traces(hovertemplate="Sforzo (RPE): %{x}<br>Conteggio: %{y}<extra></extra>")
         fig3.add_vline(x=3.5, line_dash="dash", line_color="#00F5A0")
         fig3.add_vline(x=6.5, line_dash="dash", line_color="#FF6A3D")
-        st.plotly_chart(style_fig(fig3), use_container_width=True)
+        fig3.update_layout(title=None, margin=dict(t=10, b=30))
+        fig3_styled = style_fig(fig3)
+        fig3_styled.update_layout(title=None)
+        st.plotly_chart(fig3_styled, use_container_width=True)
         st.markdown("<div class='explain-text'><strong>Percezione Sforzo:</strong> Frequenza dei livelli di sforzo percepito registrati al termine delle sessioni. Evita accumuli continui oltre il livello 7.</div>", unsafe_allow_html=True)
 
 with tab3:
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("**Ore di Sonno**")
-        fig_sleep = px.line(df, x='Giorno', y='Ore Sonno', height=300, markers=True, labels={'Ore Sonno': 'Ore dormite'})
+        fig_sleep = px.line(
+            df, x='Giorno', y='Ore Sonno', height=300, 
+            markers=True, labels={'Ore Sonno': 'Ore dormite'}, title=""
+        )
         fig_sleep.update_traces(line_color="#00E5FF", hovertemplate="Data: %{x}<br>Sonno: %{y} ore<extra></extra>")
         fig_sleep.add_hline(y=7.5, line_dash="dash", line_color="#00F5A0")
         fig_sleep.add_hline(y=6.5, line_dash="dash", line_color="#FF6A3D")
-        st.plotly_chart(style_fig(fig_sleep), use_container_width=True)
+        fig_sleep.update_layout(title=None, margin=dict(t=10, b=30))
+        fig_sleep_styled = style_fig(fig_sleep)
+        fig_sleep_styled.update_layout(title=None)
+        st.plotly_chart(fig_sleep_styled, use_container_width=True)
         st.markdown("<div class='explain-text'><strong>Monitoraggio Sonno:</strong> Linea verde (ideale), linea rossa (soglia rischio infortunio).</div>", unsafe_allow_html=True)
 
         st.markdown("**Debito di Sonno (Rolling 7gg)**")
         df_copy = df.copy()
         df_copy['Debito'] = df_copy['Ore Sonno'].apply(lambda x: max(0, 7.5 - x)).rolling(7).sum()
-        fig_debt = px.area(df_copy, x='Giorno', y='Debito', height=300, color_discrete_sequence=['#FF6A3D'], labels={'Debito': 'Debito in ore'})
+        fig_debt = px.area(
+            df_copy, x='Giorno', y='Debito', height=300, 
+            color_discrete_sequence=['#FF6A3D'], labels={'Debito': 'Debito in ore'}, title=""
+        )
         fig_debt.update_traces(hovertemplate="Data: %{x}<br>Debito Accumulato: %{y:.1f} ore<extra></extra>")
-        st.plotly_chart(style_fig(fig_debt), use_container_width=True)
+        fig_debt.update_layout(title=None, margin=dict(t=10, b=30))
+        fig_debt_styled = style_fig(fig_debt)
+        fig_debt_styled.update_layout(title=None)
+        st.plotly_chart(fig_debt_styled, use_container_width=True)
         st.markdown("<div class='explain-text'><strong>Debito Sistemico:</strong> Accumulo settimanale del deficit di sonno rispetto allo standard ottimale di 7.5 ore.</div>", unsafe_allow_html=True)
 
     with col2:
         st.markdown("**Sonno vs Sforzo**")
-        fig4 = px.scatter(df, x='Ore Sonno', y='RPE', size='Distanza (km)', color='Rischio Infortunio', color_continuous_scale=[[0,'#00E5FF'],[1,'#FF6A3D']], height=300, labels={'Ore Sonno':'Sonno', 'RPE':'Sforzo Percepito'})
+        fig4 = px.scatter(
+            df, x='Ore Sonno', y='RPE', size='Distanza (km)', 
+            color='Rischio Infortunio', color_continuous_scale=[[0,'#00E5FF'],[1,'#FF6A3D']], 
+            height=300, labels={'Ore Sonno':'Sonno', 'RPE':'Sforzo Percepito'}, title=""
+        )
         fig4.update_traces(hovertemplate="Ore Sonno: %{x}<br>RPE: %{y}<extra></extra>")
         fig4.add_hline(y=7, line_dash="dash", line_color="#FFB020")
         fig4.add_vline(x=6.5, line_dash="dash", line_color="#FFB020")
-        st.plotly_chart(style_fig(fig4), use_container_width=True)
+        fig4.update_layout(title=None, margin=dict(t=10, b=30))
+        fig4_styled = style_fig(fig4)
+        fig4_styled.update_layout(title=None)
+        st.plotly_chart(fig4_styled, use_container_width=True)
         st.markdown("<div class='explain-text'><strong>Correlazione Bivariata:</strong> Relazione tra sonno e intensità dello sforzo. I punti in alto a sinistra (poco sonno, alto sforzo) sono a forte rischio infortuni.</div>", unsafe_allow_html=True)
 
 with tab4:
@@ -168,5 +225,7 @@ with tab4:
         header=dict(values=list(tab_data.columns), fill_color='#111827', align='center', font=dict(color='#00E5FF', size=13, family="JetBrains Mono, monospace")),
         cells=dict(values=[tab_data[col] for col in tab_data.columns], fill_color='#0E1420', align='center', font=dict(color='#B8C2D0', size=12, family="Inter, sans-serif"), height=30)
     )])
-    fig_table.update_layout(margin=dict(l=0, r=0, t=0, b=0), height=500)
-    st.plotly_chart(style_fig(fig_table), use_container_width=True)
+    fig_table.update_layout(margin=dict(l=0, r=0, t=0, b=0), height=500, title=None)
+    fig_table_styled = style_fig(fig_table)
+    fig_table_styled.update_layout(title=None)
+    st.plotly_chart(fig_table_styled, use_container_width=True)
