@@ -113,23 +113,122 @@ try:
     y_proba_log = cross_val_predict(log_model, X_scaled_class, y_train_class, cv=cv_class, method='predict_proba')[:, 1]
 
     # =========================================================
+    # TOKEN DI DESIGN E COMPONENTI RIUTILIZZABILI ("Data Lab" theme)
+    # Nomi di classe con prefisso mlx- per non entrare mai in conflitto
+    # con le classi globali definite altrove (info-box, explain-text, ecc.)
+    # =========================================================
+    BG_DARK   = "#0B1017"
+    BG_DARK2  = "#0E1420"
+    BD        = "#202B3D"
+    TXT_PRI   = "#FFFFFF"
+    TXT_SEC   = "#B8C2D0"
+    TXT_TER   = "#8792A3"
+
+    C_CYAN   = "#00E5FF"
+    C_CYAN2  = "#00B8D4"
+    C_AMBER  = "#FFB020"
+    C_ORANGE = "#FF6A3D"
+    C_GREEN  = "#00F5A0"
+
+    st.markdown(f"""
+    <style>
+    @keyframes mlxReveal {{
+        from {{ opacity: 0; transform: translateY(10px); }}
+        to   {{ opacity: 1; transform: translateY(0); }}
+    }}
+    .mlx-hero {{
+        background: linear-gradient(135deg, {BG_DARK2} 0%, #101A2E 100%);
+        border: 1px solid {BD}; border-radius: 18px; padding: 30px 34px;
+        position: relative; overflow: hidden; margin: 6px 0 30px 0;
+        animation: mlxReveal .6s ease-out;
+        box-shadow: 0 8px 26px rgba(0,0,0,0.28);
+    }}
+    .mlx-hero::after {{
+        content:""; position:absolute; top:-40%; right:-6%; width:340px; height:340px;
+        background: radial-gradient(circle, {C_CYAN} 0%, transparent 70%); opacity:.10; pointer-events:none;
+    }}
+    .mlx-hero-top {{ display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:18px; position:relative; z-index:1; margin-bottom:24px; }}
+    .mlx-eyebrow {{ font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:{TXT_TER}; font-weight:700; margin:0 0 8px 0; }}
+    .mlx-hero-title {{ font-family:'Inter', sans-serif; font-weight:700; font-size:1.5rem; color:{TXT_PRI}; margin:0; }}
+    .mlx-hero-msg {{ font-family:'Inter', sans-serif; color:{TXT_SEC}; font-size:.92rem; max-width:480px; line-height:1.6; margin:0; }}
+
+    .mlx-stat-grid {{ display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; position:relative; z-index:1; }}
+    .mlx-stat-card {{ background: rgba(255,255,255,0.025); border:1px solid {BD}; border-radius:12px; padding:16px 18px; }}
+    .mlx-stat-card .v {{ font-family:'JetBrains Mono', monospace; font-weight:700; font-size:1.55rem; color: var(--stat-color, {TXT_PRI}); }}
+    .mlx-stat-card .l {{ font-family:'Inter', sans-serif; font-size:.76rem; color:{TXT_TER}; margin-top:7px; line-height:1.4; min-height:44px; }}
+    .mlx-stat-card .bar-track {{ height:4px; border-radius:4px; background:{BD}; margin-top:10px; overflow:hidden; }}
+    .mlx-stat-card .bar-fill {{ height:100%; border-radius:4px; background: var(--stat-color, {C_CYAN}); }}
+
+    .mlx-section-head {{ display:flex; align-items:baseline; gap:14px; margin: 30px 0 14px 0; }}
+    .mlx-section-head .kicker {{ font-family:'JetBrains Mono', monospace; font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; color: var(--kicker-color, {C_CYAN}); font-weight:700; white-space:nowrap; }}
+    .mlx-section-head h3 {{ margin:0; font-family:'Inter',sans-serif; font-weight:700; color:{TXT_PRI}; font-size:1.12rem; }}
+    .mlx-section-head .rule {{ flex:1; height:1px; background: linear-gradient(90deg, {BD} 0%, transparent 100%); align-self:center; }}
+
+    .mlx-status-chip {{ display:inline-block; padding:3px 11px; border-radius:20px; font-family:'JetBrains Mono', monospace; font-size:.7rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; margin-right:8px; vertical-align:middle; }}
+
+    .mlx-insight {{ border-left:3px solid var(--ic-color, {C_CYAN}); background: rgba(255,255,255,0.02); padding:12px 16px; border-radius: 0 8px 8px 0; margin-top:10px; font-family:'Inter',sans-serif; font-size:.92rem; color:{TXT_SEC}; line-height:1.6; }}
+    .mlx-insight strong {{ color:{TXT_PRI}; }}
+    </style>
+    """, unsafe_allow_html=True)
+
+    def mlx_section(kicker, title, color=C_CYAN):
+        st.markdown(f"""
+        <div class='mlx-section-head'>
+            <span class='kicker' style='--kicker-color:{color};'>{kicker}</span>
+            <h3>{title}</h3>
+            <div class='rule'></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    def mlx_insight(html_text, color=C_CYAN):
+        st.markdown(f"<div class='mlx-insight' style='--ic-color:{color};'>{html_text}</div>", unsafe_allow_html=True)
+
+    def mlx_chip(text, color):
+        return f"<span class='mlx-status-chip' style='color:{color}; background:{color}22; border:1px solid {color}55;'>{text}</span>"
+
+    # =========================================================
     # KPI PANORAMICA — colpo d'occhio prima di entrare nel dettaglio
     # =========================================================
-    st.subheader("KPI Panoramica Modelli")
-    st.caption("Le metriche qui sotto sono calcolate con cross-validation: ogni previsione viene da un modello che non ha visto quella sessione durante l'addestramento, per una stima onesta della reale capacità predittiva.")
-
     acc_rf = (y_pred_rf == y_train_class).mean() * 100
     prec_rf = precision_score(y_train_class, y_pred_rf, zero_division=0) * 100
     rec_rf = recall_score(y_train_class, y_pred_rf, zero_division=0) * 100
     giorni_rischio_pct = (df_base['Rischio Infortunio'].sum() / len(df_base)) * 100
 
-    kc1, kc2, kc3, kc4 = st.columns(4)
-    kc1.metric("Accuratezza Random Forest", f"{acc_rf:.1f}%", help="Su quanti giorni il modello ha indovinato correttamente se ci fosse rischio o meno (valutato su dati mai visti durante l'addestramento).")
-    kc2.metric("Precisione (Precision)", f"{prec_rf:.1f}%", help="Quando il modello segnala 'rischio', quante volte ha ragione davvero.")
-    kc3.metric("Sensibilità (Recall)", f"{rec_rf:.1f}%", help="Su tutti i giorni realmente a rischio, quanti ne ha individuati il modello.")
-    kc4.metric("Giorni a Rischio Storici", f"{giorni_rischio_pct:.1f}%", help="Percentuale di giorni nel tuo storico classificati come a rischio infortunio.")
+    st.markdown(f"""
+    <div class='mlx-hero'>
+        <div class='mlx-hero-top'>
+            <div>
+                <p class='mlx-eyebrow'>Panoramica in tempo reale</p>
+                <h2 class='mlx-hero-title'>Come si comportano i modelli sul tuo storico</h2>
+            </div>
+            <p class='mlx-hero-msg'>Ogni numero qui sotto arriva da una validazione incrociata: il modello viene giudicato solo su allenamenti che non ha mai visto durante l'addestramento, per una stima onesta della sua reale capacità predittiva.</p>
+        </div>
+        <div class='mlx-stat-grid'>
+            <div class='mlx-stat-card' style='--stat-color:{C_CYAN};'>
+                <div class='v'>{acc_rf:.1f}%</div>
+                <div class='l'>Accuratezza Random Forest — su quanti giorni ha indovinato se c'era rischio o no.</div>
+                <div class='bar-track'><div class='bar-fill' style='width:{acc_rf:.0f}%;'></div></div>
+            </div>
+            <div class='mlx-stat-card' style='--stat-color:{C_GREEN};'>
+                <div class='v'>{prec_rf:.1f}%</div>
+                <div class='l'>Precisione — quando segnala "rischio", quante volte ha ragione davvero.</div>
+                <div class='bar-track'><div class='bar-fill' style='width:{prec_rf:.0f}%;'></div></div>
+            </div>
+            <div class='mlx-stat-card' style='--stat-color:{C_AMBER};'>
+                <div class='v'>{rec_rf:.1f}%</div>
+                <div class='l'>Sensibilità — su tutti i giorni davvero a rischio, quanti ne ha trovati.</div>
+                <div class='bar-track'><div class='bar-fill' style='width:{rec_rf:.0f}%;'></div></div>
+            </div>
+            <div class='mlx-stat-card' style='--stat-color:{C_ORANGE};'>
+                <div class='v'>{giorni_rischio_pct:.1f}%</div>
+                <div class='l'>Giorni a rischio nel tuo storico — percentuale di sessioni segnate come pericolose.</div>
+                <div class='bar-track'><div class='bar-fill' style='width:{giorni_rischio_pct:.0f}%;'></div></div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown("---")
+    mlx_section("Esplora nel dettaglio", "Scegli un modello per vedere come ragiona", C_CYAN)
 
     t_ml1, t_ml2, t_ml3, t_ml4, t_ml5, t_ml6, t_ml7 = st.tabs([
         "Random Forest", "Logistic Regression", "Linear Regression",
@@ -140,8 +239,8 @@ try:
     # TAB 1 — RANDOM FOREST
     # =========================================================
     with t_ml1:
-        st.markdown("### Random Forest Classifier (Infortunio)")
-        st.markdown("<div class='explain-text'>Immagina 100 piccoli 'esperti' (alberi decisionali) che votano indipendentemente se un giorno è a rischio infortunio o no. La Random Forest prende la decisione finale per maggioranza di voto: per questo è uno dei modelli più affidabili e resistenti agli errori isolati.</div>", unsafe_allow_html=True)
+        mlx_section("Classificazione — Ensemble", "Random Forest Classifier (Infortunio)", C_CYAN)
+        mlx_insight("Immagina 100 piccoli 'esperti' (alberi decisionali) che votano indipendentemente se un giorno è a rischio infortunio o no. La Random Forest prende la decisione finale per maggioranza di voto: per questo è uno dei modelli più affidabili e resistenti agli errori isolati.", C_CYAN)
 
         c1, c2 = st.columns(2)
         with c1:
@@ -152,7 +251,7 @@ try:
             fig_imp.update_layout(height=320, yaxis=dict(autorange="reversed"), title="Quali fattori pesano di più")
             st.plotly_chart(style_fig(fig_imp), use_container_width=True)
             top_feat = imp_data[0][0]
-            st.markdown(f"<div class='explain-text'><strong>Cosa conta di più:</strong> tra tutte le metriche, <strong>{top_feat}</strong> è quella che pesa di più nella decisione del modello. Tienila d'occhio prima di aumentare i carichi.</div>", unsafe_allow_html=True)
+            mlx_insight(f"<strong>Cosa conta di più:</strong> tra tutte le metriche, <strong>{top_feat}</strong> è quella che pesa di più nella decisione del modello. Tienila d'occhio prima di aumentare i carichi.", C_AMBER)
 
         with c2:
             cm = confusion_matrix(y_train_class, y_pred_rf)
@@ -160,9 +259,9 @@ try:
             fig_cm.update_traces(hovertemplate="Reale: %{y}<br>Predetto: %{x}<br>Casi: %{z}<extra></extra>")
             fig_cm.update_layout(height=320, title="Quante volte ha indovinato")
             st.plotly_chart(style_fig(fig_cm), use_container_width=True)
-            st.markdown("<div class='explain-text'><strong>Come leggerla:</strong> le due caselle in diagonale (in alto a sinistra e in basso a destra) sono le previsioni corrette. Più sono 'piene' rispetto alle altre due, più il modello è affidabile.</div>", unsafe_allow_html=True)
+            mlx_insight("<strong>Come leggerla:</strong> le due caselle in diagonale (in alto a sinistra e in basso a destra) sono le previsioni corrette. Più sono 'piene' rispetto alle altre due, più il modello è affidabile.", C_CYAN)
 
-        st.markdown("#### Curva ROC — Capacità Discriminante del Modello")
+        mlx_section("Diagnostica", "Curva ROC — Capacità Discriminante del Modello", C_CYAN2)
         c3, c4 = st.columns(2)
         with c3:
             fpr, tpr, _ = roc_curve(y_train_class, y_proba_rf)
@@ -175,16 +274,27 @@ try:
             st.plotly_chart(style_fig(fig_roc), use_container_width=True)
         with c4:
             f1_rf = f1_score(y_train_class, y_pred_rf, zero_division=0) * 100
+            if roc_auc >= 0.8:
+                auc_label, auc_col = "Ottimo", C_GREEN
+            elif roc_auc >= 0.7:
+                auc_label, auc_col = "Buono", C_CYAN
+            elif roc_auc >= 0.6:
+                auc_label, auc_col = "Discreto", C_AMBER
+            else:
+                auc_label, auc_col = "Debole", C_ORANGE
             st.markdown(f"""
             <div class='kpi-card' style='text-align:left; margin-top:10px; background: linear-gradient(135deg, #0E1420 0%, #131427 100%);'>
-                <h3 style='color:#FFB020; margin-bottom:15px;'>Pagella del Modello</h3>
+                <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;'>
+                    <h3 style='color:#FFB020; margin:0;'>Pagella del Modello</h3>
+                    {mlx_chip(auc_label, auc_col)}
+                </div>
                 <div style='display:flex; justify-content:space-between; margin:8px 0; color:#B8C2D0;'><span>Area Sotto la Curva (AUC)</span><strong style='color:#fff; font-family:"JetBrains Mono",monospace;'>{roc_auc:.2f}</strong></div>
                 <div style='display:flex; justify-content:space-between; margin:8px 0; color:#B8C2D0;'><span>F1-Score</span><strong style='color:#fff; font-family:"JetBrains Mono",monospace;'>{f1_rf:.1f}%</strong></div>
                 <div style='display:flex; justify-content:space-between; margin:8px 0; color:#B8C2D0;'><span>Precisione</span><strong style='color:#fff; font-family:"JetBrains Mono",monospace;'>{prec_rf:.1f}%</strong></div>
                 <div style='display:flex; justify-content:space-between; margin:8px 0; color:#B8C2D0;'><span>Sensibilità</span><strong style='color:#fff; font-family:"JetBrains Mono",monospace;'>{rec_rf:.1f}%</strong></div>
             </div>
             """, unsafe_allow_html=True)
-            st.markdown("<div class='explain-text'><strong>AUC in parole povere:</strong> un valore vicino a 1.0 significa che il modello distingue quasi perfettamente i giorni a rischio da quelli sicuri. Un valore vicino a 0.5 equivale a tirare a indovinare. Questo valore, come tutti gli altri in questa pagina, è calcolato su dati che il modello non ha usato per imparare.</div>", unsafe_allow_html=True)
+            mlx_insight("<strong>AUC in parole povere:</strong> un valore vicino a 1.0 significa che il modello distingue quasi perfettamente i giorni a rischio da quelli sicuri. Un valore vicino a 0.5 equivale a tirare a indovinare. Questo valore, come tutti gli altri in questa pagina, è calcolato su dati che il modello non ha usato per imparare.", C_CYAN)
 
     # =========================================================
     # TAB 2 — LOGISTIC REGRESSION
