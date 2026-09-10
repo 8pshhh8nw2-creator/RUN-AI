@@ -7,7 +7,7 @@ from datetime import timedelta
 # =========================================================
 _CSS = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
     :root {
         --bg: #080B12; --panel: #0E1420; --line: #1a2130;
@@ -46,7 +46,7 @@ _CSS = """
         box-shadow: 0 0 0 3px rgba(0,229,255,0.10);
     }
 
-    /* --- Bottone connetti --- */
+    /* --- Bottoni sidebar (connetti / disconnetti) --- */
     section[data-testid="stSidebar"] .stButton > button {
         background: rgba(0,229,255,0.06);
         border: 1px solid rgba(0,229,255,0.28);
@@ -67,11 +67,27 @@ _CSS = """
     section[data-testid="stSidebar"] .stButton > button:active {
         transform: translateY(0);
     }
+    /* variante "disconnetti", più discreta */
+    section[data-testid="stSidebar"] .runai-disconnect .stButton > button {
+        background: transparent;
+        border: 1px solid var(--line);
+        color: var(--text-faint);
+    }
+    section[data-testid="stSidebar"] .runai-disconnect .stButton > button:hover {
+        border-color: #E85D5D;
+        color: #E85D5D;
+        background: rgba(232,93,93,0.06);
+    }
 
     .runai-card {
         background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.005) 100%);
-        border: 1px solid var(--line); border-radius: 12px; padding: 16px;
-        animation: runai-fadein 0.3s var(--ease);
+        border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+    }
+    /* L'animazione di ingresso si applica SOLO al primo render della card
+       (vedi flag _device_card_shown_once in Python) cosi' non "sfarfalla"
+       ad ogni interazione/rerun: e' quello che dava la sensazione di lentezza. */
+    .runai-card.runai-card-enter {
+        animation: runai-fadein 0.35s var(--ease);
     }
     @keyframes runai-fadein {
         from { opacity: 0; transform: translateY(-4px); }
@@ -81,9 +97,6 @@ _CSS = """
         color: var(--text-faint); font-size: 0.66em; font-family: "JetBrains Mono", monospace;
         letter-spacing: 0.16em; text-transform: uppercase; margin: 0 0 10px 2px;
     }
-    .runai-row { display: flex; justify-content: space-between; margin: 8px 0; font-family: "JetBrains Mono", monospace; font-size: 0.88em; }
-    .runai-row span:first-child { color: var(--text-dim); font-family: "Inter", sans-serif; }
-    .runai-row span:last-child { color: var(--text); font-weight: 600; }
 
     .runai-live-dot {
         display: inline-block; width: 6px; height: 6px; border-radius: 50%;
@@ -97,12 +110,46 @@ _CSS = """
         100% { box-shadow: 0 0 0 0 rgba(0,245,160,0); }
     }
 
+    /* --- Griglia stat compatta (FC / batteria affiancate) --- */
+    .runai-stat-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        margin-top: 12px;
+    }
+    .runai-stat {
+        background: rgba(255,255,255,0.02);
+        border: 1px solid var(--line); border-radius: 9px;
+        padding: 8px 10px;
+    }
+    .runai-stat-top {
+        display: flex; align-items: center; gap: 6px;
+        color: var(--text-dim); font-size: 0.66em;
+        font-family: "JetBrains Mono", monospace; letter-spacing: 0.06em;
+        text-transform: uppercase; margin-bottom: 4px;
+    }
+    .runai-stat-top svg { width: 12px; height: 12px; flex-shrink: 0; }
+    .runai-stat-value {
+        font-family: "JetBrains Mono", monospace; font-weight: 600;
+        font-size: 1.05em; color: var(--text);
+    }
+    .runai-battery-track {
+        width: 100%; height: 4px; border-radius: 2px;
+        background: rgba(255,255,255,0.06); margin-top: 6px; overflow: hidden;
+    }
+    .runai-battery-fill {
+        height: 100%; border-radius: 2px;
+        transition: width 0.4s var(--ease);
+    }
+    .runai-device-name {
+        color: var(--text); font-size: 0.86em; font-weight: 600;
+        margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
     /* =========================================================
-       NAV PAGINE — pulita, leggibile, stabile al click
+       NAV PAGINE - pulita, leggibile, stabile al click
     ========================================================= */
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"] {
-        margin-top: 24px;
-        padding: 16px 0 0 0;
+        margin-top: 20px;
+        padding: 14px 0 0 0;
         position: relative;
     }
     section[data-testid="stSidebar"] [data-testid="stSidebarNav"]::before {
@@ -127,7 +174,7 @@ _CSS = """
         font-family: "Inter", sans-serif;
         font-size: 0.95em;
         font-weight: 500;
-        padding: 10px 12px;
+        padding: 9px 12px;
         margin: 0;
         border-radius: 8px;
         text-decoration: none !important;
@@ -147,7 +194,7 @@ _CSS = """
     .runai-footer {
         order: 3;
         margin-top: auto;
-        padding: 18px 8px 2px 8px;
+        padding: 16px 8px 2px 8px;
         color: var(--text-faint);
         font-family: "JetBrains Mono", monospace;
         font-size: 0.65em;
@@ -156,7 +203,6 @@ _CSS = """
         opacity: 0.7;
     }
 
-    /* scroll generale più morbido se il contenuto della sidebar eccede */
     section[data-testid="stSidebar"] > div:first-child {
         scrollbar-width: thin;
         scrollbar-color: #232b3d transparent;
@@ -168,6 +214,10 @@ _CSS = """
 </style>
 """
 
+_ICON_BOLT = """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>"""
+_ICON_HEART = """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6z"/></svg>"""
+_ICON_BATTERY = """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="10" x2="22" y2="14"/></svg>"""
+
 
 def _init_state():
     """Inizializza in modo sicuro le chiavi di session_state usate dalla sidebar."""
@@ -177,10 +227,14 @@ def _init_state():
         st.session_state.device_info = None
     if "filtro_tempo" not in st.session_state:
         st.session_state.filtro_tempo = "Ultimi 30 giorni"
+    if "_device_card_shown_once" not in st.session_state:
+        st.session_state._device_card_shown_once = False
 
 
+@st.cache_data(show_spinner=False)
 def _filtra_per_tempo(df_full: pd.DataFrame, filtro_tempo: str) -> pd.DataFrame:
-    """Applica il filtro temporale al DataFrame, se presente una colonna data riconoscibile."""
+    """Applica il filtro temporale al DataFrame, se presente una colonna data riconoscibile.
+    Cachata: evita di ripetere il filtro ad ogni rerun quando dati e filtro non cambiano."""
     if df_full is None or df_full.empty:
         return df_full if df_full is not None else pd.DataFrame()
 
@@ -196,6 +250,14 @@ def _filtra_per_tempo(df_full: pd.DataFrame, filtro_tempo: str) -> pd.DataFrame:
     giorni = 30 if filtro_tempo == "Ultimi 30 giorni" else 60
     soglia = df[colonna_data].max() - timedelta(days=giorni)
     return df[df[colonna_data] >= soglia]
+
+
+def _battery_color(pct: int) -> str:
+    if pct >= 50:
+        return "var(--mint)"
+    if pct >= 20:
+        return "var(--amber)"
+    return "#E85D5D"
 
 
 def sidebar_comune():
@@ -224,45 +286,73 @@ def sidebar_comune():
             unsafe_allow_html=True,
         )
         st.markdown(
-            "<p style='color: #566178; font-size: 0.78em; margin-top: 2px; margin-bottom: 26px; "
+            "<p style='color: #566178; font-size: 0.78em; margin-top: 2px; margin-bottom: 22px; "
             "font-family:\"JetBrains Mono\",monospace; letter-spacing:0.1em; text-transform:uppercase;'>"
             "Performance Intelligence</p>",
             unsafe_allow_html=True,
         )
 
         st.markdown("<p class='runai-label'>Dispositivo</p>", unsafe_allow_html=True)
-        device_scelto = st.selectbox(
-            "Device",
-            ["Garmin Forerunner 965", "Apple Watch Ultra", "Polar Vantage V3"],
-            label_visibility="collapsed",
-            key="sb_device_select",
-        )
 
-        if st.button("CONNETTI DISPOSITIVO", use_container_width=True, key="sb_connect_btn"):
-            st.session_state.device_connected = True
-            st.session_state.device_info = {
-                "nome": device_scelto,
-                "fc": 72,
-                "battery": 88,
-            }
-
+        connesso = st.session_state.get("device_connected", False)
         info = st.session_state.get("device_info")
-        if st.session_state.get("device_connected", False) and info:
+
+        if not connesso:
+            device_scelto = st.selectbox(
+                "Device",
+                ["Garmin Forerunner 965", "Apple Watch Ultra", "Polar Vantage V3"],
+                label_visibility="collapsed",
+                key="sb_device_select",
+            )
+            if st.button("CONNETTI DISPOSITIVO", use_container_width=True, key="sb_connect_btn"):
+                st.session_state.device_connected = True
+                st.session_state.device_info = {
+                    "nome": device_scelto,
+                    "fc": 72,
+                    "battery": 88,
+                }
+                st.session_state._device_card_shown_once = False  # rifai l'animazione una volta
+                st.rerun()
+        elif info:
+            # la card entra in animazione solo la prima volta che viene mostrata
+            card_class = "runai-card"
+            if not st.session_state._device_card_shown_once:
+                card_class += " runai-card-enter"
+                st.session_state._device_card_shown_once = True
+
+            batt = info["battery"]
             st.markdown(
                 f"""
-                <div class='runai-card' style='margin-top: 12px;'>
-                    <div style='color: #00F5A0; font-family:"JetBrains Mono",monospace; font-size:0.75em; margin-bottom:6px;'>
+                <div class='{card_class}'>
+                    <div style='color: #00F5A0; font-family:"JetBrains Mono",monospace; font-size:0.75em; display:flex; align-items:center;'>
                         <span class='runai-live-dot'></span>LIVE SYNC ACTIVE
                     </div>
-                    <div class='runai-row'><span>Dispositivo</span><span>{info['nome']}</span></div>
-                    <div class='runai-row'><span>FC</span><span>{info['fc']} bpm</span></div>
-                    <div class='runai-row'><span>Batteria</span><span>{info['battery']}%</span></div>
+                    <div class='runai-device-name'>{info['nome']}</div>
+                    <div class='runai-stat-grid'>
+                        <div class='runai-stat'>
+                            <div class='runai-stat-top'>{_ICON_HEART}FC</div>
+                            <div class='runai-stat-value'>{info['fc']} <span style='font-size:0.6em; color:var(--text-dim); font-weight:500;'>bpm</span></div>
+                        </div>
+                        <div class='runai-stat'>
+                            <div class='runai-stat-top'>{_ICON_BATTERY}Batteria</div>
+                            <div class='runai-stat-value'>{batt}%</div>
+                            <div class='runai-battery-track'>
+                                <div class='runai-battery-fill' style='width:{batt}%; background:{_battery_color(batt)};'></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
+            st.markdown("<div class='runai-disconnect' style='margin-top:8px;'>", unsafe_allow_html=True)
+            if st.button("DISCONNETTI", use_container_width=True, key="sb_disconnect_btn"):
+                st.session_state.device_connected = False
+                st.session_state.device_info = None
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
         st.markdown("<p class='runai-label'>Filtro Temporale</p>", unsafe_allow_html=True)
         filtro_tempo = st.selectbox(
             "Intervallo",
