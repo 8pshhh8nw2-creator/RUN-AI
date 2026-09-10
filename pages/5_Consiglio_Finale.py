@@ -40,7 +40,7 @@ else:
 header_block(
     "Modulo 05 — Sintesi Operativa",
     "CONSIGLIO FINALE E REPORT GIORNALIERO",
-    "Raccomandazioni personalizzate per la sessione odierna basate sui tuoi KPI e sullo stato di forma.",
+    "Il riassunto di oggi: quanto puoi spingere, perché, e cosa fare passo dopo passo.",
     None, "Executive Summary"
 )
 
@@ -137,6 +137,38 @@ else:
     .lane-chip .zd {{ font-family:'Inter',sans-serif; color:{TXT_SECONDARY}; font-size:.85em; line-height:1.4; }}
     
     .chart-caption {{ border-top: 1px solid {PANEL_BD}; margin-top: 10px; padding-top: 10px; color:{TXT_SECONDARY}; font-family:'Inter',sans-serif; font-size:.9rem; line-height:1.55; }}
+
+    /* ===================== NUOVI STILI "WOW" ===================== */
+    @keyframes heroReveal {{
+        from {{ opacity: 0; transform: translateY(10px); }}
+        to   {{ opacity: 1; transform: translateY(0); }}
+    }}
+    .hero-panel {{
+        background: linear-gradient(135deg, {PANEL_BG} 0%, #131A24 100%);
+        border: 1px solid {PANEL_BD}; border-radius: 18px; padding: 34px;
+        position: relative; overflow: hidden; animation: heroReveal .6s ease-out;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    }}
+    .hero-panel::after {{
+        content:""; position:absolute; top:-45%; right:-8%; width:360px; height:360px;
+        background: radial-gradient(circle, var(--hero-color) 0%, transparent 70%);
+        opacity:.14; pointer-events:none;
+    }}
+    .hero-grid {{ display:flex; align-items:center; gap:40px; flex-wrap:wrap; position:relative; z-index:1; }}
+    .hero-info {{ flex:1; min-width:260px; }}
+    .hero-kicker {{ font-family:'JetBrains Mono',monospace; font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:{TXT_TERTIARY}; font-weight:700; margin:0 0 8px 0; }}
+    .hero-title {{ font-family:'Oswald',sans-serif; font-weight:700; font-size:2.5rem; letter-spacing:.02em; margin:0 0 12px 0; text-transform:uppercase; line-height:1.05; }}
+    .hero-msg {{ font-family:'Inter',sans-serif; color:{TXT_SECONDARY}; font-size:1.02rem; line-height:1.65; margin:0 0 22px 0; max-width:540px; }}
+    .hero-stats {{ display:flex; gap:32px; flex-wrap:wrap; }}
+    .hero-stat {{ display:flex; flex-direction:column; }}
+    .hero-stat .hs-val {{ font-family:'JetBrains Mono',monospace; font-weight:700; font-size:1.75rem; }}
+    .hero-stat .hs-val .unit {{ font-family:'Inter',sans-serif; font-size:.48em; color:{TXT_SECONDARY}; margin-left:3px; text-transform:uppercase; }}
+    .hero-stat .hs-label {{ font-family:'Inter',sans-serif; font-size:.78rem; color:{TXT_SECONDARY}; margin-top:5px; }}
+
+    .value-pill {{ display:inline-flex; align-items:baseline; padding:4px 12px; border-radius:8px; }}
+    .row-icon {{ margin-right:9px; font-size:1.05em; }}
+    .dot-flag {{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; vertical-align:middle; }}
+    .mini-caption {{ font-family:'Inter',sans-serif; font-size:.78rem; color:{TXT_TERTIARY}; margin:6px 0 18px 0; }}
     </style>
     """)
 
@@ -187,6 +219,14 @@ else:
     cadenza_target = "170-180 spm" if liv != "alto" else "165-172 spm (passo rilassato per abbassare l'impatto articolare)"
     zona_consigliata = "Zona 2-3 (aerobico puro)" if liv == "basso" else "Zona 1-2 (sforzo percepito bassissimo)" if liv == "medio" else "Solo mobilità o camminata veloce"
 
+    # Messaggio "in una frase" pensato per essere capito al primo sguardo
+    hero_messaggi = {
+        "AUTORIZZATO": "Hai dormito e recuperato bene: oggi il corpo ti dà il via libera. Puoi allenarti come da programma.",
+        "RECUPERO ATTIVO": "Il corpo è un po' scarico: oggi meglio abbassare l'intensità e ascoltare le sensazioni.",
+        "RIPOSO OBBLIGATORIO": "I segnali dicono chiaramente stop: oggi il riposo vale più di qualsiasi allenamento.",
+    }
+    hero_msg = hero_messaggi.get(tit, "")
+
     date_col = next((c for c in df_base.columns if c.lower() in ['data', 'date', 'giorno', 'time']), None)
     df_adv = df_base.copy()
     if date_col:
@@ -233,30 +273,70 @@ else:
                 <rect x="-24" y="-20" width="48" height="20" rx="4" fill="{TXT_PRIMARY}" />
                 <text x="0" y="-6" font-family="JetBrains Mono, monospace" font-size="12" font-weight="bold" fill="{PANEL_BG}" text-anchor="middle">{int(score)}%</text>
             </g>
-            <text x="0" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_RPE}" opacity="0.8">OPTIMAL (0-25)</text>
-            <text x="{svg_width/2}" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_AMBRA}" text-anchor="middle" opacity="0.8">WARNING (26-59)</text>
-            <text x="{svg_width}" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_STRESS}" text-anchor="end" opacity="0.8">DANGER (60-100)</text>
+            <text x="0" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_RPE}" opacity="0.8">OK (0-25)</text>
+            <text x="{svg_width/2}" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_AMBRA}" text-anchor="middle" opacity="0.8">ATTENZIONE (26-59)</text>
+            <text x="{svg_width}" y="{svg_height + 15}" font-family="JetBrains Mono, monospace" font-size="10" fill="{C_STRESS}" text-anchor="end" opacity="0.8">PERICOLO (60-100)</text>
+        </svg>
+        """
+
+    # Nuovo: gauge circolare "a colpo d'occhio" per la hero section
+    def disegna_gauge_circolare(score, color, size=210):
+        radius = 82
+        stroke_width = 15
+        center = size / 2
+        circumference = 2 * 3.14159265 * radius
+        offset = circumference * (1 - min(max(score, 0), 100) / 100)
+
+        return f"""
+        <svg viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="{center}" cy="{center}" r="{radius}" fill="none" stroke="{C_NEUTRO}" stroke-width="{stroke_width}"/>
+            <circle cx="{center}" cy="{center}" r="{radius}" fill="none" stroke="{color}" stroke-width="{stroke_width}"
+                stroke-linecap="round" stroke-dasharray="{circumference:.2f}" stroke-dashoffset="{offset:.2f}"
+                transform="rotate(-90 {center} {center})"/>
+            <text x="{center}" y="{center - 4}" text-anchor="middle" font-family="Oswald, sans-serif" font-size="44" font-weight="700" fill="{TXT_PRIMARY}">{int(score)}</text>
+            <text x="{center}" y="{center + 24}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" letter-spacing="2" fill="{TXT_SECONDARY}">RISCHIO %</text>
         </svg>
         """
 
     radar_svg = disegna_telemetria_rischio(risk_score)
+    gauge_svg = disegna_gauge_circolare(risk_score, col)
 
+    # =========================================================
+    # HERO SECTION — IL PRIMO COLPO D'OCCHIO
+    # =========================================================
     md(f"""
-    <div class='panel'>
-        <div class='hud-grid'>
-            <div class='hud-stat'>
-                <p class='eyebrow'>System Status</p>
-                <h2 style='color:{col};'>{tit}</h2>
-            </div>
-            <div class='hud-stat' style='text-align:right;'>
-                <p class='eyebrow'>Risk Load</p>
-                <h2 style='color:{TXT_PRIMARY};'>{risk_score:.0f}<span style='font-size:0.6em; color:{TXT_SECONDARY};'>%</span></h2>
+    <div class='hero-panel' style='--hero-color:{col};'>
+        <div class='hero-grid'>
+            <div class='hero-info'>
+                <p class='hero-kicker'>Il verdetto di oggi</p>
+                <h1 class='hero-title' style='color:{col};'>{tit}</h1>
+                <p class='hero-msg'>{hero_msg}</p>
+                <div class='hero-stats'>
+                    <div class='hero-stat'>
+                        <span class='hs-val' style='color:{TXT_PRIMARY};'>{distanza_consigliata:.1f}<span class='unit'>km</span></span>
+                        <span class='hs-label'>Distanza consigliata oggi</span>
+                    </div>
+                    <div class='hero-stat'>
+                        <span class='hs-val' style='color:{C_SONNO};'>{recovery_score:.0f}<span class='unit'>%</span></span>
+                        <span class='hs-label'>Quanto sei recuperato</span>
+                    </div>
+                    <div class='hero-stat'>
+                        <span class='hs-val' style='color:{C_AMBRA};'>{sma:.1f}</span>
+                        <span class='hs-label'>Carico mentale (SMA)</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     """)
 
-    st.components.v1.html(f"<div style='background:{PANEL_BG}; padding:10px; border-radius:12px;'>{radar_svg}</div>", height=155)
+    gc1, gc2 = st.columns([1, 2.2])
+    with gc1:
+        st.components.v1.html(f"<div style='background:{PANEL_BG}; display:flex; justify-content:center; align-items:center; padding:6px;'>{gauge_svg}</div>", height=225)
+    with gc2:
+        md("<p class='eyebrow' style='margin-top:6px;'>Dettaglio soglie di rischio</p>")
+        md("<p class='mini-caption'>Più la barra bianca è a destra, più alto è il rischio di allenarti oggi.</p>")
+        st.components.v1.html(f"<div style='background:{PANEL_BG}; padding:10px; border-radius:12px;'>{radar_svg}</div>", height=155)
 
     md("<div style='height:24px;'></div>")
 
@@ -264,48 +344,50 @@ else:
     # SPLIT SHEET (Cronometraggio)
     # =========================================================
     ore_s = r.get('ore_sonno', 7.5)
-    sonno_delta_txt = f"{'+' if (ore_s-7.5) >= 0 else ''}{ore_s-7.5:.1f}h rispetto al target fisiologico ottimale"
+    sonno_delta_txt = f"{'+' if (ore_s-7.5) >= 0 else ''}{ore_s-7.5:.1f}h rispetto alle 7.5h ideali per notte"
+
+    section_head("Numeri chiave", "I 6 indicatori di oggi", "Ogni riga ti dice cosa significa il numero e cosa cambia per il tuo allenamento.")
 
     md(f"""
     <div class='panel split-sheet'>
         <div class='split-head'>
-            <span>Metric</span><span>Value</span><span>Reference</span><span>Notes / Adjustments</span>
+            <span>Indicatore</span><span>Valore</span><span>Riferimento</span><span>Cosa significa</span>
         </div>
         <div class='split-row'>
-            <div class='sr-label'>Distanza Target</div>
-            <div class='sr-value' style='color:{TXT_PRIMARY};'>{distanza_consigliata:.1f}<span class='unit'>km</span></div>
-            <div class='sr-ref'>Da piano originale: {distanza_target} km</div>
-            <div class='sr-note'>La distanza è stata scalata algoritmicamente del {100 - (distanza_consigliata/distanza_target*100 if distanza_target>0 else 0):.0f}% per proteggere i tuoi tessuti.</div>
+            <div class='sr-label'><span class='row-icon'>🏃</span>Distanza Target</div>
+            <div class='sr-value'><span class='value-pill' style='color:{TXT_PRIMARY}; background:{TXT_PRIMARY}14;'>{distanza_consigliata:.1f}<span class='unit'>km</span></span></div>
+            <div class='sr-ref'>Piano originale: {distanza_target} km</div>
+            <div class='sr-note'>La distanza è stata ridotta del {100 - (distanza_consigliata/distanza_target*100 if distanza_target>0 else 0):.0f}% per non stressare troppo muscoli e articolazioni.</div>
         </div>
         <div class='split-row'>
-            <div class='sr-label'>Recovery Score</div>
-            <div class='sr-value' style='color:{C_SONNO};'>{recovery_score:.0f}<span class='unit'>%</span></div>
-            <div class='sr-ref'>Qualità base: {ore_s:.1f}h di sonno</div>
-            <div class='sr-note'>{sonno_delta_txt}. Il sonno governa il recupero del sistema nervoso autonomo.</div>
+            <div class='sr-label'><span class='row-icon'>😴</span>Recovery Score</div>
+            <div class='sr-value'><span class='value-pill' style='color:{C_SONNO}; background:{C_SONNO}14;'>{recovery_score:.0f}<span class='unit'>%</span></span></div>
+            <div class='sr-ref'>Base: {ore_s:.1f}h di sonno</div>
+            <div class='sr-note'>{sonno_delta_txt}. Il sonno è il motore principale del recupero: dormire bene vuol dire correre meglio.</div>
         </div>
         <div class='split-row'>
-            <div class='sr-label'>Mental Load (SMA)</div>
-            <div class='sr-value' style='color:{C_AMBRA};'>{sma:.1f}</div>
-            <div class='sr-ref'>(Stress × RPE) / Sonno</div>
-            <div class='sr-note'>Indice composito di sovraccarico del sistema nervoso centrale. Livello odierno: {liv.upper()}.</div>
+            <div class='sr-label'><span class='row-icon'>🧠</span>Carico Mentale (SMA)</div>
+            <div class='sr-value'><span class='value-pill' style='color:{C_AMBRA}; background:{C_AMBRA}14;'>{sma:.1f}</span></div>
+            <div class='sr-ref'>(Stress × Fatica prevista) / Sonno</div>
+            <div class='sr-note'>Misura quanto sei "carico" tra testa e corpo insieme. Livello di oggi: {liv.upper()}.</div>
         </div>
         <div class='split-row'>
-            <div class='sr-label'>Sforzo Lavorativo (ISLR)</div>
-            <div class='sr-value' style='color:{C_STRESS};'>{f"{islr_val:.1f}" if islr_val is not None and not pd.isna(islr_val) else "N/D"}</div>
+            <div class='sr-label'><span class='row-icon'>💼</span>Sforzo Lavorativo (ISLR)</div>
+            <div class='sr-value'><span class='value-pill' style='color:{C_STRESS}; background:{C_STRESS}14;'>{f"{islr_val:.1f}" if islr_val is not None and not pd.isna(islr_val) else "N/D"}</span></div>
             <div class='sr-ref'>(Ore Lavoro × Stress) / Distanza</div>
-            <div class='sr-note'>Misura quanto lo stress extra-sportivo pesa su ogni km percorso. Sopra 6.3 il carico occupazionale satura le risorse per l'allenamento.</div>
+            <div class='sr-note'>Quanto il lavoro "ruba" energie alla corsa. Sopra 6.3 vuol dire che lo stress da lavoro sta consumando troppe risorse per allenarti bene.</div>
         </div>
         <div class='split-row'>
-            <div class='sr-label'>Impatto Termico (IITR)</div>
-            <div class='sr-value' style='color:{TXT_PRIMARY};'>{f"{iitr_val:.1f}" if iitr_val is not None and not pd.isna(iitr_val) else "N/D"}</div>
+            <div class='sr-label'><span class='row-icon'>🌡️</span>Impatto Termico (IITR)</div>
+            <div class='sr-value'><span class='value-pill' style='color:{TXT_PRIMARY}; background:{TXT_PRIMARY}14;'>{f"{iitr_val:.1f}" if iitr_val is not None and not pd.isna(iitr_val) else "N/D"}</span></div>
             <div class='sr-ref'>(Temperatura × Vento) / Distanza</div>
-            <div class='sr-note'>Quantifica l'attrito ambientale della seduta odierna: valori alti segnalano condizioni meteo più severe da compensare con un pacing più prudente.</div>
+            <div class='sr-note'>Dice quanto il meteo di oggi (caldo, vento) rende la corsa più dura. Più alto il numero, più conviene rallentare.</div>
         </div>
         <div class='split-row'>
-            <div class='sr-label'>Degradazione Termica (IDET)</div>
-            <div class='sr-value' style='color:{C_VIOLA};'>{f"{idet_val:.1f}" if idet_val is not None and not pd.isna(idet_val) else "N/D"}</div>
+            <div class='sr-label'><span class='row-icon'>❤️</span>Degradazione Termica (IDET)</div>
+            <div class='sr-value'><span class='value-pill' style='color:{C_VIOLA}; background:{C_VIOLA}14;'>{f"{idet_val:.1f}" if idet_val is not None and not pd.isna(idet_val) else "N/D"}</span></div>
             <div class='sr-ref'>(FC Media × Temperatura) / Velocità</div>
-            <div class='sr-note'>Corregge la deriva cardiaca dovuta al caldo, evitando di scambiare un normale adattamento termico per un segnale di overtraining.</div>
+            <div class='sr-note'>Capisce se il cuore batte più forte solo per il caldo, così non scambi un normale adattamento per un segnale di troppo allenamento.</div>
         </div>
     </div>
     """)
@@ -315,75 +397,75 @@ else:
     # =========================================================
     # COACH PERSONALIZZATO
     # =========================================================
-    section_head("Coach personalizzato", "Protocollo Operativo Dettagliato", "Linee guida biomeccaniche, di pacing e bio-hacking basate sulla telemetria odierna.")
+    section_head("Coach personalizzato", "Il tuo protocollo passo dopo passo", "Cosa fare prima, durante e dopo la corsa — spiegato in modo semplice, in base ai tuoi dati di oggi.")
 
     if liv == "basso":
-        dinamica_pacing = "Mantenimento del ritmo standard. Nessuna restrizione fisiologica sui cambi di velocità, via libera a scatti se previsti."
-        dinamica_resp = "Respirazione naturale (suggerito schema 3:3 in riscaldamento, passando a 2:2 a ritmo gara)."
-        dinamica_rec = "Recupero passivo standard o massaggio leggero. Doccia contrasto (caldo/freddo) autorizzata post-workout."
+        dinamica_pacing = "Puoi tenere il tuo ritmo normale. Nessuna restrizione sui cambi di velocità: via libera anche a qualche scatto, se previsto."
+        dinamica_resp = "Respira in modo naturale (schema 3:3 in riscaldamento, poi 2:2 al ritmo gara)."
+        dinamica_rec = "Recupero passivo normale o massaggio leggero. Dopo l'allenamento va bene anche la doccia contrasto caldo/freddo."
     elif liv == "medio":
-        dinamica_pacing = "Gestione conservativa (Pacing difensivo). Togli 10-15 secondi al km dal tuo ritmo abituale. Evita pendenze severe."
-        dinamica_resp = "Forza un'espirazione lunga (schema 3:4) per mantenere bassa la frequenza cardiaca ed evitare picchi di sforzo."
-        dinamica_rec = "Focus massimo su idratazione e reintegro elettrolitico. Niente acqua fredda post-corsa, preferisci temperature neutre per non stressare il SNC."
+        dinamica_pacing = "Vai con prudenza: togli 10-15 secondi al km rispetto al tuo ritmo abituale. Evita salite ripide."
+        dinamica_resp = "Allunga l'espirazione (schema 3:4): aiuta a tenere basso il battito ed evitare picchi di sforzo."
+        dinamica_rec = "Bevi e reintegra sali minerali più del solito. Evita l'acqua fredda dopo la corsa: meglio temperatura neutra, per non stressare il sistema nervoso."
     else:
-        dinamica_pacing = "Sforzo sconsigliato. Converti la seduta in 30-40 minuti di camminata dinamica su terreno piatto e morbido (prato/terra)."
-        dinamica_resp = "Respirazione diaframmatica esclusiva naso-naso per favorire il recupero parasimpatico."
-        dinamica_rec = "Yoga nidra o stretching passivo lungo. Applica calore (non freddo) su eventuali zone muscolari tese."
+        dinamica_pacing = "Oggi meglio non correre. Trasforma la seduta in 30-40 minuti di camminata dinamica su terreno piatto e morbido (prato o terra)."
+        dinamica_resp = "Respira solo con il naso, in modo profondo: aiuta il corpo a rilassarsi e recuperare."
+        dinamica_rec = "Yoga nidra o stretching passivo lungo. Se hai muscoli tesi, meglio il calore del ghiaccio."
 
     coach_content = {
-        "1. Warm-Up & Prep (Pre)": {
+        "🔥 1. Prima di Correre (Warm-Up)": {
             "colore": C_SONNO,
             "blocchi": [
                 ("Attivazione Neurale e Meccanica", [
-                    "Camminata sui talloni e sulle punte (30 secondi per tipo) per attivare l'arco plantare e le caviglie.",
-                    "5 minuti di mobilità dinamica: leg swings frontali/laterali, rotazioni delle anche, affondi controllati.",
-                    "Evita lo stretching statico pre-corsa: riduce la reattività elastica del tendine d'Achille del 5-8%."
+                    "Cammina sui talloni e poi sulle punte (30 secondi ciascuno) per svegliare caviglie e arco plantare.",
+                    "5 minuti di mobilità dinamica: slanci di gamba avanti/lato, rotazioni delle anche, affondi controllati.",
+                    "Evita lo stretching statico prima di correre: rende il tendine d'Achille meno reattivo del 5-8%."
                 ]),
-                ("Setup Mentale e Fisiologico", [
-                    f"Target zona Iniziale: {zona_consigliata}. I primi 10 minuti devono sembrare 'troppo lenti'.",
-                    "Esegui 10 cicli di respirazione profonda prima di far partire il cronometro per azzerare lo stress lavorativo.",
-                    f"Direttiva Rischio: {dinamica_pacing}"
+                ("Preparare Mente e Corpo", [
+                    f"Zona di partenza consigliata: {zona_consigliata}. I primi 10 minuti devono sembrarti 'quasi troppo lenti'.",
+                    "Fai 10 respiri profondi prima di partire con il cronometro: aiuta a scaricare lo stress della giornata.",
+                    f"Indicazione di oggi: {dinamica_pacing}"
                 ])
             ],
         },
-        "2. In Azione (Durante)": {
+        "⚡ 2. Durante la Corsa": {
             "colore": C_AMBRA,
             "blocchi": [
-                ("Gestione Biomeccanica e Pacing", [
-                    f"Frequenza passi (Cadenza): {cadenza_target}. Aumentare la frequenza del 5% riduce il carico sulle ginocchia del 20%.",
-                    "Postura: Busto leggermente inclinato in avanti partendo dalle caviglie (non dalla vita). Sguardo a 20 metri, mai ai piedi.",
-                    "Rilassa mani e mascella: la tensione nel volto si trasmette istantaneamente alla catena muscolare posteriore."
+                ("Postura e Ritmo", [
+                    f"Passi al minuto (cadenza): {cadenza_target}. Alzare la cadenza del 5% riduce il carico sulle ginocchia del 20%.",
+                    "Busto leggermente inclinato in avanti partendo dalle caviglie, non dalla schiena. Guarda avanti, non i piedi.",
+                    "Rilassa mani e mascella: la tensione sul viso si trasmette subito ai muscoli della schiena e delle gambe."
                 ]),
-                ("Gestione Sforzo e Sicurezza", [
+                ("Sforzo e Sicurezza", [
                     f"Respirazione: {dinamica_resp}",
-                    "Check Infortuni: Differenzia la 'fatica sorda' (normale) dal 'dolore acuto/fitta' (allarme articolare).",
-                    "Regola dei 15 minuti: Se dopo 15 minuti l'RPE percepito è più alto di 2 punti rispetto al previsto, taglia la distanza a metà."
+                    "Distingui la 'fatica normale' (va bene) dal 'dolore acuto o fitta' (segnale di allarme, fermati).",
+                    "Regola dei 15 minuti: se dopo 15 minuti fai più fatica del previsto, taglia subito la distanza a metà."
                 ])
             ],
         },
-        "3. Protocollo di Recupero (Post)": {
+        "🧊 3. Dopo la Corsa (Recupero)": {
             "colore": C_RPE,
             "blocchi": [
-                ("Cooldown Sistemico", [
-                    "Non fermarti bruscamente. Cammina per 3-5 minuti finché il battito non scende comodamente in Zona 1 (Sotto i 110 bpm).",
-                    "Finestra anabolica: assumi carboidrati e proteine leggere entro 45 minuti per arrestare il catabolismo indotto dallo stress."
+                ("Rientro alla Calma", [
+                    "Non fermarti di colpo. Cammina 3-5 minuti finché il battito non scende comodamente sotto i 110 bpm.",
+                    "Entro 45 minuti mangia carboidrati e un po' di proteine: aiuta il corpo a smettere di 'consumarsi' e a ripartire con il recupero."
                 ]),
-                ("Gestione Tessuti", [
-                    "Stretching passivo: mantieni ogni posizione per almeno 45-60 secondi (polpacci, ischiocrurali, psoas).",
-                    "Usa il foam roller lentamente. Se trovi un 'trigger point' (punto di dolore), fermati su di esso respirando per 30 secondi."
+                ("Cura dei Muscoli", [
+                    "Fai stretching passivo tenendo ogni posizione 45-60 secondi (polpacci, dietro coscia, flessori dell'anca).",
+                    "Usa il foam roller lentamente. Se trovi un punto dolente, fermati lì e respira per 30 secondi."
                 ])
             ],
         },
-        "4. Bio-Hacking Serale (Mindset)": {
+        "🌙 4. Sera e Sonno": {
             "colore": C_VIOLA,
             "blocchi": [
-                ("Regolazione Sistema Nervoso", [
-                    "Doccia / Termoterapia: " + dinamica_rec,
-                    "NSDR (Non-Sleep Deep Rest): 10 minuti di meditazione guidata o body-scan prima di dormire se lo stress oggi era sopra il 7/10."
+                ("Rilassare il Sistema Nervoso", [
+                    "Doccia o calore: " + dinamica_rec,
+                    "10 minuti di meditazione guidata o rilassamento corporeo (NSDR) prima di dormire, se oggi lo stress era sopra 7/10."
                 ]),
-                ("Ottimizzazione Sonno", [
-                    f"Target di stanotte: recuperare il deficit arrivando a {max(7.5, ore_s+0.5):.1f} ore.",
-                    "Riduci l'esposizione alla luce blu intensa (smartphone/TV) 60 minuti prima del sonno per permettere il rilascio di melatonina naturale."
+                ("Dormire Meglio Stanotte", [
+                    f"Obiettivo per stanotte: recuperare il sonno arretrato arrivando a {max(7.5, ore_s+0.5):.1f} ore.",
+                    "Evita smartphone e TV nell'ultima ora prima di dormire: la luce blu blocca la melatonina, l'ormone che ti fa addormentare."
                 ])
             ],
         }
@@ -408,12 +490,12 @@ else:
     # =========================================================
     # CORSIE E ZONE
     # =========================================================
-    section_head("Riferimento", "Corsie di Frequenza Cardiaca")
+    section_head("Riferimento", "Le tue Zone di Frequenza Cardiaca", "A quale intensità corrispondono le zone che vedi nei grafici qui sotto.")
 
     corsie = [
-        ("Corsia 1", "Zona 1-2", "Recupero / Base Aerobica", "Sforzo bassissimo (test del parlato superato facilmente). L'energia deriva dai grassi. Ideale per costruire resistenza senza accumulare fatica.", C_RPE),
-        ("Corsia 2", "Zona 3", "Soglia Aerobica / Tempo", "Ritmo sostenuto, respirazione più profonda. Accumulo minimo di acido lattico. Sviluppa la potenza cardiaca.", C_AMBRA),
-        ("Corsia 3", "Zona 4-5", "Soglia Lattacida / VO2Max", "Sforzo massimale (test del parlato fallito). Distrugge le fibre muscolari per super-compensare. Da usare col contagocce se il rischio infortunio è medio/alto.", C_STRESS),
+        ("Corsia 1", "Zona 1-2", "Recupero / Base Aerobica", "Sforzo bassissimo: riesci a parlare senza fatica. L'energia arriva dai grassi. Perfetta per costruire resistenza senza accumulare stanchezza.", C_RPE),
+        ("Corsia 2", "Zona 3", "Soglia Aerobica / Tempo", "Ritmo sostenuto, respiro più profondo, poco acido lattico. Serve a rendere il cuore più forte ed efficiente.", C_AMBRA),
+        ("Corsia 3", "Zona 4-5", "Soglia Lattacida / VO2Max", "Sforzo massimo: parlare diventa difficile. Le fibre muscolari lavorano al limite per poi rinforzarsi. Da usare con moderazione se il rischio infortunio è medio o alto.", C_STRESS),
     ]
     cc1, cc2, cc3 = st.columns(3)
     for c, (num, zt, zn, zd, zcol) in zip([cc1, cc2, cc3], corsie):
@@ -456,7 +538,11 @@ else:
             md(f"""
             <div class='panel panel-flush'>
                 <div class='chart-top-rule' style='background:{rule_color};'></div>
-                <div class='panel-body'><p class='panel-title' style='color:{TXT_PRIMARY}; font-weight:600;'>{titolo}</p></div>
+                <div class='panel-body'>
+                    <p class='panel-title' style='color:{TXT_PRIMARY}; font-weight:600;'>
+                        <span class='dot-flag' style='background:{rule_color};'></span>{titolo}
+                    </p>
+                </div>
             """)
             st.plotly_chart(fig, use_container_width=True, config=config_pulita)
             md(f"""
@@ -469,7 +555,7 @@ else:
     # =========================================================
     # SEZIONE 1: DINAMICHE AVANZATE E CARICO 
     # =========================================================
-    section_head("Analisi Avanzata", "Dinamiche di Carico", "Integrazione dei dati storici con modelli di readiness e previsione infortuni (Metodologia ACWR).")
+    section_head("Analisi Avanzata", "Come sta cambiando il tuo carico", "Uniamo i dati storici a modelli usati per prevedere il rischio infortunio (metodo ACWR).")
         
     c_adv1, c_adv2, c_adv3 = st.columns(3)
 
@@ -480,8 +566,10 @@ else:
         marker=dict(color=TXT_TERTIARY, size=6, opacity=0.4), hoverinfo='skip'
     ))
     fig_matrix.add_trace(go.Scatter(
-        x=[ore_s], y=[r.get('stress_lavoro', 5)], mode='markers',
-        marker=dict(color=col, size=14, symbol='diamond', line=dict(width=2, color=TXT_PRIMARY)),
+        x=[ore_s], y=[r.get('stress_lavoro', 5)], mode='markers+text',
+        marker=dict(color=col, size=15, symbol='diamond', line=dict(width=2, color=TXT_PRIMARY)),
+        text=["OGGI"], textposition="top center",
+        textfont=dict(color=TXT_PRIMARY, size=11, family="JetBrains Mono, monospace"),
         name="Oggi"
     ))
     fig_matrix.add_hline(y=media_stress_90, line_dash="dot", line_color=PANEL_BD_H, opacity=0.7)
@@ -491,15 +579,15 @@ else:
     
     stress_oggi = r.get('stress_lavoro', 5)
     if ore_s >= media_sonno_90 and stress_oggi <= media_stress_90:
-        quad_txt = "🟢 **Stato Ottimale:** Hai dormito bene e sei poco stressato. Il tuo corpo è pronto per un allenamento intenso."
+        quad_txt = "🟢 <strong>Situazione ottimale:</strong> hai dormito bene e sei poco stressato. Il corpo è pronto per un allenamento anche impegnativo."
     elif ore_s >= media_sonno_90 and stress_oggi > media_stress_90:
-        quad_txt = "🟡 **Attenzione:** Stai dormendo abbastanza, ma lo stress lavorativo è alto. Non esagerare con l'intensità della corsa oggi."
+        quad_txt = "🟡 <strong>Attenzione:</strong> dormi abbastanza, ma lo stress da lavoro è alto. Meglio non esagerare con l'intensità oggi."
     elif ore_s < media_sonno_90 and stress_oggi <= media_stress_90:
-        quad_txt = "🟠 **Recupero Parziale:** Sei poco stressato ma hai dormito poco. I muscoli non sono carichi al 100%, fai un allenamento più leggero."
+        quad_txt = "🟠 <strong>Recupero parziale:</strong> sei poco stressato ma hai dormito poco. I muscoli non sono al 100%: meglio un allenamento più leggero."
     else:
-        quad_txt = "🔴 **Stato Critico:** Hai dormito poco e sei molto stressato. Sei a forte rischio infortunio: oggi è meglio riposare o solo camminare."
+        quad_txt = "🔴 <strong>Situazione critica:</strong> poco sonno e molto stress insieme. Il rischio infortunio è alto: oggi conviene riposare o solo camminare."
         
-    chart_card(c_adv1, "Matrice: Sonno vs Stress", fig_matrix, quad_txt, col)
+    chart_card(c_adv1, "Sonno vs Stress: dove sei oggi", fig_matrix, quad_txt, col)
 
     # 2. ACUTE TO CHRONIC WORKLOAD RATIO (ACWR Proxy)
     if 'RPE' in df_adv.columns:
@@ -514,17 +602,28 @@ else:
             line=dict(color=C_AMBRA, width=2, shape='spline')
         ))
         fig_acwr.add_hline(y=1.3, line_dash="dash", line_color=C_STRESS, line_width=1)
+
+        acwr_attuale = df_adv['ACWR'].iloc[-1] if not df_adv['ACWR'].empty else 1.0
+        ultima_data = df_adv['Data_Chart'].tail(60).iloc[-1] if not df_adv['Data_Chart'].tail(60).empty else None
+        if ultima_data is not None:
+            fig_acwr.add_trace(go.Scatter(
+                x=[ultima_data], y=[acwr_attuale], mode='markers+text',
+                marker=dict(color=TXT_PRIMARY, size=10, line=dict(width=2, color=C_AMBRA)),
+                text=[f"{acwr_attuale:.2f}"], textposition="top center",
+                textfont=dict(color=TXT_PRIMARY, size=11, family="JetBrains Mono, monospace"),
+                hoverinfo='skip'
+            ))
+
         fig_acwr.update_layout(**layout_base, yaxis_title="Rapporto Fatica", yaxis=dict(range=[0.5, 2.0]))
         
-        acwr_attuale = df_adv['ACWR'].iloc[-1] if not df_adv['ACWR'].empty else 1.0
         if acwr_attuale > 1.3:
-            acwr_txt = "⚠️ La linea ha superato la zona verde. Significa che **ti stai affaticando troppo velocemente** rispetto al mese scorso. Rallenta o rischi un infortunio (es. tendinite)!"
+            acwr_txt = "⚠️ Sei sopra la zona verde: <strong>ti stai affaticando troppo in fretta</strong> rispetto al mese scorso. Rallenta, o rischi un infortunio da sovraccarico (es. tendinite)."
         elif acwr_attuale < 0.8:
-            acwr_txt = "🔵 La linea è sotto la zona verde. Ti stai allenando meno del solito o troppo piano. Potresti perdere un po' di forma se continui così."
+            acwr_txt = "🔵 Sei sotto la zona verde: ti stai allenando meno o più piano del solito. Se continua così, rischi di perdere un po' di forma."
         else:
-            acwr_txt = "🟢 Perfetto! La linea è all'interno della zona verde. Stai aumentando o mantenendo la fatica in modo **corretto e graduale**."
+            acwr_txt = "🟢 Perfetto: sei dentro la zona verde. Stai aumentando (o mantenendo) la fatica in modo <strong>giusto e graduale</strong>."
             
-        chart_card(c_adv2, "Carico Recente vs Mensile", fig_acwr, acwr_txt, C_AMBRA)
+        chart_card(c_adv2, "Carico recente vs mese scorso", fig_acwr, acwr_txt, C_AMBRA)
     else:
         c_adv2.warning("Dati di fatica insufficienti per questo grafico.")
 
@@ -551,7 +650,7 @@ else:
             
             fig_week.update_layout(**layout_base, yaxis=dict(range=[0, 10]), xaxis_title="Giorno Settimana", barmode='overlay')
             
-            adv_week = f"Analizzando la tua storia, il **{giorno_max['Nome_Giorno']}** è di solito il giorno in cui accumuli più stress mentale. Ti consiglio di tenere questo giorno per il riposo o per corsette molto facili."
+            adv_week = f"Guardando la tua storia, il <strong>{giorno_max['Nome_Giorno']}</strong> è di solito il giorno in cui accumuli più stress mentale. Prova a tenerlo per il riposo o per corse molto leggere."
             chart_card(c_adv3, "Stress medio per giorno", fig_week, adv_week, C_STRESS)
         else:
             c_adv3.warning("Dati storici insufficienti.")
@@ -563,7 +662,7 @@ else:
     # =========================================================
     # SEZIONE 2: TREND STORICI
     # =========================================================
-    section_head("Trend Storici", "Andamento degli ultimi 3 mesi", "Come cambiano le tue abitudini di base nel tempo.")
+    section_head("Trend Storici", "Come cambiano le tue abitudini", "Gli ultimi 3 mesi di sonno, stress e fatica, con l'ultimo valore evidenziato.")
 
     df_plot = df_adv.tail(90)
 
@@ -573,6 +672,18 @@ else:
         precedente = serie.head(len(serie) - 14).mean()
         return recente - precedente
 
+    def aggiungi_punto_finale(fig, df_sorgente, colonna, colore):
+        if df_sorgente.empty:
+            return
+        ultimo = df_sorgente.iloc[-1]
+        fig.add_trace(go.Scatter(
+            x=[ultimo['Data_Chart']], y=[ultimo[colonna]], mode='markers+text',
+            marker=dict(color=TXT_PRIMARY, size=9, line=dict(width=2, color=colore)),
+            text=[f"{ultimo[colonna]:.1f}"], textposition="top center",
+            textfont=dict(color=TXT_PRIMARY, size=11, family="JetBrains Mono, monospace"),
+            hoverinfo='skip'
+        ))
+
     r1c1, r1c2, r1c3 = st.columns(3)
 
     if 'Ore Sonno' in df_plot.columns:
@@ -581,8 +692,9 @@ else:
             x=df_plot['Data_Chart'], y=df_plot['Ore Sonno'], mode='lines',
             line=dict(color=C_SONNO, width=2), fill='tozeroy', fillcolor='rgba(46,144,255,0.08)'
         ))
+        aggiungi_punto_finale(fig_t1, df_plot, 'Ore Sonno', C_SONNO)
         fig_t1.update_layout(**layout_base, yaxis_title="Ore a notte")
-        spieg_sonno = "⚠️ Attenzione: la linea scende. Ultimamente stai dormendo meno del solito. Cerca di andare a letto un po' prima per far recuperare i muscoli." if trend_sonno < -0.3 else "🟢 Bene! Le tue ore di sonno sono costanti. Stai dando al corpo il tempo giusto per ricaricarsi e ripararsi."
+        spieg_sonno = "⚠️ Attenzione: la linea scende. Ultimamente dormi meno del solito. Prova ad andare a letto un po' prima per far recuperare i muscoli." if trend_sonno < -0.3 else "🟢 Bene: le tue ore di sonno sono costanti. Stai dando al corpo il tempo giusto per ricaricarsi."
         chart_card(r1c1, "Andamento del Sonno", fig_t1, spieg_sonno, C_SONNO)
 
     if 'Stress Lavoro' in df_plot.columns:
@@ -591,8 +703,9 @@ else:
             x=df_plot['Data_Chart'], y=df_plot['Stress Lavoro'], mode='lines',
             line=dict(color=C_STRESS, width=2), fill='tozeroy', fillcolor='rgba(255,69,58,0.08)'
         ))
+        aggiungi_punto_finale(fig_t2, df_plot, 'Stress Lavoro', C_STRESS)
         fig_t2.update_layout(**layout_base, yaxis=dict(range=[0, 10]), yaxis_title="Livello Stress (0-10)")
-        spieg_stress = "⚠️ La linea sale, il tuo stress generale sta aumentando. Quando la mente è stanca, il corpo si fa male più facilmente: abbassa l'intensità della corsa." if trend_stress > 0.5 else "🟢 Il tuo livello di stress lavorativo e quotidiano è stabile e sotto controllo."
+        spieg_stress = "⚠️ La linea sale: il tuo stress generale sta aumentando. Quando la mente è stanca, il corpo si infortuna più facilmente: abbassa l'intensità della corsa." if trend_stress > 0.5 else "🟢 Il tuo stress da lavoro e vita quotidiana è stabile e sotto controllo."
         chart_card(r1c2, "Andamento dello Stress", fig_t2, spieg_stress, C_STRESS)
 
     if 'RPE' in df_plot.columns:
@@ -601,8 +714,9 @@ else:
             x=df_plot['Data_Chart'], y=df_plot['RPE'], mode='lines',
             line=dict(color=C_RPE, width=2), fill='tozeroy', fillcolor='rgba(48,209,88,0.08)'
         ))
+        aggiungi_punto_finale(fig_t3, df_plot, 'RPE', C_RPE)
         fig_t3.update_layout(**layout_base, yaxis=dict(range=[0, 10]), yaxis_title="Fatica Percepita (0-10)")
-        spieg_rpe = "⚠️ La linea sale. Stai facendo molta più fatica del solito negli allenamenti. È il segnale che hai bisogno di scaricare: fai un paio di giorni leggeri." if trend_rpe > 0.5 else "🟢 La fatica che provi dopo gli allenamenti è costante. Il tuo corpo sta gestendo bene i chilometri."
+        spieg_rpe = "⚠️ La linea sale: fai più fatica del solito negli allenamenti. È il segnale che serve scaricare: fai un paio di giorni leggeri." if trend_rpe > 0.5 else "🟢 La fatica che senti dopo gli allenamenti è costante. Il corpo gestisce bene i chilometri."
         chart_card(r1c3, "Andamento della Fatica", fig_t3, spieg_rpe, C_RPE)
 
     md("<div style='height:34px;'></div>")
@@ -610,7 +724,7 @@ else:
     # =========================================================
     # EXPORT REPORT
     # =========================================================
-    section_head("Export", "Generazione report per coach", "Scarica l'analisi completa.")
+    section_head("Export", "Porta il report dal tuo coach", "Scarica l'analisi completa in formato testo o come pagina HTML con grafici e design.")
 
     coach_txt = ""
     for nome_tab, contenuto in coach_content.items():
@@ -630,7 +744,7 @@ Recovery Score: {recovery_score:.0f}%
 Stress Mentale (SMA): {sma:.1f}
 
 NOTE CLINICHE E ANALISI AVANZATA:
-{grafici_txt.replace('<br>', ' ')}
+{grafici_txt.replace('<br>', ' ').replace('<strong>', '').replace('</strong>', '')}
 
 PROTOCOLLO COACH COMPLETO{coach_txt}
 --------------------------------"""
@@ -664,6 +778,7 @@ PROTOCOLLO COACH COMPLETO{coach_txt}
   h2 {{ color:{TXT_PRIMARY}; font-family:'Oswald',sans-serif; font-weight:600; text-transform:uppercase; font-size:1.15em; margin:34px 0 14px 0; }}
   .eyebrow {{ font-family:'JetBrains Mono',monospace; font-size:.7em; letter-spacing:.14em; text-transform:uppercase; color:{TXT_TERTIARY}; margin:0 0 8px 0; font-weight:600; }}
   .panel {{ background:{PANEL_BG}; border:1px solid {PANEL_BD}; border-radius:14px; padding:20px 22px; margin-bottom:14px; }}
+  .hero-row {{ display:flex; align-items:center; gap:28px; flex-wrap:wrap; margin: 14px 0 6px 0; }}
   .kpi-row {{ display:flex; gap:14px; flex-wrap:wrap; margin-top:18px; }}
   .kpi-row .panel {{ flex:1 1 30%; min-width:200px; }}
   .kpi-row .val {{ font-family:'JetBrains Mono',monospace; font-size:1.7em; color:{TXT_PRIMARY}; font-weight:600; }}
@@ -676,7 +791,7 @@ PROTOCOLLO COACH COMPLETO{coach_txt}
 <body>
   <p class="eyebrow">RunAI Performance Report</p>
   <h1>{tit}</h1>
-  <div style="margin:20px 0;">{radar_svg}</div>
+  <div class="hero-row">{gauge_svg}<div>{radar_svg}</div></div>
   <div class="kpi-row">
     <div class="panel"><p class="eyebrow">Distanza Consigliata</p><div class="val">{distanza_consigliata:.1f} km</div></div>
     <div class="panel"><p class="eyebrow">Indice Rischio</p><div class="val" style="color:{col};">{risk_score:.0f}%</div></div>
