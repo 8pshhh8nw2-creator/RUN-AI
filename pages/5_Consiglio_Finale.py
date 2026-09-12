@@ -9,7 +9,7 @@ from utils.style import carica_css
 from utils.data import genera_dati
 from utils.components import header_block, get_svg_url
 from utils.kpi_engine import calcola_kpi_giornalieri
-from utils.ml_engine import get_bundle, stima_rischio_oggi
+from utils.ml_engine import get_bundle_classificazione, stima_rischio_oggi
 
 st.set_page_config(page_title="Consiglio Finale", layout="wide")
 carica_css()
@@ -53,7 +53,7 @@ else:
 
     # Il bundle ML e la stima del rischio richiedono 'r' e 'df_base',
     # quindi vanno calcolati qui (non in cima al file, dove non esistono ancora)
-    bundle_ml = get_bundle(df_base)
+    bundle_ml = get_bundle_classificazione(df_base)
     stima = stima_rischio_oggi(
         bundle_ml,
         distanza=r.get('distanza_oggi', 10.0),
@@ -62,7 +62,7 @@ else:
         rpe=r.get('rpe_previsto', 5),
     )
     rischio_ml = stima["probabilita_rf"]
-    fattore_ml = stima["fattore_principale"]
+    fattore_ml = stima["fattore_principale_rf"]
 
     # =========================================================
     # TOKEN DI DESIGN (High-Tech Sports Theme)
