@@ -4,17 +4,17 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
-from utils.ml_engine import get_bundle, stima_rischio_oggi, FEATURE_COLS
-
-bundle = get_bundle(df_base)
-rf_model, log_model, scaler = bundle["rf_model"], bundle["log_model"], bundle["scaler"]
-X_scaled_class = scaler.transform(X_train_class)
-y_pred_rf, y_proba_rf, y_proba_log = bundle["y_pred_rf"], bundle["y_proba_rf"], bundle["y_proba_log"]
+from sklearn.cluster import KMeans
+from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_score, recall_score, f1_score
 
 from utils.style import carica_css
 from utils.data import genera_dati
 from utils.components import header_block, get_svg_url, style_fig, SVG_ML
 from utils.sidebar import sidebar_comune
+from utils.ml_engine import (
+    get_bundle_classificazione, get_bundle_regressione, get_bundle_cluster,
+    stima_rischio_oggi, FEATURE_LABELS_CLASS,
+)
 
 # 1. Configurazione pagina
 st.set_page_config(page_title="Analisi Predittiva ML", layout="wide")
@@ -58,60 +58,36 @@ df_base = st.session_state.dati.copy()
 st.markdown("""
 <div class='info-box'>
 <h3>Come opera il Machine Learning in RUN AI?</h3>
-<p style='color: #B8C2D0; font-family:"Inter",sans-serif;'>Il sistema analizza il tuo storico di allenamenti con algoritmi di classificazione, regressione e clustering per individuare pattern nascosti e stimare come il tuo corpo reagisce ai carichi di lavoro. In parole semplici: i modelli "imparano" dai tuoi allenamenti passati per prevedere cosa succederà con quelli futuri.</p>
+<p style='color: #B8C2D0; font-family:"Inter",sans-serif;'>Il sistema analizza il tuo storico di allenamenti con algoritmi di classificazione, regressione e clustering per individuare pattern nascosti e stimare come il tuo corpo reagisce ai carichi di lavoro. In parole semplici: i modelli "imparano" dai tuoi allenamenti passati per prevedere cosa succederà con quelli futuri. Sono esattamente questi stessi modelli, addestrati una sola volta su questo storico, a essere consultati anche nella pagina "Consiglio Finale" per calcolare il verdetto del giorno: quello che vedi qui è ciò che guida le decisioni finali.</p>
 </div>
 """, unsafe_allow_html=True)
 
 try:
     # =========================================================
-    # PREPARAZIONE DATI CONDIVISA
+    # MODELLI ADDESTRATI (utils/ml_engine.py) — stesso identico
+    # oggetto in cache usato anche dalla pagina "Consiglio Finale".
     # =========================================================
-    feature_names = ['Distanza', 'Sonno', 'Stress', 'FC Media', 'RPE']
-    X_train_class = df_base[['Distanza (km)', 'Ore Sonno', 'Stress Lavoro', 'FC Media', 'RPE']].values
+    feature_names = FEATURE_LABELS_CLASS
+
+    class_bundle = get_bundle_classificazione(df_base)
+    rf_model = class_bundle["rf_model"]
+    log_model = class_bundle["log_model"]
+    scaler = class_bundle["scaler"]
+
     y_train_class = df_base['Rischio Infortunio'].values
-    scaler = StandardScaler()
-    X_scaled_class = scaler.fit_transform(X_train_class)
+    X_train_class = df_base[['Distanza (km)', 'Ore Sonno', 'Stress Lavoro', 'FC Media', 'RPE']].values
+    X_scaled_class = scaler.transform(X_train_class)
 
-    # ---------------------------------------------------------------
-    # Modelli addestrati sui dati completi: servono per la feature
-    # importance, i coefficienti interpretativi e il simulatore
-    # What-If (qui è corretto usare tutti i dati disponibili, perché
-    # l'obiettivo non è misurare le performance ma dare al modello
-    # la massima informazione possibile per generare la spiegazione).
-    # ---------------------------------------------------------------
-    rf_model = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=8, min_samples_split=5)
-    rf_model.fit(X_scaled_class, y_train_class)
-
-    log_model = LogisticRegression(random_state=42)
-    log_model.fit(X_scaled_class, y_train_class)
-
-    # ---------------------------------------------------------------
-    # Le METRICHE DI PERFORMANCE (accuratezza, precisione, AUC, ecc.)
-    # vengono invece calcolate con cross-validation: ogni previsione
-    # arriva da una versione del modello che NON ha visto quella
-    # sessione durante l'addestramento. Coerente con quanto dichiarato
-    # nel Capitolo 1 della tesi (validazione su dati mai visti).
-    # Il numero di fold si adatta automaticamente se le classi sono
-    # sbilanciate (poche sessioni a rischio rispetto a quelle sicure).
-    # ---------------------------------------------------------------
-    n_pos = int(y_train_class.sum())
-    n_neg = len(y_train_class) - n_pos
-    if n_pos > 0 and n_neg > 0:
-        n_splits = max(2, min(5, n_pos, n_neg))
-        cv_class = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
-    else:
-        cv_class = KFold(n_splits=5, shuffle=True, random_state=42)
-
-    y_pred_rf = cross_val_predict(rf_model, X_scaled_class, y_train_class, cv=cv_class, method='predict')
-    y_proba_rf = cross_val_predict(rf_model, X_scaled_class, y_train_class, cv=cv_class, method='predict_proba')[:, 1]
-
-    y_pred_log = cross_val_predict(log_model, X_scaled_class, y_train_class, cv=cv_class, method='predict')
-    y_proba_log = cross_val_predict(log_model, X_scaled_class, y_train_class, cv=cv_class, method='predict_proba')[:, 1]
+    # Le previsioni di validazione incrociata (ogni previsione arriva da
+    # una versione del modello che NON ha visto quella sessione durante
+    # l'addestramento) sono già pronte nel bundle condiviso.
+    y_pred_rf = class_bundle["y_pred_rf"]
+    y_proba_rf = class_bundle["y_proba_rf"]
+    y_pred_log = class_bundle["y_pred_log"]
+    y_proba_log = class_bundle["y_proba_log"]
 
     # =========================================================
     # TOKEN DI DESIGN E COMPONENTI RIUTILIZZABILI ("Data Lab" theme)
-    # Nomi di classe con prefisso mlx- per non entrare mai in conflitto
-    # con le classi globali definite altrove (info-box, explain-text, ecc.)
     # =========================================================
     BG_DARK   = "#0B1017"
     BG_DARK2  = "#0E1420"
@@ -325,26 +301,14 @@ try:
     # =========================================================
     with t_ml3:
         st.markdown("### Linear Regression (Previsione FC Media)")
-        st.markdown("<div class='explain-text'>Questo modello impara la relazione tra velocità, temperatura e distanza per prevedere quale dovrebbe essere la tua frequenza cardiaca media in condizioni normali. Se il valore reale si discosta molto da quello previsto, potrebbe essere un segnale di stanchezza latente.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='explain-text'>Questo modello impara la relazione tra velocità, temperatura e distanza per prevedere quale dovrebbe essere la tua frequenza cardiaca media in condizioni normali. Se il valore reale si discosta molto da quello previsto, potrebbe essere un segnale di stanchezza latente. Il segnale recente di questi scostamenti è lo stesso che contribuisce al verdetto del Consiglio Finale.</div>", unsafe_allow_html=True)
 
-        X_lr = df_base[['Velocità (km/h)', 'Temp (°C)', 'Distanza (km)']]
-        y_lr = df_base['FC Media']
-        lr_model = LinearRegression()
-        lr_model.fit(X_lr, y_lr)
-
-        # Il grafico degli scostamenti usa le previsioni "sui dati di addestramento":
-        # qui va bene, perché lo scopo è individuare le sessioni anomale rispetto
-        # al pattern generale, non misurare quanto il modello generalizza.
-        df_base['FC_Predetta'] = lr_model.predict(X_lr)
-        df_base['Residuo'] = df_base['FC Media'] - df_base['FC_Predetta']
-
-        # R² e MAE, invece, vengono calcolati con cross-validation: indicano quanto
-        # bene il modello prevede la FC su sessioni che non ha mai visto, una stima
-        # onesta e coerente con la metodologia dichiarata nella tesi.
-        cv_reg = KFold(n_splits=5, shuffle=True, random_state=42)
-        y_pred_cv_lr = cross_val_predict(lr_model, X_lr, y_lr, cv=cv_reg)
-        r2 = r2_score(y_lr, y_pred_cv_lr)
-        mae = mean_absolute_error(y_lr, y_pred_cv_lr)
+        reg_bundle = get_bundle_regressione(df_base)
+        lr_model = reg_bundle["lr_model"]
+        df_base['FC_Predetta'] = reg_bundle["fc_predetta"]
+        df_base['Residuo'] = reg_bundle["residui"]
+        r2 = reg_bundle["r2"]
+        mae = reg_bundle["mae"]
 
         c1, c2 = st.columns(2)
         with c1:
@@ -367,15 +331,12 @@ try:
     # =========================================================
     with t_ml4:
         st.markdown("### Cluster Analysis (K-Means)")
-        st.markdown("<div class='explain-text'>Il modello raggruppa da solo i tuoi allenamenti in categorie simili tra loro, senza che tu gli dica nulla in anticipo. È utile per scoprire se ti stai davvero allenando in modo 'polarizzato' (facile + duro) o se resti sempre nella stessa zona intermedia, poco efficace.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='explain-text'>Il modello raggruppa da solo i tuoi allenamenti in categorie simili tra loro, senza che tu gli dica nulla in anticipo. È utile per scoprire se ti stai davvero allenando in modo 'polarizzato' (facile + duro) o se resti sempre nella stessa zona intermedia, poco efficace. Il cluster a cui appartiene lo scenario di oggi viene usato anche nel Consiglio Finale, insieme alla sua percentuale storica di giorni a rischio.</div>", unsafe_allow_html=True)
 
-        # Distanza (km, range ~0-42) e FC Media (bpm, range ~100-180) hanno scale
-        # molto diverse: senza standardizzare, il raggruppamento finirebbe per
-        # dare più peso alla FC solo perché i numeri sono più grandi, non perché
-        # conta davvero di più. Standardizziamo prima di raggruppare.
+        cluster_bundle = get_bundle_cluster(df_base)
         X_clust_raw = df_base[['Distanza (km)', 'FC Media']]
-        scaler_clust = StandardScaler()
-        X_clust = scaler_clust.fit_transform(X_clust_raw)
+        # Stessa scala del modello usato dal Consiglio Finale, per coerenza.
+        X_clust = cluster_bundle["scaler"].transform(X_clust_raw)
 
         c1, c2 = st.columns(2)
         with c1:
@@ -391,10 +352,10 @@ try:
             st.plotly_chart(style_fig(fig_elbow), use_container_width=True)
             st.markdown("<div class='explain-text'><strong>Metodo del gomito:</strong> si sceglie il punto dove la curva smette di scendere ripidamente — qui succede intorno a 3, motivo per cui usiamo quel numero di gruppi.</div>", unsafe_allow_html=True)
         with c2:
-            km = KMeans(n_clusters=3, random_state=42, n_init=10)
-            df_base['Cluster_ID'] = km.fit_predict(X_clust)
+            km = cluster_bundle["km_model"]
+            df_base['Cluster_ID'] = cluster_bundle["cluster_id"]
             df_base['Cluster_Type'] = df_base['Cluster_ID'].apply(lambda x: f"Cluster {x+1}")
-            sil = silhouette_score(X_clust, df_base['Cluster_ID'])
+            sil = cluster_bundle["silhouette"]
             fig_km = px.scatter(df_base, x='Distanza (km)', y='FC Media', color='Cluster_Type', color_discrete_sequence=['#00E5FF', '#FFB020', '#00F5A0'], size='RPE')
             fig_km.update_traces(hovertemplate="Distanza: %{x} km<br>FC: %{y} bpm<extra></extra>")
             fig_km.update_layout(height=320, title=f"Segmentazione Allenamenti (Silhouette: {sil:.2f})")
@@ -446,8 +407,8 @@ try:
     # TAB 6 — SIMULATORE WHAT-IF
     # =========================================================
     with t_ml6:
-        st.markdown("### Simulatore What-If (Random Forest Live)")
-        st.markdown("<div class='explain-text'>Muovi gli slider per simulare uno scenario futuro e scoprire in tempo reale, secondo il modello, quanto sarebbe rischioso allenarsi con quei parametri.</div>", unsafe_allow_html=True)
+        st.markdown("### Simulatore What-If (Modelli Live)")
+        st.markdown("<div class='explain-text'>Muovi gli slider per simulare uno scenario futuro e scoprire in tempo reale, secondo Random Forest e Logistic Regression, quanto sarebbe rischioso allenarsi con quei parametri.</div>", unsafe_allow_html=True)
 
         base = st.session_state.risultati_analisi if st.session_state.analisi_fatta else {'distanza_oggi': 10.0, 'ore_sonno': 7.5, 'stress_lavoro': 5, 'rpe_previsto': 6}
 
@@ -459,14 +420,13 @@ try:
             sim_stress = st.slider("Stress simulato", 1, 10, int(base.get('stress_lavoro', 5)), key="sim_stress")
             sim_rpe = st.slider("RPE simulato", 1, 10, int(base.get('rpe_previsto', 6)), key="sim_rpe")
 
-        # NOTA METODOLOGICA: questa è una stima approssimata della FC attesa in
-        # base allo sforzo percepito simulato, non una previsione del modello di
-        # Linear Regression (che richiederebbe velocità e temperatura, non
-        # presenti tra gli slider di questo simulatore). Va trattata come un
-        # proxy plausibile, non come una previsione di precisione clinica.
-        sim_fc = 100 + sim_rpe * 10
-        sim_input = np.array([[sim_dist, sim_sonno, sim_stress, sim_fc, sim_rpe]])
-        sim_prob = rf_model.predict_proba(scaler.transform(sim_input))[0][1] * 100
+        # Stima unica, condivisa con il Consiglio Finale: fc_media qui è una
+        # stima approssimata basata sull'RPE simulato (proxy dichiarato nel
+        # modulo ml_engine), non una previsione della Linear Regression.
+        stima_sim = stima_rischio_oggi(class_bundle, sim_dist, sim_sonno, sim_stress, sim_rpe)
+        sim_fc = stima_sim["fc_media_stimata"]
+        sim_prob = stima_sim["probabilita_rf"]
+        sim_prob_log = stima_sim["probabilita_log"]
         sim_color = "#FF6A3D" if sim_prob >= 60 else "#FFB020" if sim_prob >= 25 else "#00F5A0"
 
         if sim_prob >= 60:
@@ -482,11 +442,11 @@ try:
             adv_col = "#00F5A0"
 
         st.markdown(f"<div class='info-box' style='border-left-color: {adv_col};'>{advice_msg}</div>", unsafe_allow_html=True)
-        st.caption("La frequenza cardiaca usata in questa simulazione è una stima approssimata basata sullo sforzo percepito impostato, non una misura reale né una previsione del modello di regressione lineare.")
+        st.caption(f"La frequenza cardiaca usata in questa simulazione è una stima approssimata basata sullo sforzo percepito impostato ({sim_fc:.0f} bpm). Per confronto, la Logistic Regression stima un rischio del {sim_prob_log:.1f}% per lo stesso scenario: se i due modelli sono vicini, il segnale è più affidabile.")
 
         col_simg1, col_simg2 = st.columns(2)
         with col_simg1:
-            fig_sim_gauge = go.Figure(go.Indicator(mode="gauge+number", value=sim_prob, title={'text': "Rischio Simulato", 'font': {'color': '#8792A3'}}, gauge={'axis': {'range': [0, 100]}, 'bar': {'color': sim_color}, 'bgcolor': "#111827", 'borderwidth': 0}, number={'suffix': '%', 'font': {'size': 40, 'color': '#fff'}}))
+            fig_sim_gauge = go.Figure(go.Indicator(mode="gauge+number", value=sim_prob, title={'text': "Rischio Simulato (Random Forest)", 'font': {'color': '#8792A3'}}, gauge={'axis': {'range': [0, 100]}, 'bar': {'color': sim_color}, 'bgcolor': "#111827", 'borderwidth': 0}, number={'suffix': '%', 'font': {'size': 40, 'color': '#fff'}}))
             fig_sim_gauge.update_layout(height=300)
             st.plotly_chart(style_fig(fig_sim_gauge), use_container_width=True)
         with col_simg2:
@@ -545,11 +505,6 @@ try:
         vincitore = "Random Forest" if score_rf >= score_log else "Logistic Regression"
         margine = abs(score_rf - score_log)
 
-        # ---------------------------------------------------
-        # HERO: badge vincitore + punteggio complessivo
-        # (tutte le stringhe calcolate PRIMA, mai letterali dentro
-        # le graffe delle f-string, per evitare conflitti di virgolette)
-        # ---------------------------------------------------
         col_win = C_CYAN if vincitore == "Random Forest" else C_AMBER
         punteggio_vincente = score_rf if vincitore == "Random Forest" else score_log
         punteggio_altro = score_log if vincitore == "Random Forest" else score_rf
@@ -573,9 +528,6 @@ try:
         </div>
         """, unsafe_allow_html=True)
 
-        # ---------------------------------------------------
-        # RADAR: le 5 metriche fianco a fianco
-        # ---------------------------------------------------
         c1, c2 = st.columns([1.1, 1])
         with c1:
             fig_radar = go.Figure()
@@ -622,9 +574,6 @@ try:
                 C_AMBER
             )
 
-        # ---------------------------------------------------
-        # TABELLA PRO / CONTRO — linguaggio semplice
-        # ---------------------------------------------------
         mlx_section("Guida alla scelta", "Pro, contro e quando usarli", C_GREEN)
 
         chip_rf = mlx_chip("Precisione", C_CYAN) if prec_rf >= prec_log else ""
@@ -656,9 +605,6 @@ try:
             </div>
             """, unsafe_allow_html=True)
 
-        # ---------------------------------------------------
-        # VERDETTO FINALE ESTESO
-        # ---------------------------------------------------
         differenza_auc = abs(auc_rf_final - auc_log_final)
         nota_auc = (
             "una differenza minima: sul piano puramente predittivo i due modelli si equivalgono quasi del tutto"
@@ -671,7 +617,9 @@ try:
             il modello più accurato è <strong style='color:#fff;'>{vincitore}</strong> ({nota_auc}).
             Il consiglio migliore però non è "usarne solo uno": lascia che la <strong>Random Forest</strong> ti dia l'allarme più
             affidabile, e usa la <strong>Logistic Regression</strong> per capire subito quale fattore specifico (sonno, stress,
-            distanza...) sta spingendo il rischio verso l'alto — insieme coprono sia la previsione che la spiegazione.
+            distanza...) sta spingendo il rischio verso l'alto — insieme coprono sia la previsione che la spiegazione. Entrambi,
+            insieme al modello di Clustering e a quello di Regressione Lineare sulla FC, sono gli stessi che leggi nel tuo
+            Consiglio Finale.
         </div>
         """, unsafe_allow_html=True)
 
