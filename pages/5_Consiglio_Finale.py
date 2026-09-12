@@ -9,7 +9,18 @@ from utils.style import carica_css
 from utils.data import genera_dati
 from utils.components import header_block, get_svg_url
 from utils.kpi_engine import calcola_kpi_giornalieri
+from utils.ml_engine import get_bundle, stima_rischio_oggi
 
+bundle_ml = get_bundle(df_base)
+stima = stima_rischio_oggi(
+    bundle_ml,
+    distanza=r.get('distanza_oggi', 10.0),
+    ore_sonno=r.get('ore_sonno', 7.5),
+    stress=r.get('stress_lavoro', 5),
+    rpe=r.get('rpe_previsto', 5),
+)
+rischio_ml = stima["probabilita_rf"]
+fattore_ml = stima["fattore_principale"]
 st.set_page_config(page_title="Consiglio Finale", layout="wide")
 carica_css()
 
