@@ -199,15 +199,19 @@ else:
     # =========================================================
     # CALCOLI BASE E GESTIONE ROBUSTA DATASET
     # =========================================================
-    risk_score = min(100,
-        (40 if r.get('ore_sonno', 7.5) < 6 else 25 if r.get('ore_sonno', 7.5) < 6.5 else 10) +
-        (35 if r.get('stress_lavoro', 5) >= 8 else 20 if r.get('stress_lavoro', 5) >= 6 else 5) +
-        (30 if r.get('rpe_previsto', 5) >= 8 else 15 if r.get('rpe_previsto', 5) >= 6 else 5) +
-        (20 if r.get('ore_sonno', 7.5) < 6.5 and r.get('stress_lavoro', 5) >= 7 and r.get('rpe_previsto', 5) >= 7 else 0)
-    )
-    recovery_score = max(0, 100 - abs(r.get('ore_sonno', 7.5) - 7.5) * 13.33)
-    sma = (r.get('stress_lavoro', 5) * r.get('rpe_previsto', 5)) / r.get('ore_sonno', 7.5) if r.get('ore_sonno', 7.5) > 0 else 0
+   risk_score_euristico = min(100,
+    (40 if r.get('ore_sonno', 7.5) < 6 else 25 if r.get('ore_sonno', 7.5) < 6.5 else 10) +
+    (35 if r.get('stress_lavoro', 5) >= 8 else 20 if r.get('stress_lavoro', 5) >= 6 else 5) +
+    (30 if r.get('rpe_previsto', 5) >= 8 else 15 if r.get('rpe_previsto', 5) >= 6 else 5) +
+    (20 if r.get('ore_sonno', 7.5) < 6.5 and r.get('stress_lavoro', 5) >= 7 and r.get('rpe_previsto', 5) >= 7 else 0)
+)
 
+# Media pesata: il modello ML pesa di più perché "impara" dal tuo storico reale,
+# l'euristica resta come correttivo basato su soglie cliniche note.
+risk_score = round(0.65 * rischio_ml + 0.35 * risk_score_euristico)
+    recovery_score = max(0, 100 - abs(r.get('ore_sonno', 7.5) - 7.5) * 13.33)
+    sma = (r.get('stress_lavoro', 5) * r.get('rpe_previsto', 5)) / r.get('ore_sonno', 7.5) if r.get('ore_sonno', 7.5) > 0 else 0peso_ml = 0.65 if len(df_base) >= 30 else 0.35
+risk_score = round(peso_ml * rischio_ml + (1 - peso_ml) * risk_score_euristico)
     # Recupero di tutti i KPI proprietari della tesi (non solo la SMA)
     try:
         kpi_oggi = calcola_kpi_giornalieri(r)
@@ -237,7 +241,20 @@ else:
         "RIPOSO OBBLIGATORIO": "I segnali dicono chiaramente stop: oggi il riposo vale più di qualsiasi allenamento.",
     }
     hero_msg = hero_messaggi.get(tit, "")
-
+hero_msg = hero_messaggi.get(tit, "") + f" Il modello segnala che oggi il fattore più determinante è: <strong>{fattore_ml}</strong>."
+scarto = abs(rischio_ml - risk_score_euristico)
+nota_coerenza = (
+    "Il modello statistico e le regole cliniche sono d'accordo."
+    if scarto < 15 else
+    "Attenzione: il modello statistico e le regole cliniche non sono del tutto allineati oggi — vale la pena essere prudenti."
+)
+md(f"""
+<div class='mini-caption' style='margin-top:-8px; margin-bottom:20px;'>
+    Rischio da modello ML: <strong style='color:{TXT_PRIMARY}'>{rischio_ml:.0f}%</strong> ·
+    Rischio da regole cliniche: <strong style='color:{TXT_PRIMARY}'>{risk_score_euristico:.0f}%</strong> ·
+    {nota_coerenza}
+</div>
+""")
     date_col = next((c for c in df_base.columns if c.lower() in ['data', 'date', 'giorno', 'time']), None)
     df_adv = df_base.copy()
     if date_col:
