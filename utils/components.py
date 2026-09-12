@@ -52,428 +52,243 @@ def header_block(kicker, title, subtitle, image_url=None, image_tag=None):
 
 
 # =========================================================
-# COSTANTI SVG — icone hero per ogni pagina, versione HUD/tech.
-#
-# Canvas piu' grande (1200x500) e linguaggio visivo condiviso da
-# vero pannello di controllo:
-#   - griglia tecnica di sfondo, molto tenue
-#   - quattro bracket ad angolo (stile mirino di uno strumento)
-#   - una scanline orizzontale che attraversa lentamente il pannello
-#   - dissolvenza radiale ai bordi, cosi' il pannello si fonde nella
-#     pagina invece di avere un bordo netto
-# Ogni icona traduce poi il proprio soggetto (percorso, biometria,
-# statistiche, KPI, previsione ML, piano, pose) in forma wireframe/
-# dati invece che una singola linea illustrativa.
+# LIBRERIA CONDIVISA — un corridore "low-poly" (mid-stride, profilo
+# destro) costruito a facce triangolari blu, piu' una versione a
+# scheletro/giunti per i trattamenti a raggi-X. Stessa identita'
+# visiva del portfolio: nessuna griglia, nessun pannello da cruscotto,
+# solo il soggetto reso in stile dati.
+# Coordinate condivise (spazio locale ~330-600 x, 70-330 y) cosi' le
+# due versioni si sovrappongono perfettamente quando servono insieme.
 # =========================================================
 
-# HOME — pannello di navigazione: terreno a curve di livello in
-# wireframe (profondita' simulata con layer sfalsati), percorso GPS
-# che lo attraversa e un runner luminoso che lo percorre in loop.
-SVG_HOME = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>
-    <radialGradient id="homeFade" cx="50%" cy="50%" r="70%">
-        <stop offset="55%" stop-color="#fff"/><stop offset="100%" stop-color="#000"/>
+RUNNER_GLOW_DEFS = """
+    <radialGradient id="runnerGlow" cx="50%" cy="50%" r="60%">
+        <stop offset="0%" stop-color="#2F8FE0" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#2F8FE0" stop-opacity="0"/>
     </radialGradient>
-    <mask id="homeMask"><rect width="1200" height="500" fill="url(#homeFade)"/></mask>
-    <pattern id="homeGrid" width="46" height="46" patternUnits="userSpaceOnUse">
-        <path d="M46,0 L0,0 0,46" fill="none" stroke="#8792A3" stroke-width="0.6"/>
-    </pattern>
-    <linearGradient id="homeRoute" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stop-color="#00E5FF" stop-opacity="0"/>
-        <stop offset="10%" stop-color="#00E5FF" stop-opacity="0.95"/>
-        <stop offset="45%" stop-color="#00F5A0" stop-opacity="1"/>
-        <stop offset="75%" stop-color="#FFB020" stop-opacity="0.95"/>
-        <stop offset="92%" stop-color="#00E5FF" stop-opacity="0.9"/>
-        <stop offset="100%" stop-color="#00E5FF" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="homeScan" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#00E5FF" stop-opacity="0"/>
-        <stop offset="50%" stop-color="#00E5FF" stop-opacity="0.55"/>
-        <stop offset="100%" stop-color="#00E5FF" stop-opacity="0"/>
-    </linearGradient>
-    <filter id="homeGlow" x="-80%" y="-80%" width="260%" height="260%">
-        <feGaussianBlur stdDeviation="9" result="blur"/>
+    <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
+        <feGaussianBlur stdDeviation="6" result="blur"/>
         <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <path id="homeRoutePath" d="M20,340 C130,340 165,255 260,235 C335,218 350,300 420,325 C500,355 535,420 615,395 C695,372 695,275 775,260 C860,245 900,310 995,285 C1070,265 1130,250 1180,255"/>
+"""
+
+RUNNER_MESH = """
+<g>
+    <polygon points="448,202 408,247 392,263" fill="#0A1E3D"/>
+    <polygon points="448,202 392,263 432,218" fill="#12386B"/>
+    <polygon points="408,247 353,312 337,328" fill="#0A1E3D"/>
+    <polygon points="408,247 337,328 392,263" fill="#12386B"/>
+    <polygon points="436,144 401,119 389,101" fill="#0A1E3D"/>
+    <polygon points="436,144 389,101 424,126" fill="#12386B"/>
+    <polygon points="401,119 371,94 359,76" fill="#0A1E3D"/>
+    <polygon points="401,119 359,76 389,101" fill="#12386B"/>
+    <polygon points="495,120 430,135 472,146" fill="#1B5FA8"/>
+    <polygon points="430,135 440,210 472,146" fill="#12386B"/>
+    <polygon points="440,210 470,200 472,146" fill="#1B5FA8"/>
+    <polygon points="470,200 495,120 472,146" fill="#2F8FE0"/>
+    <polygon points="474,190 536,220 524,240" fill="#2F8FE0"/>
+    <polygon points="474,190 524,240 466,210" fill="#1B5FA8"/>
+    <polygon points="536,220 503,252 487,268" fill="#2F8FE0"/>
+    <polygon points="536,220 487,268 524,240" fill="#1B5FA8"/>
+    <polygon points="500,112 533,148 517,163" fill="#2F8FE0"/>
+    <polygon points="500,112 517,163 490,128" fill="#1B5FA8"/>
+    <polygon points="533,148 562,183 548,198" fill="#2F8FE0"/>
+    <polygon points="533,148 548,198 517,163" fill="#7EC8FF"/>
+    <circle cx="485" cy="95" r="17" fill="#12386B"/>
+    <ellipse cx="479" cy="89" rx="6" ry="4" fill="#7EC8FF" opacity="0.5"/>
+</g>
+"""
+
+RUNNER_BONES = """
+<g stroke="#BFE3FF" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.95">
+    <path d="M465,125 L430,135"/><path d="M465,125 L495,120"/>
+    <path d="M430,135 L395,110"/><path d="M495,120 L525,155"/>
+    <path d="M465,125 L455,205"/><path d="M455,205 L470,200"/><path d="M455,205 L440,210"/>
+    <path d="M440,210 L400,255"/><path d="M470,200 L530,230"/>
+</g>
+<path d="M395,110 L365,85" stroke="#00E5FF" stroke-width="3" stroke-linecap="round"/>
+<path d="M525,155 L555,190" stroke="#00E5FF" stroke-width="3" stroke-linecap="round"/>
+<path d="M400,255 L345,320" stroke="#7EC8FF" stroke-width="3" stroke-linecap="round"/>
+<path d="M530,230 L495,260" stroke="#7EC8FF" stroke-width="3" stroke-linecap="round"/>
+<g fill="#E8F6FF">
+    <circle cx="485" cy="95" r="12"/>
+    <circle cx="465" cy="125" r="5"/><circle cx="430" cy="135" r="5"/><circle cx="495" cy="120" r="5"/>
+    <circle cx="395" cy="110" r="5"/><circle cx="365" cy="85" r="5"/><circle cx="525" cy="155" r="5"/><circle cx="555" cy="190" r="5"/>
+    <circle cx="455" cy="205" r="5"/><circle cx="470" cy="200" r="5"/><circle cx="440" cy="210" r="5"/>
+    <circle cx="400" cy="255" r="5"/><circle cx="345" cy="320" r="5"/><circle cx="530" cy="230" r="5"/><circle cx="495" cy="260" r="5"/>
+</g>
+"""
+
+_RUNNER_BOX = 'x="220" y="20" width="500" height="440"'  # area occupata dal corridore per centrarlo
+
+
+# HOME — corridore con la traccia GPS che si dipana dietro, un pin di
+# destinazione e la rete di sensori che collega corpo e percorso.
+SVG_HOME = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
+<defs>{RUNNER_GLOW_DEFS}
+    <linearGradient id="homeTrail" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#2F8FE0" stop-opacity="0"/>
+        <stop offset="100%" stop-color="#2F8FE0" stop-opacity="0.8"/>
+    </linearGradient>
 </defs>
-<g mask="url(#homeMask)">
-    <rect width="1200" height="500" fill="url(#homeGrid)" opacity="0.5"/>
-    <g opacity="0.16" stroke="#00E5FF" fill="none" stroke-width="1.1">
-        <path d="M0,120 C260,80 480,155 720,105 C920,65 1080,120 1200,95"/>
-        <path d="M0,175 C260,140 480,205 720,165 C920,130 1080,175 1200,155" opacity="0.7"/>
-        <path d="M0,410 C260,450 480,385 720,430 C920,460 1080,415 1200,435"/>
-        <path d="M0,455 C260,485 480,435 720,470" opacity="0.7"/>
-    </g>
-    <use href="#homeRoutePath" fill="none" stroke="url(#homeRoute)" stroke-width="4.5" stroke-linecap="round" filter="url(#homeGlow)"/>
-    <g transform="translate(260,235)">
-        <circle r="14" fill="none" stroke="#00E5FF" stroke-width="1.5" opacity="0.6"/>
-        <circle r="22" fill="none" stroke="#00E5FF" stroke-width="1" stroke-dasharray="3,7" opacity="0.5">
-            <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="9s" repeatCount="indefinite"/>
-        </circle>
-    </g>
-    <g transform="translate(775,260)">
-        <circle r="10" fill="#FFB020" filter="url(#homeGlow)"/>
-        <circle r="24" fill="none" stroke="#FFB020" stroke-width="1" stroke-dasharray="2,8" opacity="0.55">
-            <animateTransform attributeName="transform" type="rotate" from="360" to="0" dur="7s" repeatCount="indefinite"/>
-        </circle>
-    </g>
-    <circle r="10" fill="#fff" filter="url(#homeGlow)">
-        <animateMotion dur="6.5s" repeatCount="indefinite" rotate="auto"><mpath href="#homeRoutePath"/></animateMotion>
-        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.04;0.92;1" dur="6.5s" repeatCount="indefinite"/>
-    </circle>
-    <g stroke="#00E5FF" stroke-width="2.5" fill="none" opacity="0.5" stroke-linecap="square">
-        <path d="M36,86 L36,40 L82,40"/><path d="M1118,40 L1164,40 L1164,86"/>
-        <path d="M36,414 L36,460 L82,460"/><path d="M1164,414 L1164,460 L1118,460"/>
-    </g>
-    <rect x="0" width="1200" height="6" fill="url(#homeScan)">
-        <animate attributeName="y" values="-20;520" dur="5.5s" repeatCount="indefinite"/>
+<ellipse cx="520" cy="230" rx="260" ry="200" fill="url(#runnerGlow)"/>
+<path d="M40,340 C160,335 220,300 300,280 C360,265 380,300 420,280"
+      fill="none" stroke="url(#homeTrail)" stroke-width="3" stroke-dasharray="1,10" stroke-linecap="round"/>
+<g transform="translate(60,60) scale(1.05)">{RUNNER_MESH}</g>
+<g transform="translate(830,150)">
+    <path d="M0,0 C-26,0 -46,20 -46,46 C-46,80 0,120 0,120 C0,120 46,80 46,46 C46,20 26,0 0,0 Z" fill="#1B5FA8" filter="url(#softGlow)"/>
+    <circle cx="0" cy="44" r="16" fill="#0B1F3F"/>
+</g>
+<g stroke="#7EC8FF" stroke-width="1" opacity="0.6" stroke-dasharray="2,6">
+    <path d="M595,190 C670,170 750,175 800,175"/>
+</g>
+<circle cx="800" cy="175" r="5" fill="#00E5FF" filter="url(#softGlow)"><animate attributeName="opacity" values="0.4;1;0.4" dur="1.8s" repeatCount="indefinite"/></circle>
+<g font-family="Inter, sans-serif" font-size="20" fill="#E8F6FF" opacity="0.85">
+    <text x="880" y="290">Passo medio</text>
+    <text x="880" y="322" font-family="'JetBrains Mono', monospace" font-size="30" font-weight="700" fill="#7EC8FF">4:32/km</text>
+</g>
+</svg>"""
+
+# ANALISI STATO DI FORMA — la rete di sensori appoggiata direttamente
+# sul corpo, con le metriche che ne escono, come una vera lettura
+# biometrica live.
+SVG_ANALISI = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
+<defs>{RUNNER_GLOW_DEFS}</defs>
+<ellipse cx="600" cy="230" rx="280" ry="210" fill="url(#runnerGlow)"/>
+<g transform="translate(280,50) scale(1.15)">{RUNNER_MESH}</g>
+<g stroke="#7EC8FF" stroke-width="1" opacity="0.55">
+    <path d="M760,145 C830,110 900,95 960,80"/>
+    <path d="M700,235 C800,225 900,235 990,230"/>
+    <path d="M655,330 C760,340 860,345 950,360"/>
+</g>
+<g fill="#00E5FF">
+    <circle cx="760" cy="145" r="6" filter="url(#softGlow)"><animate attributeName="opacity" values="1;0.4;1" dur="1.6s" repeatCount="indefinite"/></circle>
+    <circle cx="700" cy="235" r="6" filter="url(#softGlow)"><animate attributeName="opacity" values="0.5;1;0.5" dur="1.6s" begin="0.3s" repeatCount="indefinite"/></circle>
+    <circle cx="655" cy="330" r="6" filter="url(#softGlow)"><animate attributeName="opacity" values="1;0.5;1" dur="1.6s" begin="0.6s" repeatCount="indefinite"/></circle>
+</g>
+<g font-family="Inter, sans-serif" font-size="18" fill="#E8F6FF" opacity="0.9">
+    <text x="960" y="75">HRV — 62 ms</text>
+    <text x="990" y="225">SMA — 0.41</text>
+    <text x="950" y="355">Sonno — 7h20</text>
+</g>
+</svg>"""
+
+# STATISTICHE — il corridore accanto a uno sparkline di sessioni, con
+# la rete che collega il corpo ai dati come nel resto della serie.
+SVG_STATS = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
+<defs>{RUNNER_GLOW_DEFS}
+    <linearGradient id="statBarGrad" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0%" stop-color="#12386B"/><stop offset="100%" stop-color="#7EC8FF"/>
+    </linearGradient>
+</defs>
+<ellipse cx="500" cy="230" rx="260" ry="200" fill="url(#runnerGlow)"/>
+<g transform="translate(60,60) scale(1.05)">{RUNNER_MESH}</g>
+<g stroke="#7EC8FF" stroke-width="1" opacity="0.5" stroke-dasharray="2,6"><path d="M600,200 C700,190 780,200 840,220"/></g>
+<g transform="translate(870,190)" fill="url(#statBarGrad)">
+    <rect x="0"   y="90" width="26" height="60" rx="3"/>
+    <rect x="36"  y="60" width="26" height="90" rx="3"/>
+    <rect x="72"  y="20" width="26" height="130" rx="3">
+        <animate attributeName="height" values="130;150;130" dur="2.2s" repeatCount="indefinite"/>
+        <animate attributeName="y" values="20;0;20" dur="2.2s" repeatCount="indefinite"/>
     </rect>
+    <rect x="108" y="45" width="26" height="105" rx="3"/>
+    <rect x="144" y="70" width="26" height="80" rx="3"/>
+</g>
+<g font-family="Inter, sans-serif" font-size="18" fill="#E8F6FF" opacity="0.9">
+    <text x="870" y="365">52 sessioni raccolte</text>
 </g>
 </svg>"""
 
-# ANALISI STATO DI FORMA — pannello biometrico: anello di readiness a
-# segmenti dietro un tracciato a battito che lo attraversa da parte a
-# parte, come una vera schermata di monitoraggio.
-SVG_ANALISI = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>
-    <radialGradient id="analisiFade" cx="50%" cy="50%" r="70%">
-        <stop offset="55%" stop-color="#fff"/><stop offset="100%" stop-color="#000"/>
-    </radialGradient>
-    <mask id="analisiMask"><rect width="1200" height="500" fill="url(#analisiFade)"/></mask>
-    <pattern id="analisiGrid" width="46" height="46" patternUnits="userSpaceOnUse">
-        <path d="M46,0 L0,0 0,46" fill="none" stroke="#8792A3" stroke-width="0.6"/>
-    </pattern>
-    <linearGradient id="analisiLineGrad" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stop-color="#00E5FF" stop-opacity="0"/>
-        <stop offset="8%" stop-color="#00E5FF" stop-opacity="0.95"/>
-        <stop offset="40%" stop-color="#00F5A0" stop-opacity="1"/>
-        <stop offset="68%" stop-color="#FFB020" stop-opacity="1"/>
-        <stop offset="92%" stop-color="#00E5FF" stop-opacity="0.95"/>
-        <stop offset="100%" stop-color="#00E5FF" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="analisiArc" x1="0" y1="1" x2="1" y2="0">
-        <stop offset="0%" stop-color="#00E5FF"/><stop offset="50%" stop-color="#00F5A0"/><stop offset="100%" stop-color="#FFB020"/>
-    </linearGradient>
-    <filter id="analisiGlow" x="-80%" y="-80%" width="260%" height="260%">
-        <feGaussianBlur stdDeviation="8" result="blur"/>
-        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <path id="analisiPath" d="M0,300 C130,300 200,270 260,225 C310,188 335,110 390,100 C435,92 460,235 505,320 C540,385 580,335 635,255 C680,190 715,190 770,225 C835,265 880,300 960,270 C1030,244 1080,220 1200,240"/>
-</defs>
-<g mask="url(#analisiMask)">
-    <rect width="1200" height="500" fill="url(#analisiGrid)" opacity="0.5"/>
-    <g transform="translate(600,250)" opacity="0.55">
-        <circle r="185" fill="none" stroke="#1c2333" stroke-width="16"/>
-        <circle r="185" fill="none" stroke="url(#analisiArc)" stroke-width="16" stroke-linecap="round"
-                stroke-dasharray="760 1163" transform="rotate(-90)" filter="url(#analisiGlow)">
-            <animate attributeName="stroke-dasharray" values="0 1163;760 1163;760 1163" dur="2.8s" keyTimes="0;0.7;1" repeatCount="indefinite"/>
-        </circle>
-        <circle r="150" fill="none" stroke="#8792A3" stroke-width="1" opacity="0.3"/>
-    </g>
-    <use href="#analisiPath" fill="none" stroke="url(#analisiLineGrad)" stroke-width="4.5" stroke-linecap="round" filter="url(#analisiGlow)"/>
-    <circle cx="390" cy="100" r="8" fill="#00F5A0" filter="url(#analisiGlow)"><animate attributeName="opacity" values="0.5;1;0.5" dur="1.8s" repeatCount="indefinite"/></circle>
-    <circle cx="505" cy="320" r="8" fill="#FF6A3D" filter="url(#analisiGlow)"><animate attributeName="opacity" values="1;0.4;1" dur="1.8s" begin="0.4s" repeatCount="indefinite"/></circle>
-    <circle r="7" fill="#fff" filter="url(#analisiGlow)">
-        <animateMotion dur="5s" repeatCount="indefinite"><mpath href="#analisiPath"/></animateMotion>
-        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.05;0.9;1" dur="5s" repeatCount="indefinite"/>
-    </circle>
-    <text x="600" y="262" fill="#E8ECF2" font-family="'JetBrains Mono', monospace" font-size="34" font-weight="700" text-anchor="middle" opacity="0.9">READY</text>
-    <g stroke="#00F5A0" stroke-width="2.5" fill="none" opacity="0.5" stroke-linecap="square">
-        <path d="M36,86 L36,40 L82,40"/><path d="M1118,40 L1164,40 L1164,86"/>
-        <path d="M36,414 L36,460 L82,460"/><path d="M1164,414 L1164,460 L1118,460"/>
-    </g>
+# KPI DASHBOARD — il corridore collegato via rete a uno smartwatch,
+# con la lettura percentuale del KPI in evidenza, come nel portfolio.
+SVG_KPI = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
+<defs>{RUNNER_GLOW_DEFS}</defs>
+<ellipse cx="520" cy="230" rx="270" ry="200" fill="url(#runnerGlow)"/>
+<g transform="translate(80,60) scale(1.05)">{RUNNER_MESH}</g>
+<g transform="translate(830,190)">
+    <rect x="-40" y="-10" width="80" height="100" rx="20" fill="#0B1F3F" stroke="#2F8FE0" stroke-width="3"/>
+    <rect x="-28" y="2" width="56" height="76" rx="10" fill="#12386B"/>
+    <rect x="-6" y="-24" width="12" height="16" rx="4" fill="#2F8FE0"/>
+    <rect x="-6" y="88" width="12" height="16" rx="4" fill="#2F8FE0"/>
 </g>
+<g stroke="#7EC8FF" stroke-width="1.4" opacity="0.6">
+    <circle cx="640" cy="180" r="4" fill="#00E5FF"/><circle cx="700" cy="150" r="4" fill="#00E5FF"/>
+    <circle cx="660" cy="230" r="4" fill="#00E5FF"/><circle cx="760" cy="200" r="4" fill="#00E5FF"/>
+    <path d="M640,180 L700,150 M700,150 L760,200 M640,180 L660,230 M660,230 L760,200 M760,200 L790,190"/>
+</g>
+<g font-family="Inter, sans-serif" font-size="20" fill="#E8F6FF" opacity="0.9">
+    <text x="940" y="215">Indice di forma</text>
+</g>
+<text x="940" y="255" font-family="'JetBrains Mono', monospace" font-size="42" font-weight="700" fill="#7EC8FF">82.4%</text>
 </svg>"""
 
-# STATISTICHE — pannello dati isometrico: barre con profondita' 3D
-# finta e riflesso sotto, come una vera scheda analitica da HUD.
-SVG_STATS = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>
-    <radialGradient id="statsFade" cx="50%" cy="52%" r="72%">
-        <stop offset="55%" stop-color="#fff"/><stop offset="100%" stop-color="#000"/>
-    </radialGradient>
-    <mask id="statsMask"><rect width="1200" height="500" fill="url(#statsFade)"/></mask>
-    <pattern id="statsGrid" width="46" height="46" patternUnits="userSpaceOnUse">
-        <path d="M46,0 L0,0 0,46" fill="none" stroke="#8792A3" stroke-width="0.6"/>
-    </pattern>
-    <linearGradient id="barGrad" x1="0" y1="1" x2="0" y2="0">
-        <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.15"/>
-        <stop offset="60%" stop-color="#00F5A0" stop-opacity="0.85"/>
-        <stop offset="100%" stop-color="#FFB020" stop-opacity="1"/>
+# ML / PREVISIONE — dal corridore parte un grafo a tre livelli che
+# confluisce in una proiezione futura con banda di incertezza.
+SVG_ML = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
+<defs>{RUNNER_GLOW_DEFS}
+    <linearGradient id="mlForecastG" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#2F8FE0"/><stop offset="100%" stop-color="#7EC8FF"/>
     </linearGradient>
-    <linearGradient id="reflectGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#00F5A0" stop-opacity="0.25"/>
-        <stop offset="100%" stop-color="#00F5A0" stop-opacity="0"/>
+    <linearGradient id="mlConeG" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#2F8FE0" stop-opacity="0.25"/><stop offset="100%" stop-color="#2F8FE0" stop-opacity="0.03"/>
     </linearGradient>
-    <filter id="statsGlow" x="-80%" y="-80%" width="260%" height="260%">
-        <feGaussianBlur stdDeviation="5" result="blur"/>
-        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
 </defs>
-<g mask="url(#statsMask)">
-    <rect width="1200" height="500" fill="url(#statsGrid)" opacity="0.5"/>
-    <g opacity="0.18" stroke="#8792A3" stroke-width="1"><line x1="60" y1="420" x2="1140" y2="420"/></g>
-    <g transform="skewX(-16)">
-        <g fill="url(#barGrad)">
-            <rect x="130" y="330" width="34" height="90" opacity="0.5"/>
-            <rect x="190" y="280" width="34" height="140" opacity="0.65"/>
-            <rect x="250" y="220" width="34" height="200" opacity="0.8"/>
-            <rect x="310" y="150" width="34" height="270"><animate attributeName="height" values="270;300;270" dur="2.4s" repeatCount="indefinite"/><animate attributeName="y" values="150;120;150" dur="2.4s" repeatCount="indefinite"/></rect>
-            <rect x="370" y="190" width="34" height="230" opacity="0.85"/>
-            <rect x="430" y="250" width="34" height="170" opacity="0.7"/>
-            <rect x="490" y="120" width="34" height="300"><animate attributeName="height" values="300;330;300" dur="2.7s" begin="0.3s" repeatCount="indefinite"/><animate attributeName="y" values="120;90;120" dur="2.7s" begin="0.3s" repeatCount="indefinite"/></rect>
-            <rect x="550" y="170" width="34" height="250" opacity="0.85"/>
-            <rect x="610" y="230" width="34" height="190" opacity="0.75"/>
-            <rect x="670" y="95"  width="34" height="325"><animate attributeName="height" values="325;350;325" dur="2.1s" begin="0.6s" repeatCount="indefinite"/><animate attributeName="y" values="95;70;95" dur="2.1s" begin="0.6s" repeatCount="indefinite"/></rect>
-            <rect x="730" y="160" width="34" height="260" opacity="0.85"/>
-            <rect x="790" y="240" width="34" height="180" opacity="0.7"/>
-            <rect x="850" y="290" width="34" height="130" opacity="0.55"/>
-            <rect x="910" y="200" width="34" height="220" opacity="0.8"/>
-            <rect x="970" y="340" width="34" height="80"  opacity="0.4"/>
-        </g>
-        <g fill="url(#reflectGrad)" transform="translate(0,420) scale(1,-0.25)">
-            <rect x="310" y="0" width="34" height="270"/><rect x="490" y="0" width="34" height="300"/><rect x="670" y="0" width="34" height="325"/>
-        </g>
-    </g>
-    <path d="M147,370 C207,340 267,270 327,190 C387,150 447,250 507,270 C567,140 627,215 687,95 C747,190 807,255 867,315 C927,255 987,375 1057,320"
-          fill="none" stroke="#ffffff" stroke-width="2" opacity="0.55" filter="url(#statsGlow)"/>
-    <circle cx="687" cy="95" r="7" fill="#FF6A3D" filter="url(#statsGlow)"><animate attributeName="r" values="6;10;6" dur="1.6s" repeatCount="indefinite"/></circle>
-    <g stroke="#FFB020" stroke-width="2.5" fill="none" opacity="0.5" stroke-linecap="square">
-        <path d="M36,86 L36,40 L82,40"/><path d="M1118,40 L1164,40 L1164,86"/>
-        <path d="M36,414 L36,460 L82,460"/><path d="M1164,414 L1164,460 L1118,460"/>
-    </g>
+<ellipse cx="460" cy="230" rx="250" ry="200" fill="url(#runnerGlow)"/>
+<g transform="translate(40,60) scale(1.05)">{RUNNER_MESH}</g>
+<g stroke="#7EC8FF" stroke-width="1" opacity="0.5" fill="none">
+    <path d="M600,150 C680,140 740,130 800,120"/>
+    <path d="M600,230 C680,230 740,230 800,230"/>
+    <path d="M600,310 C680,320 740,330 800,340"/>
 </g>
+<g fill="#00E5FF"><circle cx="800" cy="120" r="5"/><circle cx="800" cy="230" r="6"/><circle cx="800" cy="340" r="5"/></g>
+<path d="M800,230 C880,205 940,175 1000,150 C1040,133 1080,125 1160,105 L1160,175 C1080,195 1040,203 1000,220 C940,245 880,255 800,275 Z" fill="url(#mlConeG)">
+    <animate attributeName="opacity" values="0.7;1;0.7" dur="3s" repeatCount="indefinite"/>
+</path>
+<path d="M800,230 C880,208 940,182 1000,162 C1040,148 1080,132 1160,112"
+      fill="none" stroke="url(#mlForecastG)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="2,12">
+    <animate attributeName="stroke-dashoffset" values="0;-28" dur="1.6s" repeatCount="indefinite"/>
+</path>
+<g font-family="Inter, sans-serif" font-size="18" fill="#E8F6FF" opacity="0.9"><text x="990" y="380">Rischio overload: previsto in calo</text></g>
 </svg>"""
 
-# KPI DASHBOARD — torus HUD con satelliti orbitanti e lettura digitale
-# centrale, come il quadrante principale di un vero cruscotto dati.
-SVG_KPI = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>
-    <radialGradient id="kpiFade" cx="50%" cy="50%" r="68%">
-        <stop offset="55%" stop-color="#fff"/><stop offset="100%" stop-color="#000"/>
-    </radialGradient>
-    <mask id="kpiMask"><rect width="1200" height="500" fill="url(#kpiFade)"/></mask>
-    <pattern id="kpiGrid" width="46" height="46" patternUnits="userSpaceOnUse">
-        <path d="M46,0 L0,0 0,46" fill="none" stroke="#8792A3" stroke-width="0.6"/>
-    </pattern>
-    <linearGradient id="kpiArc" x1="0" y1="1" x2="1" y2="0">
-        <stop offset="0%" stop-color="#00E5FF"/><stop offset="55%" stop-color="#00F5A0"/><stop offset="100%" stop-color="#FFB020"/>
-    </linearGradient>
-    <filter id="kpiGlow" x="-80%" y="-80%" width="260%" height="260%">
-        <feGaussianBlur stdDeviation="7" result="blur"/>
-        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <path id="kpiOrbit" d="M600,60 A190,190 0 1,1 599,60"/>
-</defs>
-<g mask="url(#kpiMask)">
-    <rect width="1200" height="500" fill="url(#kpiGrid)" opacity="0.5"/>
-    <circle cx="600" cy="250" r="215" fill="none" stroke="#8792A3" stroke-width="1" opacity="0.15"/>
-    <g stroke="#8792A3" stroke-width="2" opacity="0.35">
-        <g transform="rotate(0 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(24 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(48 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(72 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(96 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(120 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(144 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(168 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(192 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(216 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(240 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(264 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(288 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(312 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-        <g transform="rotate(336 600 250)"><line x1="600" y1="38" x2="600" y2="52"/></g>
-    </g>
-    <circle cx="600" cy="250" r="175" fill="none" stroke="#1c2333" stroke-width="18" opacity="0.6"/>
-    <circle cx="600" cy="250" r="175" fill="none" stroke="url(#kpiArc)" stroke-width="18" stroke-linecap="round"
-            stroke-dasharray="905 1100" transform="rotate(-90 600 250)" filter="url(#kpiGlow)">
-        <animate attributeName="stroke-dasharray" values="0 1100;905 1100;905 1100" dur="2.6s" keyTimes="0;0.7;1" repeatCount="indefinite"/>
-    </circle>
-    <circle cx="600" cy="250" r="130" fill="none" stroke="#8792A3" stroke-width="1" stroke-dasharray="1,9" opacity="0.4">
-        <animateTransform attributeName="transform" type="rotate" from="0 600 250" to="360 600 250" dur="14s" repeatCount="indefinite"/>
-    </circle>
-    <circle cx="600" cy="250" r="9" fill="#00E5FF" filter="url(#kpiGlow)"><animate attributeName="r" values="7;11;7" dur="2s" repeatCount="indefinite"/></circle>
-    <text x="600" y="264" fill="#E8ECF2" font-family="'JetBrains Mono', monospace" font-size="38" font-weight="700" text-anchor="middle">82.4%</text>
-    <circle r="7" fill="#00F5A0" filter="url(#kpiGlow)"><animateMotion dur="8s" repeatCount="indefinite"><mpath href="#kpiOrbit"/></animateMotion></circle>
-    <circle r="5" fill="#FFB020" filter="url(#kpiGlow)"><animateMotion dur="8s" begin="-2.6s" repeatCount="indefinite"><mpath href="#kpiOrbit"/></animateMotion></circle>
-    <g stroke="#00E5FF" stroke-width="2.5" fill="none" opacity="0.5" stroke-linecap="square">
-        <path d="M36,86 L36,40 L82,40"/><path d="M1118,40 L1164,40 L1164,86"/>
-        <path d="M36,414 L36,460 L82,460"/><path d="M1164,414 L1164,460 L1118,460"/>
-    </g>
+# PIANO ALLENAMENTO — il corridore risale una dorsale montuosa in
+# low-poly, stessa palette del corpo, fino alla bandiera del picco.
+SVG_PLAN = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
+<defs>{RUNNER_GLOW_DEFS}</defs>
+<ellipse cx="480" cy="260" rx="280" ry="190" fill="url(#runnerGlow)"/>
+<g fill="#0A1E3D" opacity="0.9">
+    <polygon points="0,430 220,430 140,300"/>
+    <polygon points="140,300 220,430 320,340"/>
+    <polygon points="220,430 460,430 320,340"/>
 </g>
+<g fill="#12386B" opacity="0.9">
+    <polygon points="320,340 460,430 520,260"/>
+    <polygon points="460,430 800,430 520,260"/>
+</g>
+<g fill="#1B5FA8" opacity="0.95">
+    <polygon points="520,260 800,430 760,180"/>
+    <polygon points="800,430 1120,430 760,180"/>
+</g>
+<polygon points="760,180 830,150 900,180" fill="#2F8FE0"/>
+<line x1="760" y1="180" x2="760" y2="120" stroke="#7EC8FF" stroke-width="3"/>
+<path d="M760,120 L760,145 L800,132 Z" fill="#00E5FF" filter="url(#softGlow)">
+    <animate attributeName="opacity" values="0.7;1;0.7" dur="1.6s" repeatCount="indefinite"/>
+</path>
+<g transform="translate(150,175) scale(0.85)">{RUNNER_MESH}</g>
 </svg>"""
 
-# ML / PREVISIONE — grafo neurale a tre layer con impulsi di dati che
-# scorrono lungo le connessioni fino al ramo di previsione, con banda
-# di incertezza che si allarga verso il futuro.
-SVG_ML = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>
-    <radialGradient id="mlFade" cx="50%" cy="50%" r="70%">
-        <stop offset="55%" stop-color="#fff"/><stop offset="100%" stop-color="#000"/>
-    </radialGradient>
-    <mask id="mlMask"><rect width="1200" height="500" fill="url(#mlFade)"/></mask>
-    <pattern id="mlGrid" width="46" height="46" patternUnits="userSpaceOnUse">
-        <path d="M46,0 L0,0 0,46" fill="none" stroke="#8792A3" stroke-width="0.6"/>
-    </pattern>
-    <linearGradient id="mlForecast" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stop-color="#00F5A0"/><stop offset="100%" stop-color="#FFB020"/>
-    </linearGradient>
-    <linearGradient id="mlCone" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stop-color="#FFB020" stop-opacity="0.25"/><stop offset="100%" stop-color="#FFB020" stop-opacity="0.04"/>
-    </linearGradient>
-    <filter id="mlGlow" x="-80%" y="-80%" width="260%" height="260%">
-        <feGaussianBlur stdDeviation="7" result="blur"/>
-        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-</defs>
-<g mask="url(#mlMask)">
-    <rect width="1200" height="500" fill="url(#mlGrid)" opacity="0.5"/>
-    <g stroke="#00E5FF" stroke-width="1" opacity="0.28" fill="none">
-        <path id="mle1" d="M120,150 C220,180 260,230 340,250"/>
-        <path id="mle2" d="M120,250 C220,240 260,235 340,250"/>
-        <path id="mle3" d="M120,350 C220,320 260,270 340,250"/>
-        <path id="mle4" d="M340,250 C420,220 460,180 540,170"/>
-        <path id="mle5" d="M340,250 C420,250 460,250 540,250"/>
-        <path id="mle6" d="M340,250 C420,290 460,330 540,330"/>
-    </g>
-    <g fill="#00E5FF" opacity="0.6">
-        <circle cx="120" cy="150" r="6"/><circle cx="120" cy="250" r="6"/><circle cx="120" cy="350" r="6"/>
-        <circle cx="340" cy="250" r="9"/>
-        <circle cx="540" cy="170" r="6"/><circle cx="540" cy="250" r="6"/><circle cx="540" cy="330" r="6"/>
-    </g>
-    <circle r="4" fill="#fff"><animateMotion dur="2.2s" repeatCount="indefinite"><mpath href="#mle1"/></animateMotion></circle>
-    <circle r="4" fill="#fff"><animateMotion dur="2.2s" begin="0.5s" repeatCount="indefinite"><mpath href="#mle3"/></animateMotion></circle>
-    <circle r="4" fill="#fff"><animateMotion dur="2s" begin="0.3s" repeatCount="indefinite"><mpath href="#mle4"/></animateMotion></circle>
-    <circle r="4" fill="#fff"><animateMotion dur="2s" begin="0.9s" repeatCount="indefinite"><mpath href="#mle6"/></animateMotion></circle>
-    <line x1="620" y1="70" x2="620" y2="420" stroke="#8792A3" stroke-width="1" stroke-dasharray="3,6" opacity="0.3"/>
-    <path d="M620,250 C700,215 760,175 840,140 C920,105 1000,90 1160,55 L1160,150 C1000,180 920,205 840,235 C760,265 700,255 620,275 Z" fill="url(#mlCone)">
-        <animate attributeName="opacity" values="0.7;1;0.7" dur="3s" repeatCount="indefinite"/>
-    </path>
-    <path d="M620,250 C700,222 760,185 840,160 C920,135 1000,110 1160,80"
-          fill="none" stroke="url(#mlForecast)" stroke-width="4" stroke-linecap="round" stroke-dasharray="2,12" filter="url(#mlGlow)">
-        <animate attributeName="stroke-dashoffset" values="0;-28" dur="1.6s" repeatCount="indefinite"/>
-    </path>
-    <circle cx="620" cy="250" r="8" fill="#00F5A0" filter="url(#mlGlow)"><animate attributeName="r" values="7;11;7" dur="1.8s" repeatCount="indefinite"/></circle>
-    <g stroke="#00F5A0" stroke-width="2.5" fill="none" opacity="0.5" stroke-linecap="square">
-        <path d="M36,86 L36,40 L82,40"/><path d="M1118,40 L1164,40 L1164,86"/>
-        <path d="M36,414 L36,460 L82,460"/><path d="M1164,414 L1164,460 L1118,460"/>
-    </g>
+# COMPUTER VISION — lo stesso corridore reso semitrasparente con lo
+# scheletro luminoso sovrapposto, come una lettura a raggi-X.
+SVG_CV = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
+<defs>{RUNNER_GLOW_DEFS}</defs>
+<ellipse cx="530" cy="230" rx="280" ry="210" fill="url(#runnerGlow)"/>
+<g transform="translate(80,60) scale(1.15)">
+    <g opacity="0.35">{RUNNER_MESH}</g>
+    <g filter="url(#softGlow)">{RUNNER_BONES}</g>
 </g>
-</svg>"""
-
-# PIANO ALLENAMENTO — dorsale montuosa isometrica a strati verso il
-# giorno gara, con checkpoint luminosi e bandiera pulsante sul picco.
-SVG_PLAN = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>
-    <radialGradient id="planFade" cx="50%" cy="55%" r="72%">
-        <stop offset="55%" stop-color="#fff"/><stop offset="100%" stop-color="#000"/>
-    </radialGradient>
-    <mask id="planMask"><rect width="1200" height="500" fill="url(#planFade)"/></mask>
-    <pattern id="planGrid" width="46" height="46" patternUnits="userSpaceOnUse">
-        <path d="M46,0 L0,0 0,46" fill="none" stroke="#8792A3" stroke-width="0.6"/>
-    </pattern>
-    <linearGradient id="planLine" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.3"/>
-        <stop offset="15%" stop-color="#00E5FF" stop-opacity="0.95"/>
-        <stop offset="45%" stop-color="#00F5A0" stop-opacity="0.95"/>
-        <stop offset="72%" stop-color="#FFB020" stop-opacity="0.95"/>
-        <stop offset="88%" stop-color="#FF6A3D" stop-opacity="0.95"/>
-        <stop offset="100%" stop-color="#FF6A3D" stop-opacity="0.5"/>
-    </linearGradient>
-    <filter id="planGlow" x="-80%" y="-80%" width="260%" height="260%">
-        <feGaussianBlur stdDeviation="7" result="blur"/>
-        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-</defs>
-<g mask="url(#planMask)">
-    <rect width="1200" height="500" fill="url(#planGrid)" opacity="0.5"/>
-    <g opacity="0.14" fill="#8792A3">
-        <path d="M0,430 L150,330 L300,400 L470,270 L620,360 L800,220 L960,320 L1200,240 L1200,500 L0,500 Z"/>
-    </g>
-    <g opacity="0.22" fill="#00F5A0">
-        <path d="M0,460 L150,380 L300,430 L470,330 L620,400 L800,290 L960,370 L1200,310 L1200,500 L0,500 Z"/>
-    </g>
-    <path d="M0,450 L80,445 C130,440 160,395 200,360 C240,325 265,395 300,405 C355,420 400,335 480,295 C535,268 550,335 570,355 C610,395 665,270 745,225 C795,197 810,275 835,295 C890,335 930,190 1010,150 C1065,124 1130,205 1200,255"
-          fill="none" stroke="url(#planLine)" stroke-width="4.5" stroke-linecap="round" filter="url(#planGlow)"/>
-    <circle cx="300" cy="405" r="6" fill="#00E5FF" filter="url(#planGlow)"/>
-    <circle cx="570" cy="355" r="6" fill="#00F5A0" filter="url(#planGlow)"/>
-    <circle cx="835" cy="295" r="6" fill="#FFB020" filter="url(#planGlow)"/>
-    <line x1="1010" y1="150" x2="1010" y2="88" stroke="#FF6A3D" stroke-width="3" filter="url(#planGlow)"/>
-    <path d="M1010,88 L1010,120 L1052,104 Z" fill="#FF6A3D" filter="url(#planGlow)">
-        <animate attributeName="opacity" values="0.7;1;0.7" dur="1.6s" repeatCount="indefinite"/>
-    </path>
-    <g stroke="#FF6A3D" stroke-width="2.5" fill="none" opacity="0.5" stroke-linecap="square">
-        <path d="M36,86 L36,40 L82,40"/><path d="M1118,40 L1164,40 L1164,86"/>
-        <path d="M36,414 L36,460 L82,460"/><path d="M1164,414 L1164,460 L1118,460"/>
-    </g>
-</g>
-</svg>"""
-
-# COMPUTER VISION — scheletro di pose-estimation dentro una capsula di
-# scansione: griglia, scanline verticale che lo attraversa, giunti come
-# marker luminosi con readout laterale.
-SVG_CV = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>
-    <radialGradient id="cvFade" cx="46%" cy="52%" r="66%">
-        <stop offset="55%" stop-color="#fff"/><stop offset="100%" stop-color="#000"/>
-    </radialGradient>
-    <mask id="cvMask"><rect width="1200" height="500" fill="url(#cvFade)"/></mask>
-    <pattern id="cvGrid" width="46" height="46" patternUnits="userSpaceOnUse">
-        <path d="M46,0 L0,0 0,46" fill="none" stroke="#8792A3" stroke-width="0.6"/>
-    </pattern>
-    <linearGradient id="cvScan" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stop-color="#00E5FF" stop-opacity="0"/>
-        <stop offset="50%" stop-color="#00E5FF" stop-opacity="0.5"/>
-        <stop offset="100%" stop-color="#00E5FF" stop-opacity="0"/>
-    </linearGradient>
-    <filter id="cvGlow" x="-80%" y="-80%" width="260%" height="260%">
-        <feGaussianBlur stdDeviation="5" result="blur"/>
-        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-</defs>
-<g mask="url(#cvMask)">
-    <rect width="1200" height="500" fill="url(#cvGrid)" opacity="0.5"/>
-    <rect x="430" y="55" width="340" height="410" rx="14" fill="none" stroke="#00E5FF" stroke-width="1" opacity="0.25"/>
-    <g transform="translate(90,60) scale(1.5)" opacity="0.28" stroke="#00E5FF" stroke-width="1.2" fill="none">
-        <path d="M330,325 C300,300 285,275 275,245" stroke-dasharray="2,6"/>
-        <path d="M545,195 C570,185 590,178 610,168" stroke-dasharray="2,6"/>
-    </g>
-    <g transform="translate(90,60) scale(1.5)" stroke="#8792A3" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.9">
-        <path d="M465,125 L430,135"/><path d="M465,125 L495,120"/>
-        <path d="M430,135 L395,110"/><path d="M495,120 L525,155"/>
-        <path d="M465,125 L455,205"/><path d="M455,205 L470,200"/><path d="M455,205 L440,210"/>
-        <path d="M440,210 L400,255"/><path d="M470,200 L530,230"/>
-    </g>
-    <g transform="translate(90,60) scale(1.5)">
-        <path d="M395,110 L365,85" stroke="#FF6A3D" stroke-width="3" stroke-linecap="round" filter="url(#cvGlow)"/>
-        <path d="M525,155 L555,190" stroke="#FF6A3D" stroke-width="3" stroke-linecap="round" filter="url(#cvGlow)"/>
-        <path d="M400,255 L345,320" stroke="#FFB020" stroke-width="3" stroke-linecap="round" filter="url(#cvGlow)"/>
-        <path d="M530,230 L495,260" stroke="#00F5A0" stroke-width="3" stroke-linecap="round" filter="url(#cvGlow)"/>
-        <circle cx="485" cy="95" r="13" fill="#00E5FF" filter="url(#cvGlow)"/>
-        <circle cx="465" cy="125" r="4.5" fill="#00E5FF" filter="url(#cvGlow)"><animate attributeName="opacity" values="0.6;1;0.6" dur="1.7s" repeatCount="indefinite"/></circle>
-        <circle cx="430" cy="135" r="4.5" fill="#00F5A0" filter="url(#cvGlow)"><animate attributeName="opacity" values="1;0.5;1" dur="1.7s" begin="0.2s" repeatCount="indefinite"/></circle>
-        <circle cx="495" cy="120" r="4.5" fill="#00F5A0" filter="url(#cvGlow)"><animate attributeName="opacity" values="0.5;1;0.5" dur="1.7s" begin="0.4s" repeatCount="indefinite"/></circle>
-        <circle cx="365" cy="85" r="4.5" fill="#FF6A3D" filter="url(#cvGlow)"/>
-        <circle cx="555" cy="190" r="4.5" fill="#FF6A3D" filter="url(#cvGlow)"/>
-        <circle cx="455" cy="205" r="4.5" fill="#E8ECF2" filter="url(#cvGlow)"><animate attributeName="r" values="4;6;4" dur="1.5s" repeatCount="indefinite"/></circle>
-        <circle cx="400" cy="255" r="4.5" fill="#FFB020" filter="url(#cvGlow)"/>
-        <circle cx="530" cy="230" r="4.5" fill="#00F5A0" filter="url(#cvGlow)"/>
-        <circle cx="345" cy="320" r="4.5" fill="#FFB020" filter="url(#cvGlow)"><animate attributeName="opacity" values="1;0.5;1" dur="1.7s" begin="0.6s" repeatCount="indefinite"/></circle>
-        <circle cx="495" cy="260" r="4.5" fill="#00F5A0" filter="url(#cvGlow)"/>
-    </g>
-    <rect x="430" y="0" width="340" height="10" fill="url(#cvScan)">
-        <animate attributeName="y" values="55;445;55" dur="4s" repeatCount="indefinite"/>
-    </rect>
-    <g font-family="'JetBrains Mono', monospace" font-size="13" fill="#00E5FF" opacity="0.55">
-        <text x="800" y="150">HIP  Y 172cm</text>
-        <text x="800" y="175">KNEE FLEX 128°</text>
-        <text x="800" y="200">CADENCE 176spm</text>
-    </g>
-    <g stroke="#00F5A0" stroke-width="2.5" fill="none" opacity="0.5" stroke-linecap="square">
-        <path d="M36,86 L36,40 L82,40"/><path d="M1118,40 L1164,40 L1164,86"/>
-        <path d="M36,414 L36,460 L82,460"/><path d="M1164,414 L1164,460 L1118,460"/>
-    </g>
+<g font-family="'JetBrains Mono', monospace" font-size="16" fill="#7EC8FF" opacity="0.85">
+    <text x="900" y="160">GINOCCHIO — 128°</text>
+    <text x="900" y="190">CARICO TIBIA — nominale</text>
+    <text x="900" y="220">CADENZA — 176 spm</text>
 </g>
 </svg>"""
