@@ -4,16 +4,12 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import StratifiedKFold, KFold, cross_val_predict
-from sklearn.metrics import (
-    confusion_matrix, roc_curve, auc, precision_score, recall_score,
-    f1_score, r2_score, mean_absolute_error, silhouette_score
-)
+from utils.ml_engine import get_bundle, stima_rischio_oggi, FEATURE_COLS
+
+bundle = get_bundle(df_base)
+rf_model, log_model, scaler = bundle["rf_model"], bundle["log_model"], bundle["scaler"]
+X_scaled_class = scaler.transform(X_train_class)
+y_pred_rf, y_proba_rf, y_proba_log = bundle["y_pred_rf"], bundle["y_proba_rf"], bundle["y_proba_log"]
 
 from utils.style import carica_css
 from utils.data import genera_dati
