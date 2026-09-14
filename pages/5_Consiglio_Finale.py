@@ -93,6 +93,15 @@ else:
     C_AMBRA  = "#FF9F0A"
     C_VIOLA  = "#BF5AF2"
     C_NEUTRO = "#1F2733"
+    C_ARANCIO = "#FF6B35"
+
+    # Badge testuali (non-emoji) usati al posto delle emoji nei messaggi e
+    # nelle card dei modelli: un pallino colorato + un'etichetta breve.
+    def badge(colore, testo):
+        return f"<span class='status-badge'><span class='status-dot' style='background:{colore};'></span>{testo}</span>"
+
+    def model_glyph(colore, sigla):
+        return f"<span class='model-glyph' style='--gc:{colore};'>{sigla}</span>"
 
     md(f"""
     <style>
@@ -194,8 +203,49 @@ else:
 
     .value-pill {{ display:inline-flex; align-items:baseline; padding:4px 12px; border-radius:8px; }}
     .row-icon {{ margin-right:9px; font-size:1.05em; }}
-    .dot-flag {{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; vertical-align:middle; }}
-    .mini-caption {{ font-family:'Inter',sans-serif; font-size:.78rem; color:{TXT_TERTIARY}; margin:6px 0 18px 0; }}
+    .dot-flag {{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; vertical-align:middle; flex-shrink:0; }}
+    .mini-caption {{ font-family:'Inter',sans-serif; font-size:.78rem; color:{TXT_TERTIARY}; margin:6px 0 18px 0; line-height:1.5; }}
+
+    /* Titolo dei grafici (mancava: causava testo "attaccato" al dot-flag) */
+    .panel-title {{
+        display:flex; align-items:center; gap:2px; margin:0; font-size:1rem;
+        font-family:'Inter',sans-serif; line-height:1.4;
+    }}
+
+    /* Badge non-emoji per i messaggi semaforici (verde/ambra/arancio/rosso) */
+    .status-badge {{ display:inline-flex; align-items:center; }}
+    .status-dot {{
+        display:inline-block; width:11px; height:11px; border-radius:50%;
+        margin-right:9px; vertical-align:middle; flex-shrink:0;
+        box-shadow: 0 0 0 3px rgba(255,255,255,0.05);
+    }}
+
+    /* Piccolo distintivo circolare (sostituisce le emoji dei modelli ML) */
+    .model-glyph {{
+        display:inline-flex; align-items:center; justify-content:center;
+        width:40px; height:40px; border-radius:50%; margin-bottom:8px;
+        border:2px solid var(--gc); color:var(--gc);
+        font-family:'JetBrains Mono',monospace; font-weight:700; font-size:.78rem;
+        letter-spacing:.02em;
+    }}
+
+    /* ===================== RESPONSIVITÀ / ANTI-TAGLIO ===================== */
+    /* Evita che titoli e numeri lunghi vengano tagliati o si sovrappongano */
+    .hero-title {{ word-break: break-word; }}
+    .hero-msg, .chart-caption, .mini-caption, .sr-note, .zd {{ overflow-wrap: break-word; }}
+    .split-row, .split-head {{ overflow-wrap: break-word; }}
+    .hud-grid {{ flex-wrap: wrap; row-gap: 18px; }}
+    .hud-stat {{ min-width: 130px; }}
+    .lane-chip {{ min-height: 0; }}
+    .panel {{ overflow: visible; }}
+    .panel-flush {{ overflow: hidden; }} /* solo qui serve per l'angolo arrotondato del top-rule */
+
+    @media (max-width: 900px) {{
+        .split-row, .split-head {{ grid-template-columns: 1fr 1fr; row-gap: 6px; }}
+        .split-row .sr-note {{ grid-column: 1 / -1; border-left:none; padding-left:0; border-top:1px solid {PANEL_BD}; padding-top:8px; margin-top:4px; }}
+        .hero-title {{ font-size: 1.9rem; }}
+        .hero-stats {{ gap: 20px; }}
+    }}
     </style>
     """)
 
@@ -345,23 +395,27 @@ else:
     # della pagina invece di creare un riquadro grigio separato, e con
     # spazio extra così non taglia mai nulla ai bordi.
     def embed_svg(svg_code, height, extra_padding=6):
+        # height include un margine di sicurezza extra: senza margine, in
+        # alcune finestre l'SVG (specie le etichette sopra/sotto la barra)
+        # veniva tagliato dall'iframe a altezza fissa.
         st.components.v1.html(f"""
         <html>
         <head>
         <style>
-            html, body {{ margin:0; padding:0; background:transparent; height:100%; }}
+            html, body {{ margin:0; padding:0; background:transparent; height:100%; overflow:visible; }}
             .svg-wrap {{
                 display:flex; align-items:center; justify-content:center;
                 width:100%; height:100%; background:transparent;
-                padding:{extra_padding}px; box-sizing:border-box;
+                padding:{extra_padding}px; box-sizing:border-box; overflow:visible;
             }}
+            .svg-wrap svg {{ max-width:100%; height:auto; overflow:visible; }}
         </style>
         </head>
         <body>
             <div class="svg-wrap">{svg_code}</div>
         </body>
         </html>
-        """, height=height, scrolling=False)
+        """, height=height + 14, scrolling=False)
 
     # =========================================================
     # HERO SECTION — IL PRIMO COLPO D'OCCHIO
@@ -559,30 +613,9 @@ else:
     md("<div style='height:34px;'></div>")
 
     # =========================================================
-    # CORSIE E ZONE
-    # =========================================================
-    section_head("Riferimento", "Le tue Zone di Frequenza Cardiaca", "A quale intensità corrispondono le zone che vedi nei grafici qui sotto.")
-
-    corsie = [
-        ("Corsia 1", "Zona 1-2", "Recupero / Base Aerobica", "Sforzo bassissimo: riesci a parlare senza fatica. L'energia arriva dai grassi. Perfetta per costruire resistenza senza accumulare stanchezza.", C_RPE),
-        ("Corsia 2", "Zona 3", "Soglia Aerobica / Tempo", "Ritmo sostenuto, respiro più profondo, poco acido lattico. Serve a rendere il cuore più forte ed efficiente.", C_AMBRA),
-        ("Corsia 3", "Zona 4-5", "Soglia Lattacida / VO2Max", "Sforzo massimo: parlare diventa difficile. Le fibre muscolari lavorano al limite per poi rinforzarsi. Da usare con moderazione se il rischio infortunio è medio o alto.", C_STRESS),
-    ]
-    cc1, cc2, cc3 = st.columns(3)
-    for c, (num, zt, zn, zd, zcol) in zip([cc1, cc2, cc3], corsie):
-        c.markdown(f"""
-        <div class='lane-chip' style='--zc:{zcol};'>
-            <div class='lane-num'>{num}</div>
-            <div class='zt'>{zt}</div>
-            <div class='zn'>{zn}</div>
-            <div class='zd'>{zd}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    md("<div style='height:34px;'></div>")
-
-    # =========================================================
     # PREPARAZIONE GRAFICI E STILI COMUNI
+    # (spostata qui perché serve già per il grafico delle zone cardiache
+    # subito sotto, non solo per i grafici ML più in basso)
     # =========================================================
     CHART_HEIGHT = 280
     layout_base = dict(
@@ -622,6 +655,94 @@ else:
             """)
         figs_per_export.append(fig)
         insights_export.append((titolo, spiegazione))
+
+    # =========================================================
+    # CORSIE E ZONE
+    # =========================================================
+    section_head("Riferimento", "Le tue Zone di Frequenza Cardiaca", "A quale intensità corrispondono le zone che vedi nei grafici qui sotto.")
+
+    corsie = [
+        ("Corsia 1", "Zona 1-2", "Recupero / Base Aerobica", "Sforzo bassissimo: riesci a parlare senza fatica. L'energia arriva dai grassi. Perfetta per costruire resistenza senza accumulare stanchezza.", C_RPE),
+        ("Corsia 2", "Zona 3", "Soglia Aerobica / Tempo", "Ritmo sostenuto, respiro più profondo, poco acido lattico. Serve a rendere il cuore più forte ed efficiente.", C_AMBRA),
+        ("Corsia 3", "Zona 4-5", "Soglia Lattacida / VO2Max", "Sforzo massimo: parlare diventa difficile. Le fibre muscolari lavorano al limite per poi rinforzarsi. Da usare con moderazione se il rischio infortunio è medio o alto.", C_STRESS),
+    ]
+    cc1, cc2, cc3 = st.columns(3)
+    for c, (num, zt, zn, zd, zcol) in zip([cc1, cc2, cc3], corsie):
+        c.markdown(f"""
+        <div class='lane-chip' style='--zc:{zcol};'>
+            <div class='lane-num'>{num}</div>
+            <div class='zt'>{zt}</div>
+            <div class='zn'>{zn}</div>
+            <div class='zd'>{zd}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    md("<div style='height:24px;'></div>")
+
+    # ---------------------------------------------------------------
+    # GRAFICO "TERMOMETRO CARDIACO" — dove hai vissuto negli ultimi 90 giorni
+    # (mancava un grafico sotto le zone: qui trasformiamo lo storico di FC
+    # Media in una distribuzione per corsia, con la corsia consigliata per
+    # oggi evidenziata da un marcatore).
+    # ---------------------------------------------------------------
+    if 'FC Media' in df_base.columns:
+        fc_serie = df_base['FC Media'].dropna()
+        fc_media_glob = fc_serie.mean()
+        fc_std_glob = fc_serie.std() if fc_serie.std() > 0 else 1.0
+        soglia_bassa = fc_media_glob - 0.5 * fc_std_glob
+        soglia_alta = fc_media_glob + 0.5 * fc_std_glob
+
+        n_tot = len(fc_serie)
+        pct_z1 = float((fc_serie < soglia_bassa).sum()) / n_tot * 100 if n_tot else 0
+        pct_z2 = float(((fc_serie >= soglia_bassa) & (fc_serie <= soglia_alta)).sum()) / n_tot * 100 if n_tot else 0
+        pct_z3 = float((fc_serie > soglia_alta).sum()) / n_tot * 100 if n_tot else 0
+
+        zona_oggi_map = {"basso": 0, "medio": 0, "alto": None}
+        indice_zona_oggi = zona_oggi_map.get(liv, 0)
+
+        fig_hr_zone = go.Figure()
+        segmenti = [
+            ("Corsia 1 · Recupero", pct_z1, C_RPE),
+            ("Corsia 2 · Soglia Aerobica", pct_z2, C_AMBRA),
+            ("Corsia 3 · Soglia Lattacida", pct_z3, C_STRESS),
+        ]
+        for i, (nome_seg, pct_seg, colore_seg) in enumerate(segmenti):
+            fig_hr_zone.add_trace(go.Bar(
+                y=["Ultimi 90 giorni"], x=[pct_seg], name=nome_seg, orientation='h',
+                marker=dict(
+                    color=colore_seg,
+                    line=dict(color=TXT_PRIMARY, width=3 if i == indice_zona_oggi else 0),
+                ),
+                text=[f"{pct_seg:.0f}%"], textposition='inside',
+                textfont=dict(color=PANEL_BG if pct_seg > 8 else colore_seg, size=12, family="JetBrains Mono, monospace"),
+                insidetextanchor='middle',
+            ))
+        fig_hr_zone.update_layout(
+            barmode='stack', paper_bgcolor=PANEL_BG, plot_bgcolor=PANEL_BG,
+            font=dict(color=TXT_SECONDARY, family="Inter, sans-serif", size=11),
+            margin=dict(l=16, r=16, t=10, b=10), height=130,
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=1.05, x=0, font=dict(size=10)),
+            xaxis=dict(visible=False, range=[0, 100]),
+            yaxis=dict(visible=False),
+            hoverlabel=dict(bgcolor="#1A2233", font_size=12, font_family="Inter, sans-serif", bordercolor=PANEL_BD),
+        )
+
+        if indice_zona_oggi is not None:
+            nome_zona_oggi = segmenti[indice_zona_oggi][0]
+            marcatore_txt = f"Il riquadro con il bordo bianco mostra <strong>{nome_zona_oggi}</strong>, la corsia consigliata per l'allenamento di oggi."
+        else:
+            marcatore_txt = "Oggi nessuna corsia è evidenziata: le condizioni indicano riposo, non una sessione di corsa vera e propria."
+        hr_zone_txt = (
+            f"Negli ultimi 90 giorni hai passato circa il <strong>{pct_z1:.0f}%</strong> delle sedute in Corsia 1, "
+            f"il <strong>{pct_z2:.0f}%</strong> in Corsia 2 e il <strong>{pct_z3:.0f}%</strong> in Corsia 3 "
+            f"(soglie calcolate sulla tua frequenza cardiaca media storica). {marcatore_txt}"
+        )
+        chart_card(st.container(), "Come si distribuisce il tuo storico tra le corsie", fig_hr_zone, hr_zone_txt, col)
+    else:
+        st.info("Colonna 'FC Media' non trovata: impossibile calcolare la distribuzione storica per corsia.")
+
+    md("<div style='height:34px;'></div>")
 
     # =========================================================
     # SEZIONE ML: SOTTO IL COFANO — COSA DICONO I MODELLI
@@ -669,9 +790,9 @@ else:
         "Euristica clinica": TXT_TERTIARY, "Random Forest": C_RPE, "Logistic Regression": C_SONNO,
         "Profilo storico (Cluster)": C_VIOLA, "Trend fisiologico (FC)": C_AMBRA,
     }
-    icone_comp = {
-        "Euristica clinica": "🩺", "Random Forest": "🌲", "Logistic Regression": "📐",
-        "Profilo storico (Cluster)": "🧩", "Trend fisiologico (FC)": "❤️",
+    sigle_comp = {
+        "Euristica clinica": "EU", "Random Forest": "RF", "Logistic Regression": "LR",
+        "Profilo storico (Cluster)": "KM", "Trend fisiologico (FC)": "LM",
     }
 
     # =========================================================
@@ -702,7 +823,7 @@ else:
         <div style='display:flex; gap:14px; flex-wrap:wrap;'>
             {"".join(f'''
             <div style='flex:1; min-width:140px; background:rgba(255,255,255,0.02); border:1px solid {PANEL_BD}; border-radius:10px; padding:14px; text-align:center;'>
-                <div style='font-size:1.8em; margin-bottom:6px;'>{icone_comp[nome]}</div>
+                {model_glyph(verdetti[nome][1], sigle_comp[nome])}
                 <div style='font-family:"Inter",sans-serif; font-size:.78em; color:{TXT_SECONDARY}; margin-bottom:8px;'>{nome}</div>
                 <div class='value-pill' style='color:{verdetti[nome][1]}; background:{verdetti[nome][1]}1A; font-family:"JetBrains Mono",monospace; font-size:.78em; font-weight:700;'>{verdetti[nome][0]}</div>
             </div>
@@ -943,13 +1064,13 @@ else:
     
     stress_oggi = r.get('stress_lavoro', 5)
     if ore_s >= media_sonno_90 and stress_oggi <= media_stress_90:
-        quad_txt = "🟢 <strong>Situazione ottimale:</strong> hai dormito bene e sei poco stressato. Il corpo è pronto per un allenamento anche impegnativo."
+        quad_txt = badge(C_RPE, "<strong>Situazione ottimale:</strong> hai dormito bene e sei poco stressato. Il corpo è pronto per un allenamento anche impegnativo.")
     elif ore_s >= media_sonno_90 and stress_oggi > media_stress_90:
-        quad_txt = "🟡 <strong>Attenzione:</strong> dormi abbastanza, ma lo stress da lavoro è alto. Meglio non esagerare con l'intensità oggi."
+        quad_txt = badge(C_AMBRA, "<strong>Attenzione:</strong> dormi abbastanza, ma lo stress da lavoro è alto. Meglio non esagerare con l'intensità oggi.")
     elif ore_s < media_sonno_90 and stress_oggi <= media_stress_90:
-        quad_txt = "🟠 <strong>Recupero parziale:</strong> sei poco stressato ma hai dormito poco. I muscoli non sono al 100%: meglio un allenamento più leggero."
+        quad_txt = badge(C_ARANCIO, "<strong>Recupero parziale:</strong> sei poco stressato ma hai dormito poco. I muscoli non sono al 100%: meglio un allenamento più leggero.")
     else:
-        quad_txt = "🔴 <strong>Situazione critica:</strong> poco sonno e molto stress insieme. Il rischio infortunio è alto: oggi conviene riposare o solo camminare."
+        quad_txt = badge(C_STRESS, "<strong>Situazione critica:</strong> poco sonno e molto stress insieme. Il rischio infortunio è alto: oggi conviene riposare o solo camminare.")
         
     chart_card(c_adv1, "Sonno vs Stress: dove sei oggi", fig_matrix, quad_txt, col)
 
@@ -981,11 +1102,11 @@ else:
         fig_acwr.update_layout(**layout_base, yaxis_title="Rapporto Fatica", yaxis=dict(range=[0.5, 2.0]))
         
         if acwr_attuale > 1.3:
-            acwr_txt = "⚠️ Sei sopra la zona verde: <strong>ti stai affaticando troppo in fretta</strong> rispetto al mese scorso. Rallenta, o rischi un infortunio da sovraccarico (es. tendinite)."
+            acwr_txt = badge(C_STRESS, "Sei sopra la zona verde: <strong>ti stai affaticando troppo in fretta</strong> rispetto al mese scorso. Rallenta, o rischi un infortunio da sovraccarico (es. tendinite).")
         elif acwr_attuale < 0.8:
-            acwr_txt = "🔵 Sei sotto la zona verde: ti stai allenando meno o più piano del solito. Se continua così, rischi di perdere un po' di forma."
+            acwr_txt = badge(C_SONNO, "Sei sotto la zona verde: ti stai allenando meno o più piano del solito. Se continua così, rischi di perdere un po' di forma.")
         else:
-            acwr_txt = "🟢 Perfetto: sei dentro la zona verde. Stai aumentando (o mantenendo) la fatica in modo <strong>giusto e graduale</strong>."
+            acwr_txt = badge(C_RPE, "Perfetto: sei dentro la zona verde. Stai aumentando (o mantenendo) la fatica in modo <strong>giusto e graduale</strong>.")
             
         chart_card(c_adv2, "Carico recente vs mese scorso", fig_acwr, acwr_txt, C_AMBRA)
     else:
@@ -1058,7 +1179,7 @@ else:
         ))
         aggiungi_punto_finale(fig_t1, df_plot, 'Ore Sonno', C_SONNO)
         fig_t1.update_layout(**layout_base, yaxis_title="Ore a notte")
-        spieg_sonno = "⚠️ Attenzione: la linea scende. Ultimamente dormi meno del solito. Prova ad andare a letto un po' prima per far recuperare i muscoli." if trend_sonno < -0.3 else "🟢 Bene: le tue ore di sonno sono costanti. Stai dando al corpo il tempo giusto per ricaricarsi."
+        spieg_sonno = badge(C_AMBRA, "Attenzione: la linea scende. Ultimamente dormi meno del solito. Prova ad andare a letto un po' prima per far recuperare i muscoli.") if trend_sonno < -0.3 else badge(C_RPE, "Bene: le tue ore di sonno sono costanti. Stai dando al corpo il tempo giusto per ricaricarsi.")
         chart_card(r1c1, "Andamento del Sonno", fig_t1, spieg_sonno, C_SONNO)
 
     if 'Stress Lavoro' in df_plot.columns:
@@ -1069,7 +1190,7 @@ else:
         ))
         aggiungi_punto_finale(fig_t2, df_plot, 'Stress Lavoro', C_STRESS)
         fig_t2.update_layout(**layout_base, yaxis=dict(range=[0, 10]), yaxis_title="Livello Stress (0-10)")
-        spieg_stress = "⚠️ La linea sale: il tuo stress generale sta aumentando. Quando la mente è stanca, il corpo si infortuna più facilmente: abbassa l'intensità della corsa." if trend_stress > 0.5 else "🟢 Il tuo stress da lavoro e vita quotidiana è stabile e sotto controllo."
+        spieg_stress = badge(C_AMBRA, "La linea sale: il tuo stress generale sta aumentando. Quando la mente è stanca, il corpo si infortuna più facilmente: abbassa l'intensità della corsa.") if trend_stress > 0.5 else badge(C_RPE, "Il tuo stress da lavoro e vita quotidiana è stabile e sotto controllo.")
         chart_card(r1c2, "Andamento dello Stress", fig_t2, spieg_stress, C_STRESS)
 
     if 'RPE' in df_plot.columns:
@@ -1080,7 +1201,7 @@ else:
         ))
         aggiungi_punto_finale(fig_t3, df_plot, 'RPE', C_RPE)
         fig_t3.update_layout(**layout_base, yaxis=dict(range=[0, 10]), yaxis_title="Fatica Percepita (0-10)")
-        spieg_rpe = "⚠️ La linea sale: fai più fatica del solito negli allenamenti. È il segnale che serve scaricare: fai un paio di giorni leggeri." if trend_rpe > 0.5 else "🟢 La fatica che senti dopo gli allenamenti è costante. Il corpo gestisce bene i chilometri."
+        spieg_rpe = badge(C_AMBRA, "La linea sale: fai più fatica del solito negli allenamenti. È il segnale che serve scaricare: fai un paio di giorni leggeri.") if trend_rpe > 0.5 else badge(C_RPE, "La fatica che senti dopo gli allenamenti è costante. Il corpo gestisce bene i chilometri.")
         chart_card(r1c3, "Andamento della Fatica", fig_t3, spieg_rpe, C_RPE)
 
     md("<div style='height:34px;'></div>")
@@ -1098,7 +1219,14 @@ else:
             for b in bullets:
                 coach_txt += f"    - {b}\n"
 
-    grafici_txt = "\n".join(f"  - {t}: {s}" for t, s in insights_export)
+    import re as _re
+    def _plain(html_txt):
+        # Rimuove qualsiasi tag HTML (badge, strong, br, span...) per il
+        # report testuale, così restano solo le parole, senza codice visibile.
+        senza_tag = _re.sub(r'<[^>]+>', '', html_txt)
+        return senza_tag.replace('&nbsp;', ' ').strip()
+
+    grafici_txt = "\n".join(f"  - {t}: {_plain(s)}" for t, s in insights_export)
 
     report_testo = f"""--- RUNAI PERFORMANCE REPORT ---
 Status: {tit}
@@ -1107,8 +1235,11 @@ Indice Rischio: {risk_score:.0f}%
 Recovery Score: {recovery_score:.0f}%
 Stress Mentale (SMA): {sma:.1f}
 
+VERDETTO: {_plain(hero_msg)}
+{_plain(nota_coerenza)}
+
 NOTE CLINICHE E ANALISI AVANZATA:
-{grafici_txt.replace('<br>', ' ').replace('<strong>', '').replace('</strong>', '')}
+{grafici_txt}
 
 PROTOCOLLO COACH COMPLETO{coach_txt}
 --------------------------------"""
@@ -1118,10 +1249,21 @@ PROTOCOLLO COACH COMPLETO{coach_txt}
         st.download_button("Scarica TXT", data=report_testo, file_name="runai_report.txt", mime="text/plain", use_container_width=True)
 
     with colb2:
+        # Ogni grafico esportato porta con sé il proprio titolo e la propria
+        # spiegazione (prese da insights_export, popolata in parallelo a
+        # figs_per_export dentro chart_card): senza questo, il file scaricato
+        # mostrava solo i grafici nudi, senza alcuna scritta di contesto.
         charts_html = ""
-        for i, f in enumerate(figs_per_export):
+        for i, (fig, (titolo_c, spiegazione_c)) in enumerate(zip(figs_per_export, insights_export)):
             include_js = 'cdn' if i == 0 else False
-            charts_html += f.to_html(full_html=False, include_plotlyjs=include_js)
+            grafico_html = fig.to_html(full_html=False, include_plotlyjs=include_js, config={'displayModeBar': False})
+            charts_html += f"""
+            <div class='chart-block'>
+                <p class='chart-block-title'>{titolo_c}</p>
+                {grafico_html}
+                <div class='chart-block-caption'><strong>Cosa significa questo grafico?</strong><br>{spiegazione_c}</div>
+            </div>
+            """
 
         coach_html = ""
         for nome_tab, contenuto in coach_content.items():
@@ -1131,38 +1273,73 @@ PROTOCOLLO COACH COMPLETO{coach_txt}
                 blocchi_html += f"<div class='coach-block' style='--block-color:{contenuto['colore']};'><div class='label'>{label}</div><ul>{bullets_html}</ul></div>"
             coach_html += f"<div class='panel' style='margin-bottom:14px;'><h3 style='margin-bottom:14px;'>{nome_tab}</h3>{blocchi_html}</div>"
 
+        verdetti_html = "".join(f"""
+        <div class='verdict-chip'>
+            <div class='vc-name'>{nome}</div>
+            <div class='vc-badge' style='color:{verdetti[nome][1]}; background:{verdetti[nome][1]}1A;'>{verdetti[nome][0]}</div>
+        </div>
+        """ for nome in componenti_oggi.keys())
+
         report_html_completo = f"""<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="UTF-8">
+<title>RunAI Performance Report — {tit}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap');
-  body {{ background:#0A0E15; color:{TXT_SECONDARY}; font-family: Inter, sans-serif; padding: 36px; max-width:1100px; margin:0 auto; }}
+  * {{ box-sizing: border-box; }}
+  body {{ background:#0A0E15; color:{TXT_SECONDARY}; font-family: Inter, sans-serif; padding: 36px; max-width:1100px; margin:0 auto; line-height:1.6; }}
   h1 {{ color:{col}; font-family:'Oswald',sans-serif; font-weight:600; text-transform:uppercase; font-size:1.7em; margin-bottom:4px; }}
-  h2 {{ color:{TXT_PRIMARY}; font-family:'Oswald',sans-serif; font-weight:600; text-transform:uppercase; font-size:1.15em; margin:34px 0 14px 0; }}
+  h2 {{ color:{TXT_PRIMARY}; font-family:'Oswald',sans-serif; font-weight:600; text-transform:uppercase; font-size:1.15em; margin:34px 0 14px 0; border-bottom:1px solid {PANEL_BD}; padding-bottom:10px; }}
+  h3 {{ color:{TXT_PRIMARY}; font-family:'Oswald',sans-serif; font-weight:600; text-transform:uppercase; font-size:1em; }}
+  p {{ margin: 0 0 10px 0; }}
   .eyebrow {{ font-family:'JetBrains Mono',monospace; font-size:.7em; letter-spacing:.14em; text-transform:uppercase; color:{TXT_TERTIARY}; margin:0 0 8px 0; font-weight:600; }}
+  .hero-msg {{ font-size:1.02em; color:{TXT_SECONDARY}; max-width:720px; margin-bottom:8px; }}
+  .coerenza-note {{ font-size:.85em; color:{TXT_TERTIARY}; margin-bottom:20px; }}
   .panel {{ background:{PANEL_BG}; border:1px solid {PANEL_BD}; border-radius:14px; padding:20px 22px; margin-bottom:14px; }}
   .hero-row {{ display:flex; align-items:center; gap:28px; flex-wrap:wrap; margin: 14px 0 6px 0; }}
+  .hero-row svg {{ max-width: 260px; height:auto; }}
   .kpi-row {{ display:flex; gap:14px; flex-wrap:wrap; margin-top:18px; }}
   .kpi-row .panel {{ flex:1 1 30%; min-width:200px; }}
   .kpi-row .val {{ font-family:'JetBrains Mono',monospace; font-size:1.7em; color:{TXT_PRIMARY}; font-weight:600; }}
   .coach-block {{ margin-bottom:14px; border-left:3px solid var(--block-color); padding-left:14px; }}
   .coach-block .label {{ font-family:'Oswald',sans-serif; font-size:.85em; letter-spacing:.05em; text-transform:uppercase; margin-bottom:8px; font-weight:600; color:var(--block-color); }}
-  .charts-grid {{ display:flex; flex-wrap:wrap; gap:16px; }}
-  .charts-grid > div {{ flex: 1 1 30%; min-width:280px; background:{PANEL_BG}; border:1px solid {PANEL_BD}; border-radius:12px; padding:10px; }}
+  .coach-block ul {{ margin:0; padding-left:18px; }}
+  .coach-block li {{ margin-bottom:6px; font-size:.92em; }}
+  .verdict-row {{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }}
+  .verdict-chip {{ flex:1; min-width:130px; background:{PANEL_BG}; border:1px solid {PANEL_BD}; border-radius:10px; padding:12px; text-align:center; }}
+  .verdict-chip .vc-name {{ font-size:.72em; color:{TXT_SECONDARY}; margin-bottom:8px; }}
+  .verdict-chip .vc-badge {{ display:inline-block; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:.78em; padding:4px 10px; border-radius:6px; }}
+  .charts-grid {{ display:flex; flex-wrap:wrap; gap:18px; }}
+  .chart-block {{ flex: 1 1 44%; min-width:320px; background:{PANEL_BG}; border:1px solid {PANEL_BD}; border-radius:12px; padding:14px; }}
+  .chart-block-title {{ font-family:'Oswald',sans-serif; font-weight:600; text-transform:uppercase; letter-spacing:.02em; color:{TXT_PRIMARY}; font-size:.95em; margin-bottom:6px; }}
+  .chart-block-caption {{ border-top:1px solid {PANEL_BD}; margin-top:10px; padding-top:10px; font-size:.85em; color:{TXT_SECONDARY}; }}
+  .status-badge {{ display:inline-flex; align-items:center; }}
+  .status-dot {{ display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:8px; vertical-align:middle; }}
+  footer {{ margin-top:40px; padding-top:16px; border-top:1px solid {PANEL_BD}; font-size:.75em; color:{TXT_TERTIARY}; }}
 </style>
 </head>
 <body>
-  <p class="eyebrow">RunAI Performance Report</p>
+  <p class="eyebrow">RunAI Performance Report — Generato il {pd.Timestamp.today().strftime('%d/%m/%Y')}</p>
   <h1>{tit}</h1>
-  <div class="hero-row">{gauge_svg}<div>{radar_svg}</div></div>
+  <p class="hero-msg">{hero_msg}</p>
+  <p class="coerenza-note">Rischio da modello ML: {rischio_ml:.0f}% · Rischio da regole cliniche: {risk_score_euristico:.0f}% · {nota_coerenza}</p>
+  <div class="hero-row">{gauge_svg}{radar_svg}</div>
   <div class="kpi-row">
-    <div class="panel"><p class="eyebrow">Distanza Consigliata</p><div class="val">{distanza_consigliata:.1f} km</div></div>
-    <div class="panel"><p class="eyebrow">Indice Rischio</p><div class="val" style="color:{col};">{risk_score:.0f}%</div></div>
-    <div class="panel"><p class="eyebrow">Recovery Score</p><div class="val" style="color:{C_SONNO};">{recovery_score:.0f}%</div></div>
+    <div class="panel"><p class="eyebrow">Distanza Consigliata</p><div class="val">{distanza_consigliata:.1f} km</div><p style="font-size:.8em; margin-top:6px;">Piano originale: {distanza_target} km</p></div>
+    <div class="panel"><p class="eyebrow">Indice Rischio</p><div class="val" style="color:{col};">{risk_score:.0f}%</div><p style="font-size:.8em; margin-top:6px;">Somma pesata di 4 modelli ML più le regole cliniche</p></div>
+    <div class="panel"><p class="eyebrow">Recovery Score</p><div class="val" style="color:{C_SONNO};">{recovery_score:.0f}%</div><p style="font-size:.8em; margin-top:6px;">Basato su {ore_s:.1f}h di sonno (ideale: 7.5h)</p></div>
   </div>
+
+  <h2>Il consiglio degli algoritmi</h2>
+  <p>{n_maggioranza} modelli su 5 dicono <strong style="color:{colore_maggioranza};">{verdetto_maggioranza}</strong>. Ogni modello vota in modo indipendente sul rischio di oggi:</p>
+  <div class="verdict-row">{verdetti_html}</div>
+
   <h2>Protocollo coach completo</h2>{coach_html}
-  <h2>Grafici analitici</h2><div class="charts-grid">{charts_html}</div>
+  <h2>Grafici analitici</h2>
+  <p style="font-size:.88em;">Ogni grafico qui sotto è accompagnato dalla spiegazione mostrata nella dashboard, così il report resta comprensibile anche senza aprire l'app.</p>
+  <div class="charts-grid">{charts_html}</div>
+  <footer>Report generato automaticamente da RunAI. I punteggi si basano sui dati inseriti e sui modelli allenati sul tuo storico personale.</footer>
 </body>
 </html>"""
 
