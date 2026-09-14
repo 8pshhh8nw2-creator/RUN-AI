@@ -318,8 +318,9 @@ else:
         </svg>
         """
 
-    # Nuovo: gauge circolare "a colpo d'occhio" per la hero section
-    def disegna_gauge_circolare(score, color, size=210):
+    # Nuovo: gauge circolare "a colpo d'occhio" per la hero section (riutilizzabile
+    # anche per altri indicatori 0-100, come la concordanza tra i modelli)
+    def disegna_gauge_circolare(score, color, size=210, label="RISCHIO %"):
         radius = 82
         stroke_width = 15
         center = size / 2
@@ -333,7 +334,7 @@ else:
                 stroke-linecap="round" stroke-dasharray="{circumference:.2f}" stroke-dashoffset="{offset:.2f}"
                 transform="rotate(-90 {center} {center})"/>
             <text x="{center}" y="{center - 4}" text-anchor="middle" font-family="Oswald, sans-serif" font-size="44" font-weight="700" fill="{TXT_PRIMARY}">{int(score)}</text>
-            <text x="{center}" y="{center + 24}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" letter-spacing="2" fill="{TXT_SECONDARY}">RISCHIO %</text>
+            <text x="{center}" y="{center + 24}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" letter-spacing="2" fill="{TXT_SECONDARY}">{label}</text>
         </svg>
         """
 
@@ -650,7 +651,6 @@ else:
 
     md("<div style='height:24px;'></div>")
 
-    # ---- Breakdown dei contributi al punteggio finale ----
     componenti_oggi = {
         "Euristica clinica": risk_score_euristico,
         "Random Forest": analisi_ml["componenti"]["random_forest"],
@@ -669,7 +669,96 @@ else:
         "Euristica clinica": TXT_TERTIARY, "Random Forest": C_RPE, "Logistic Regression": C_SONNO,
         "Profilo storico (Cluster)": C_VIOLA, "Trend fisiologico (FC)": C_AMBRA,
     }
+    icone_comp = {
+        "Euristica clinica": "🩺", "Random Forest": "🌲", "Logistic Regression": "📐",
+        "Profilo storico (Cluster)": "🧩", "Trend fisiologico (FC)": "❤️",
+    }
 
+    # =========================================================
+    # IL CONSIGLIO DEGLI ALGORITMI — 5 modelli votano indipendentemente
+    # =========================================================
+    def verdetto_da_score(v):
+        if v < 40:
+            return ("VIA LIBERA", C_RPE)
+        elif v < 70:
+            return ("ATTENZIONE", C_AMBRA)
+        else:
+            return ("STOP", C_STRESS)
+
+    verdetti = {k: verdetto_da_score(v) for k, v in componenti_oggi.items()}
+    conteggio_verdetti = {}
+    for _, (etichetta, _) in verdetti.items():
+        conteggio_verdetti[etichetta] = conteggio_verdetti.get(etichetta, 0) + 1
+    verdetto_maggioranza = max(conteggio_verdetti, key=conteggio_verdetti.get)
+    n_maggioranza = conteggio_verdetti[verdetto_maggioranza]
+    colore_maggioranza = {"VIA LIBERA": C_RPE, "ATTENZIONE": C_AMBRA, "STOP": C_STRESS}[verdetto_maggioranza]
+
+    md(f"""
+    <div class='hero-panel' style='--hero-color:{colore_maggioranza}; padding:28px 34px;'>
+        <p class='hero-kicker'>Il Consiglio degli Algoritmi</p>
+        <div style='display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:22px;'>
+            <span style='font-family:"Oswald",sans-serif; font-weight:700; font-size:2.1rem; text-transform:uppercase; color:{colore_maggioranza};'>{n_maggioranza}/5 dicono {verdetto_maggioranza}</span>
+        </div>
+        <div style='display:flex; gap:14px; flex-wrap:wrap;'>
+            {"".join(f'''
+            <div style='flex:1; min-width:140px; background:rgba(255,255,255,0.02); border:1px solid {PANEL_BD}; border-radius:10px; padding:14px; text-align:center;'>
+                <div style='font-size:1.8em; margin-bottom:6px;'>{icone_comp[nome]}</div>
+                <div style='font-family:"Inter",sans-serif; font-size:.78em; color:{TXT_SECONDARY}; margin-bottom:8px;'>{nome}</div>
+                <div class='value-pill' style='color:{verdetti[nome][1]}; background:{verdetti[nome][1]}1A; font-family:"JetBrains Mono",monospace; font-size:.78em; font-weight:700;'>{verdetti[nome][0]}</div>
+            </div>
+            ''' for nome in componenti_oggi.keys())}
+        </div>
+    </div>
+    """)
+
+    md("<div style='height:24px;'></div>")
+
+    c_wow1, c_wow2 = st.columns([1.4, 1])
+    with c_wow1:
+        md("<div class='panel' style='padding:20px 24px 6px 24px;'>")
+        md("<p class='eyebrow'>La forma del rischio di oggi</p>")
+        nomi_radar = list(componenti_oggi.keys())
+        valori_radar = [componenti_oggi[k] for k in nomi_radar] + [componenti_oggi[nomi_radar[0]]]
+        categorie_radar = nomi_radar + [nomi_radar[0]]
+        fig_radar = go.Figure()
+        fig_radar.add_trace(go.Scatterpolar(
+            r=valori_radar, theta=categorie_radar, fill='toself',
+            line=dict(color=col, width=2), fillcolor=f"{col}33",
+            marker=dict(size=7, color=col),
+        ))
+        fig_radar.update_layout(
+            polar=dict(
+                bgcolor=PANEL_BG,
+                radialaxis=dict(visible=True, range=[0, 100], gridcolor=PANEL_BD, linecolor=PANEL_BD, tickfont=dict(color=TXT_TERTIARY, size=9)),
+                angularaxis=dict(gridcolor=PANEL_BD, linecolor=PANEL_BD, tickfont=dict(color=TXT_SECONDARY, size=10)),
+            ),
+            paper_bgcolor=PANEL_BG, showlegend=False,
+            margin=dict(l=70, r=70, t=20, b=20), height=320,
+            font=dict(color=TXT_SECONDARY, family="Inter, sans-serif"),
+        )
+        st.plotly_chart(fig_radar, use_container_width=True, config=config_pulita)
+        md(f"<div class='chart-caption' style='padding-bottom:16px;'>Più il poligono si allarga verso i bordi, più quel segnale spinge verso il rischio. Una forma piccola e compatta vicino al centro è il segnale migliore.</div>")
+        md("</div>")
+    with c_wow2:
+        valori_componenti = list(componenti_oggi.values())
+        std_componenti = float(np.std(valori_componenti))
+        concordanza_pct = max(0, min(100, 100 - std_componenti * 1.8))
+        gauge_concordanza_svg = disegna_gauge_circolare(concordanza_pct, col, size=210, label="CONCORDANZA %")
+        md("<div class='panel' style='padding:20px 24px; text-align:center;'>")
+        md("<p class='eyebrow' style='text-align:left;'>Quanto sono d'accordo i modelli</p>")
+        embed_svg(gauge_concordanza_svg, height=230, extra_padding=6)
+        if concordanza_pct >= 75:
+            conc_txt = "Alta concordanza: i 5 segnali raccontano più o meno la stessa storia. Puoi fidarti del verdetto di oggi."
+        elif concordanza_pct >= 50:
+            conc_txt = "Concordanza media: qualche segnale si discosta dagli altri. Vale la pena leggere il dettaglio qui sotto prima di decidere."
+        else:
+            conc_txt = "Bassa concordanza: i modelli non sono allineati oggi. Meglio essere prudenti e dare più peso al buon senso."
+        md(f"<div class='chart-caption' style='text-align:left;'>{conc_txt}</div>")
+        md("</div>")
+
+    md("<div style='height:24px;'></div>")
+
+    # ---- Breakdown dei contributi al punteggio finale ----
     c_ml1, c_ml2 = st.columns(2)
 
     nomi_comp = list(componenti_oggi.keys())
@@ -731,6 +820,36 @@ else:
     chart_card(c_ml4, "In quale 'famiglia' di allenamenti rientra oggi", fig_clust, clust_txt, C_VIOLA)
 
     md("<div style='height:24px;'></div>")
+
+    # ---- Storico onesto: come avrebbe giudicato la Random Forest ogni giorno passato ----
+    # y_proba_rf viene da cross_val_predict: per ogni giorno storico, la previsione
+    # arriva da un modello che NON ha mai visto quel giorno in fase di addestramento.
+    # È quindi una stima onesta, non "letta con il senno di poi".
+    df_rf_hist = df_base.copy()
+    df_rf_hist['Rischio_RF_Storico'] = class_bundle["y_proba_rf"] * 100
+    if date_col:
+        df_rf_hist['Data_Chart'] = pd.to_datetime(df_rf_hist[date_col], errors='coerce')
+    else:
+        df_rf_hist['Data_Chart'] = pd.date_range(end=pd.Timestamp.today(), periods=len(df_rf_hist))
+    df_rf_hist = df_rf_hist.sort_values('Data_Chart').dropna(subset=['Data_Chart']).tail(60)
+
+    fig_rf_hist = go.Figure()
+    fig_rf_hist.add_hrect(y0=0, y1=25, fillcolor=f"{C_RPE}1A", line_width=0, layer="below")
+    fig_rf_hist.add_hrect(y0=25, y1=60, fillcolor=f"{C_AMBRA}1A", line_width=0, layer="below")
+    fig_rf_hist.add_hrect(y0=60, y1=100, fillcolor=f"{C_STRESS}1A", line_width=0, layer="below")
+    fig_rf_hist.add_trace(go.Scatter(
+        x=df_rf_hist['Data_Chart'], y=df_rf_hist['Rischio_RF_Storico'], mode='lines',
+        line=dict(color=TXT_PRIMARY, width=2, shape='spline'), fill='tozeroy',
+        fillcolor='rgba(248,249,250,0.06)',
+    ))
+    fig_rf_hist.add_hline(
+        y=rischio_ml, line_dash="dash", line_color=col, line_width=2,
+        annotation_text=f"Oggi: {rischio_ml:.0f}%", annotation_font_color=col,
+        annotation_position="top left", annotation_font_size=12,
+    )
+    fig_rf_hist.update_layout(**layout_base, yaxis_title="Rischio RF stimato (%)", yaxis=dict(range=[0, 100]))
+    rf_hist_txt = f"Questa è la stima di rischio della Random Forest ricalcolata onestamente su ogni giorno del tuo storico (validazione incrociata: il modello non ha mai 'sbirciato' quel giorno durante l'addestramento). La linea tratteggiata mostra dove ti trovi oggi ({rischio_ml:.0f}%) rispetto a tutto il tuo storico recente."
+    chart_card(st.container(), "Come avrebbe giudicato la Random Forest ogni giorno passato", fig_rf_hist, rf_hist_txt, TXT_PRIMARY)
 
     # ---- Linear Regression: FC reale vs prevista ----
     df_reg_chart = df_base.copy()
