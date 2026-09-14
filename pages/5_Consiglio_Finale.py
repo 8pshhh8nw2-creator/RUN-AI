@@ -404,7 +404,7 @@ else:
 
     # Nuovo: gauge circolare "a colpo d'occhio" per la hero section (riutilizzabile
     # anche per altri indicatori 0-100, come la concordanza tra i modelli)
-    def disegna_gauge_circolare(score, color, size=210, label="RISCHIO %"):
+    def disegna_gauge_circolare(score, color, size=210, label="RISCHIO %", mostra_percento=False):
         radius = 82
         stroke_width = 15
         center = size / 2
@@ -425,7 +425,7 @@ else:
             <circle cx="{center}" cy="{center}" r="{radius}" fill="none" stroke="{color}" stroke-width="{stroke_width}"
                 stroke-linecap="round" stroke-dasharray="{circumference:.2f}" stroke-dashoffset="{offset:.2f}"
                 transform="rotate(-90 {center} {center})"/>
-            <text x="{center}" y="{center - 4}" text-anchor="middle" font-family="Oswald, sans-serif" font-size="44" font-weight="700" fill="{TXT_PRIMARY}">{int(score)}</text>
+            <text x="{center}" y="{center - 4}" text-anchor="middle" font-family="Oswald, sans-serif" font-size="44" font-weight="700" fill="{TXT_PRIMARY}">{int(score)}{"%" if mostra_percento else ""}</text>
             <text x="{center}" y="{center + 24}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" letter-spacing="2" fill="{TXT_SECONDARY}">{label}</text>
         </svg>
         """
@@ -740,7 +740,7 @@ else:
         gz1, gz2, gz3 = st.columns(3)
         for gcol_widget, (idx, corsia) in zip([gz1, gz2, gz3], enumerate(corsie)):
             num, zt, zn, zd, zcol = corsia
-            gauge_zona_svg = disegna_gauge_circolare(pct_zone[idx], zcol, size=150, label=f"CORSIA {num}")
+            gauge_zona_svg = disegna_gauge_circolare(pct_zone[idx], zcol, size=150, label=f"CORSIA {num}", mostra_percento=True)
             with gcol_widget:
                 embed_svg(gauge_zona_svg, height=165, extra_padding=6)
                 if idx == indice_zona_oggi:
