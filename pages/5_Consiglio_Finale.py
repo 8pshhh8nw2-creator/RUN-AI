@@ -175,17 +175,6 @@ else:
     .chart-caption {{ border-top: 1px solid {PANEL_BD}; margin-top: 10px; padding-top: 10px; color:{TXT_SECONDARY}; font-family:'Inter',sans-serif; font-size:.9rem; line-height:1.55; }}
 
     /* ===================== ZONE FC (nuovo stile) ===================== */
-    .zone-track-wrap {{ margin-bottom: 22px; }}
-    .zone-track {{
-        height: 10px; border-radius: 6px; overflow: hidden; display: flex;
-        border: 1px solid {PANEL_BD}; box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
-    }}
-    .zone-track .seg {{ height: 100%; }}
-    .zone-track-labels {{
-        display:flex; justify-content:space-between; margin-top:8px;
-        font-family:'JetBrains Mono',monospace; font-size:.68rem; letter-spacing:.06em;
-        text-transform:uppercase; color:{TXT_TERTIARY};
-    }}
     .zone-card {{
         background: {PANEL_BG}; border: 1px solid {PANEL_BD}; border-radius: 14px;
         overflow: hidden; height: 100%;
@@ -717,32 +706,54 @@ else:
     # =========================================================
     # CORSIE E ZONE
     # =========================================================
-    section_head("Riferimento", "Le tue Zone di Frequenza Cardiaca", "A quale intensità corrispondono le zone che vedi nei grafici qui sotto.")
+    section_head("Riferimento", "Le tue Zone di Frequenza Cardiaca")
 
     corsie = [
-        ("1", "Zona 1-2", "Recupero / Base Aerobica", "Sforzo bassissimo: riesci a parlare senza fatica. L'energia arriva dai grassi. Perfetta per costruire resistenza senza accumulare stanchezza.", C_RPE, 34),
-        ("2", "Zona 3", "Soglia Aerobica / Tempo", "Ritmo sostenuto, respiro più profondo, poco acido lattico. Serve a rendere il cuore più forte ed efficiente.", C_AMBRA, 33),
-        ("3", "Zona 4-5", "Soglia Lattacida / VO2Max", "Sforzo massimo: parlare diventa difficile. Le fibre muscolari lavorano al limite per poi rinforzarsi. Da usare con moderazione se il rischio infortunio è medio o alto.", C_STRESS, 33),
+        ("1", "Zona 1-2", "Recupero / Base Aerobica", "Sforzo bassissimo: riesci a parlare senza fatica. L'energia arriva dai grassi. Perfetta per costruire resistenza senza accumulare stanchezza.", C_RPE),
+        ("2", "Zona 3", "Soglia Aerobica / Tempo", "Ritmo sostenuto, respiro più profondo, poco acido lattico. Serve a rendere il cuore più forte ed efficiente.", C_AMBRA),
+        ("3", "Zona 4-5", "Soglia Lattacida / VO2Max", "Sforzo massimo: parlare diventa difficile. Le fibre muscolari lavorano al limite per poi rinforzarsi. Da usare con moderazione se il rischio infortunio è medio o alto.", C_STRESS),
     ]
 
-    # Barra continua che riassume visivamente la progressione di intensità
-    # tra le tre zone, in stile "telemetria", coerente con il resto della
-    # pagina (invece delle vecchie card isolate senza un filo conduttore).
-    segmenti_track = "".join(
-        f"<div class='seg' style='width:{pct}%; background:{zcol};'></div>"
-        for _, _, _, _, zcol, pct in corsie
-    )
-    md(f"""
-    <div class='zone-track-wrap'>
-        <div class='zone-track'>{segmenti_track}</div>
-        <div class='zone-track-labels'>
-            <span>Sforzo minimo</span><span>Sforzo massimo</span>
-        </div>
-    </div>
-    """)
+    # Distribuzione storica (% di giorni, negli ultimi 90, passati in
+    # ciascuna corsia): usata per i cruscotti circolari sopra le card e per
+    # capire quale corsia è consigliata oggi. Sostituisce il vecchio grafico
+    # a barre colorate impilate.
+    if 'FC Media' in df_base.columns:
+        fc_serie = df_base['FC Media'].dropna()
+        fc_media_glob = fc_serie.mean()
+        fc_std_glob = fc_serie.std() if fc_serie.std() > 0 else 1.0
+        soglia_bassa = fc_media_glob - 0.5 * fc_std_glob
+        soglia_alta = fc_media_glob + 0.5 * fc_std_glob
+        n_tot = len(fc_serie)
+        pct_zone = [
+            float((fc_serie < soglia_bassa).sum()) / n_tot * 100 if n_tot else 0,
+            float(((fc_serie >= soglia_bassa) & (fc_serie <= soglia_alta)).sum()) / n_tot * 100 if n_tot else 0,
+            float((fc_serie > soglia_alta).sum()) / n_tot * 100 if n_tot else 0,
+        ]
+    else:
+        pct_zone = [None, None, None]
+
+    zona_oggi_map = {"basso": 0, "medio": 0, "alto": None}
+    indice_zona_oggi = zona_oggi_map.get(liv, 0)
+
+    if pct_zone[0] is not None:
+        gz1, gz2, gz3 = st.columns(3)
+        for gcol_widget, (idx, corsia) in zip([gz1, gz2, gz3], enumerate(corsie)):
+            num, zt, zn, zd, zcol = corsia
+            gauge_zona_svg = disegna_gauge_circolare(pct_zone[idx], zcol, size=150, label=f"CORSIA {num}")
+            with gcol_widget:
+                embed_svg(gauge_zona_svg, height=165, extra_padding=6)
+                if idx == indice_zona_oggi:
+                    md(f"<p class='mini-caption' style='text-align:center; color:{zcol}; margin-top:-10px;'><strong>Consigliata per oggi</strong></p>")
+        md("""
+        <p class='mini-caption' style='text-align:center; margin-top:2px;'>
+            Percentuale di giorni, negli ultimi 90, passati in ciascuna corsia (soglie calcolate sulla tua frequenza cardiaca media storica).
+        </p>
+        """)
+        md("<div style='height:14px;'></div>")
 
     cc1, cc2, cc3 = st.columns(3)
-    for c, (num, zt, zn, zd, zcol, _pct) in zip([cc1, cc2, cc3], corsie):
+    for c, (num, zt, zn, zd, zcol) in zip([cc1, cc2, cc3], corsie):
         c.markdown(f"""
         <div class='zone-card' style='--zc:{zcol};'>
             <div class='zone-card-top'></div>
@@ -758,71 +769,6 @@ else:
             </div>
         </div>
         """, unsafe_allow_html=True)
-
-    md("<div style='height:24px;'></div>")
-
-    # ---------------------------------------------------------------
-    # GRAFICO "TERMOMETRO CARDIACO" — dove hai vissuto negli ultimi 90 giorni
-    # (mancava un grafico sotto le zone: qui trasformiamo lo storico di FC
-    # Media in una distribuzione per corsia, con la corsia consigliata per
-    # oggi evidenziata da un marcatore).
-    # ---------------------------------------------------------------
-    if 'FC Media' in df_base.columns:
-        fc_serie = df_base['FC Media'].dropna()
-        fc_media_glob = fc_serie.mean()
-        fc_std_glob = fc_serie.std() if fc_serie.std() > 0 else 1.0
-        soglia_bassa = fc_media_glob - 0.5 * fc_std_glob
-        soglia_alta = fc_media_glob + 0.5 * fc_std_glob
-
-        n_tot = len(fc_serie)
-        pct_z1 = float((fc_serie < soglia_bassa).sum()) / n_tot * 100 if n_tot else 0
-        pct_z2 = float(((fc_serie >= soglia_bassa) & (fc_serie <= soglia_alta)).sum()) / n_tot * 100 if n_tot else 0
-        pct_z3 = float((fc_serie > soglia_alta).sum()) / n_tot * 100 if n_tot else 0
-
-        zona_oggi_map = {"basso": 0, "medio": 0, "alto": None}
-        indice_zona_oggi = zona_oggi_map.get(liv, 0)
-
-        fig_hr_zone = go.Figure()
-        segmenti = [
-            ("Corsia 1 · Recupero", pct_z1, C_RPE),
-            ("Corsia 2 · Soglia Aerobica", pct_z2, C_AMBRA),
-            ("Corsia 3 · Soglia Lattacida", pct_z3, C_STRESS),
-        ]
-        for i, (nome_seg, pct_seg, colore_seg) in enumerate(segmenti):
-            fig_hr_zone.add_trace(go.Bar(
-                y=["Ultimi 90 giorni"], x=[pct_seg], name=nome_seg, orientation='h',
-                marker=dict(
-                    color=colore_seg,
-                    line=dict(color=TXT_PRIMARY, width=3 if i == indice_zona_oggi else 0),
-                ),
-                text=[f"{pct_seg:.0f}%"], textposition='inside',
-                textfont=dict(color=PANEL_BG if pct_seg > 8 else colore_seg, size=12, family="JetBrains Mono, monospace"),
-                insidetextanchor='middle',
-            ))
-        fig_hr_zone.update_layout(
-            barmode='stack', paper_bgcolor=PANEL_BG, plot_bgcolor=PANEL_BG,
-            font=dict(color=TXT_SECONDARY, family="Inter, sans-serif", size=11),
-            margin=dict(l=16, r=16, t=10, b=10), height=130,
-            showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=1.05, x=0, font=dict(size=10)),
-            xaxis=dict(visible=False, range=[0, 100]),
-            yaxis=dict(visible=False),
-            hoverlabel=dict(bgcolor="#1A2233", font_size=12, font_family="Inter, sans-serif", bordercolor=PANEL_BD),
-        )
-
-        if indice_zona_oggi is not None:
-            nome_zona_oggi = segmenti[indice_zona_oggi][0]
-            marcatore_txt = f"Il riquadro con il bordo bianco mostra <strong>{nome_zona_oggi}</strong>, la corsia consigliata per l'allenamento di oggi."
-        else:
-            marcatore_txt = "Oggi nessuna corsia è evidenziata: le condizioni indicano riposo, non una sessione di corsa vera e propria."
-        hr_zone_txt = (
-            f"Negli ultimi 90 giorni hai passato circa il <strong>{pct_z1:.0f}%</strong> delle sedute in Corsia 1, "
-            f"il <strong>{pct_z2:.0f}%</strong> in Corsia 2 e il <strong>{pct_z3:.0f}%</strong> in Corsia 3 "
-            f"(soglie calcolate sulla tua frequenza cardiaca media storica). {marcatore_txt}"
-        )
-        chart_card(st.container(), "Come si distribuisce il tuo storico tra le corsie", fig_hr_zone, hr_zone_txt, col)
-    else:
-        st.info("Colonna 'FC Media' non trovata: impossibile calcolare la distribuzione storica per corsia.")
 
     md("<div style='height:34px;'></div>")
 
