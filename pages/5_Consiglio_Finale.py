@@ -1283,7 +1283,7 @@ PROTOCOLLO COACH COMPLETO{coach_txt}
         # mostrava solo i grafici nudi, senza alcuna scritta di contesto.
         charts_html = ""
         for i, (fig, (titolo_c, spiegazione_c)) in enumerate(zip(figs_per_export, insights_export)):
-            include_js = 'cdn' if i == 0 else False
+            include_js = 'inline' if i == 0 else False
             grafico_html = fig.to_html(full_html=False, include_plotlyjs=include_js, config={'displayModeBar': False})
             charts_html += f"""
             <div class='chart-block'>
@@ -1326,7 +1326,10 @@ PROTOCOLLO COACH COMPLETO{coach_txt}
   .coerenza-note {{ font-size:.85em; color:{TXT_TERTIARY}; margin-bottom:20px; }}
   .panel {{ background:{PANEL_BG}; border:1px solid {PANEL_BD}; border-radius:14px; padding:20px 22px; margin-bottom:14px; }}
   .hero-row {{ display:flex; align-items:center; gap:28px; flex-wrap:wrap; margin: 14px 0 6px 0; }}
-  .hero-row svg {{ max-width: 260px; height:auto; }}
+  .hero-row .hero-gauge {{ flex-shrink:0; max-width:260px; }}
+  .hero-row .hero-gauge svg {{ width:100%; height:auto; display:block; }}
+  .hero-row .hero-telemetry {{ flex:1 1 380px; min-width:280px; }}
+  .hero-row .hero-telemetry svg {{ width:100%; height:auto; display:block; }}
   .kpi-row {{ display:flex; gap:14px; flex-wrap:wrap; margin-top:18px; }}
   .kpi-row .panel {{ flex:1 1 30%; min-width:200px; }}
   .kpi-row .val {{ font-family:'JetBrains Mono',monospace; font-size:1.7em; color:{TXT_PRIMARY}; font-weight:600; }}
@@ -1352,7 +1355,10 @@ PROTOCOLLO COACH COMPLETO{coach_txt}
   <h1>{tit}</h1>
   <p class="hero-msg">{hero_msg}</p>
   <p class="coerenza-note">Rischio da modello ML: {rischio_ml:.0f}% · Rischio da regole cliniche: {risk_score_euristico:.0f}% · {nota_coerenza}</p>
-  <div class="hero-row">{gauge_svg}{radar_svg}</div>
+  <div class="hero-row">
+    <div class="hero-gauge">{gauge_svg}</div>
+    <div class="hero-telemetry">{radar_svg}</div>
+  </div>
   <div class="kpi-row">
     <div class="panel"><p class="eyebrow">Distanza Consigliata</p><div class="val">{distanza_consigliata:.1f} km</div><p style="font-size:.8em; margin-top:6px;">Piano originale: {distanza_target} km</p></div>
     <div class="panel"><p class="eyebrow">Indice Rischio</p><div class="val" style="color:{col};">{risk_score:.0f}%</div><p style="font-size:.8em; margin-top:6px;">Somma pesata di 4 modelli ML più le regole cliniche</p></div>
