@@ -9,7 +9,11 @@ from utils.style import carica_css
 from utils.data import genera_dati
 from utils.components import header_block, get_svg_url
 from utils.kpi_engine import calcola_kpi_giornalieri
-from utils.ml_engine import get_bundle_classificazione, stima_rischio_oggi
+from utils.ml_engine import (
+    get_bundle_classificazione, get_bundle_regressione, get_bundle_cluster,
+    stima_rischio_oggi, analisi_completa_oggi, punteggio_rischio_combinato,
+    PESI_RISCHIO, FEATURE_LABELS_CLASS,
+)
 
 st.set_page_config(page_title="Consiglio Finale", layout="wide")
 carica_css()
@@ -53,16 +57,25 @@ else:
 
     # Il bundle ML e la stima del rischio richiedono 'r' e 'df_base',
     # quindi vanno calcolati qui (non in cima al file, dove non esistono ancora)
-    bundle_ml = get_bundle_classificazione(df_base)
-    stima = stima_rischio_oggi(
-        bundle_ml,
+    # I singoli bundle sono cache_resource in ml_engine: chiamarli qui non
+    # riallena nulla (il training è già avvenuto altrove), ci dà solo accesso
+    # diretto ai modelli per disegnare i grafici più sotto.
+    class_bundle = get_bundle_classificazione(df_base)
+    cluster_bundle = get_bundle_cluster(df_base)
+    reg_bundle = get_bundle_regressione(df_base)
+
+    # analisi_completa_oggi interroga TUTTI i modelli (RF, Logistic, K-Means,
+    # Linear Regression) per lo scenario di oggi: stessa funzione usata dalla
+    # pagina "Analisi Predittiva ML", così il verdetto è sempre coerente.
+    analisi_ml = analisi_completa_oggi(
+        df_base,
         distanza=r.get('distanza_oggi', 10.0),
         ore_sonno=r.get('ore_sonno', 7.5),
         stress=r.get('stress_lavoro', 5),
         rpe=r.get('rpe_previsto', 5),
     )
-    rischio_ml = stima["probabilita_rf"]
-    fattore_ml = stima["fattore_principale_rf"]
+    rischio_ml = analisi_ml["componenti"]["random_forest"]
+    fattore_ml = analisi_ml["fattore_principale_rf"]
 
     # =========================================================
     # TOKEN DI DESIGN (High-Tech Sports Theme)
@@ -209,10 +222,10 @@ else:
         (20 if r.get('ore_sonno', 7.5) < 6.5 and r.get('stress_lavoro', 5) >= 7 and r.get('rpe_previsto', 5) >= 7 else 0)
     )
 
-    # Media pesata: il peso del modello ML aumenta quando c'è più storico disponibile,
-    # l'euristica resta come correttivo basato su soglie cliniche note.
-    peso_ml = 0.65 if len(df_base) >= 30 else 0.35
-    risk_score = round(peso_ml * rischio_ml + (1 - peso_ml) * risk_score_euristico)
+    # Punteggio combinato "ufficiale": media pesata di tutti e 4 i modelli ML
+    # più l'euristica clinica (PESI_RISCHIO in ml_engine.py), la stessa
+    # formula usata nella pagina "Analisi Predittiva ML".
+    risk_score = punteggio_rischio_combinato(analisi_ml["componenti"], risk_score_euristico)
 
     recovery_score = max(0, 100 - abs(r.get('ore_sonno', 7.5) - 7.5) * 13.33)
     sma = (r.get('stress_lavoro', 5) * r.get('rpe_previsto', 5)) / r.get('ore_sonno', 7.5) if r.get('ore_sonno', 7.5) > 0 else 0
@@ -608,6 +621,181 @@ else:
             """)
         figs_per_export.append(fig)
         insights_export.append((titolo, spiegazione))
+
+    # =========================================================
+    # SEZIONE ML: SOTTO IL COFANO — COSA DICONO I MODELLI
+    # =========================================================
+    section_head("Intelligenza Artificiale", "Sotto il cofano: cosa dicono i modelli",
+                 "Il Consiglio Finale non nasce da una sola formula: nasce dal voto di 4 modelli diversi più le regole cliniche. Ecco cosa vede ciascuno.")
+
+    modelli_spiegazione = [
+        ("Random Forest", C_RPE,
+         "Immagina 100 piccoli allenatori che guardano il tuo storico da angolazioni diverse e votano 'rischio' o 'sicuro'. La Random Forest è la somma dei loro voti: è il modello più usato per il verdetto perché coglie relazioni complesse, tipo 'poco sonno conta doppio se lo stress è già alto'."),
+        ("Logistic Regression", C_SONNO,
+         "Un modello più semplice e trasparente: assegna un peso fisso a ogni fattore (sonno, stress, RPE...) e li somma. Meno potente della Random Forest, ma più facile da spiegare: 'ogni ora di sonno in meno aumenta il rischio di una quantità precisa'."),
+        ("K-Means (Clustering)", C_VIOLA,
+         "Raggruppa i tuoi allenamenti passati in 'famiglie' simili per distanza e frequenza cardiaca. Oggi il modello guarda a quale famiglia assomiglia il tuo allenamento previsto, e quanto spesso quella famiglia ha storicamente portato a un giorno a rischio."),
+        ("Linear Regression", C_AMBRA,
+         "Stima quale dovrebbe essere la tua frequenza cardiaca media in base a velocità, temperatura e distanza. Se il cuore batte più forte del previsto in modo continuativo, è un segnale di affaticamento che ritmo e meteo da soli non spiegano."),
+    ]
+    mc1, mc2, mc3, mc4 = st.columns(4)
+    for col_widget, (nome_m, colore_m, spieg_m) in zip([mc1, mc2, mc3, mc4], modelli_spiegazione):
+        col_widget.markdown(f"""
+        <div class='lane-chip' style='--zc:{colore_m}; min-height:200px;'>
+            <div class='zt'>Modello</div>
+            <div class='zn' style='color:{colore_m}; font-size:1.05em;'>{nome_m}</div>
+            <div class='zd'>{spieg_m}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    md("<div style='height:24px;'></div>")
+
+    # ---- Breakdown dei contributi al punteggio finale ----
+    componenti_oggi = {
+        "Euristica clinica": risk_score_euristico,
+        "Random Forest": analisi_ml["componenti"]["random_forest"],
+        "Logistic Regression": analisi_ml["componenti"]["logistic"],
+        "Profilo storico (Cluster)": analisi_ml["componenti"]["cluster"],
+        "Trend fisiologico (FC)": analisi_ml["componenti"]["trend_fisiologico"],
+    }
+    pesi_map = {
+        "Euristica clinica": PESI_RISCHIO["euristica"],
+        "Random Forest": PESI_RISCHIO["random_forest"],
+        "Logistic Regression": PESI_RISCHIO["logistic"],
+        "Profilo storico (Cluster)": PESI_RISCHIO["cluster"],
+        "Trend fisiologico (FC)": PESI_RISCHIO["trend_fisiologico"],
+    }
+    colori_comp = {
+        "Euristica clinica": TXT_TERTIARY, "Random Forest": C_RPE, "Logistic Regression": C_SONNO,
+        "Profilo storico (Cluster)": C_VIOLA, "Trend fisiologico (FC)": C_AMBRA,
+    }
+
+    c_ml1, c_ml2 = st.columns(2)
+
+    nomi_comp = list(componenti_oggi.keys())
+    contributi_pesati = [componenti_oggi[k] * pesi_map[k] for k in nomi_comp]
+    fig_contrib = go.Figure(go.Bar(
+        y=nomi_comp, x=contributi_pesati, orientation='h',
+        marker_color=[colori_comp[k] for k in nomi_comp],
+        text=[f"{v:.1f} pt" for v in contributi_pesati], textposition='outside',
+        textfont=dict(color=TXT_SECONDARY, size=10),
+    ))
+    fig_contrib.update_layout(**layout_base, xaxis_title="Punti sul totale (0-100)")
+    fig_contrib.update_layout(margin=dict(l=150, r=40, t=10, b=32))
+    fattore_dominante = nomi_comp[contributi_pesati.index(max(contributi_pesati))]
+    contrib_txt = f"Il tuo punteggio di rischio di oggi (<strong>{risk_score:.0f}%</strong>) è la somma pesata di questi 5 segnali. Quello che pesa di più oggi è: <strong>{fattore_dominante}</strong>."
+    chart_card(c_ml1, "Da dove nasce il punteggio di oggi", fig_contrib, contrib_txt, C_AMBRA)
+
+    # ---- Feature importance Random Forest ----
+    importanze = sorted(zip(FEATURE_LABELS_CLASS, class_bundle["rf_model"].feature_importances_), key=lambda t: t[1])
+    fig_imp = go.Figure(go.Bar(
+        y=[i[0] for i in importanze], x=[i[1] * 100 for i in importanze], orientation='h',
+        marker_color=C_RPE, text=[f"{i[1]*100:.0f}%" for i in importanze], textposition='outside',
+        textfont=dict(color=TXT_SECONDARY, size=10),
+    ))
+    fig_imp.update_layout(**layout_base, xaxis_title="Importanza relativa")
+    fig_imp.update_layout(margin=dict(l=100, r=40, t=10, b=32))
+    imp_txt = f"Mostra quali fattori la Random Forest guarda di più per decidere se un giorno è a rischio. Nel tuo caso di oggi, il fattore più determinante è: <strong>{fattore_ml}</strong>."
+    chart_card(c_ml2, "Cosa guarda di più la Random Forest", fig_imp, imp_txt, C_RPE)
+
+    md("<div style='height:24px;'></div>")
+
+    c_ml3, c_ml4 = st.columns(2)
+
+    # ---- Coefficienti Logistic Regression ----
+    coefs = sorted(zip(FEATURE_LABELS_CLASS, class_bundle["log_model"].coef_[0]), key=lambda t: t[1])
+    fig_log = go.Figure(go.Bar(
+        y=[c[0] for c in coefs], x=[c[1] for c in coefs], orientation='h',
+        marker_color=[C_STRESS if c[1] > 0 else C_RPE for c in coefs],
+        text=[f"{c[1]:+.2f}" for c in coefs], textposition='outside',
+        textfont=dict(color=TXT_SECONDARY, size=10),
+    ))
+    fig_log.add_vline(x=0, line_color=PANEL_BD_H, line_width=1)
+    fig_log.update_layout(**layout_base, xaxis_title="Coefficiente (verde = riduce rischio, rosso = aumenta)")
+    fig_log.update_layout(margin=dict(l=100, r=40, t=10, b=32))
+    log_txt = "La Logistic Regression assegna un peso fisso a ogni fattore: barra rossa verso destra vuol dire che quel fattore, quando sale, aumenta il rischio; barra verde vuol dire che lo riduce. A differenza della Random Forest, qui la relazione è sempre lineare e diretta."
+    chart_card(c_ml3, "Come pesa i fattori la Logistic Regression", fig_log, log_txt, C_SONNO)
+
+    # ---- Cluster storico ----
+    rischio_cluster_series = cluster_bundle["rischio_per_cluster"]
+    cluster_oggi_id = analisi_ml["cluster_oggi"] - 1
+    fig_clust = go.Figure(go.Bar(
+        x=[f"Profilo {int(cid)+1}" for cid in rischio_cluster_series.index], y=rischio_cluster_series.values,
+        marker_color=[C_VIOLA if int(cid) == cluster_oggi_id else TXT_TERTIARY for cid in rischio_cluster_series.index],
+        text=[f"{v:.0f}%" for v in rischio_cluster_series.values], textposition='outside',
+        textfont=dict(color=TXT_SECONDARY, size=10),
+    ))
+    fig_clust.update_layout(**layout_base, yaxis_title="% giorni a rischio (storico)")
+    rischio_cluster_oggi_pct = float(rischio_cluster_series.get(cluster_oggi_id, 0.0))
+    clust_txt = f"Il K-Means ha raggruppato i tuoi allenamenti passati in {len(rischio_cluster_series)} profili simili per distanza e frequenza cardiaca. L'allenamento previsto per oggi assomiglia al <strong>Profilo {analisi_ml['cluster_oggi']}</strong> (evidenziato in viola), che storicamente ha portato a un giorno a rischio nel <strong>{rischio_cluster_oggi_pct:.0f}%</strong> dei casi."
+    chart_card(c_ml4, "In quale 'famiglia' di allenamenti rientra oggi", fig_clust, clust_txt, C_VIOLA)
+
+    md("<div style='height:24px;'></div>")
+
+    # ---- Linear Regression: FC reale vs prevista ----
+    df_reg_chart = df_base.copy()
+    df_reg_chart['FC_Prevista'] = reg_bundle["fc_predetta"]
+    if date_col:
+        df_reg_chart['Data_Chart'] = pd.to_datetime(df_reg_chart[date_col], errors='coerce')
+    else:
+        df_reg_chart['Data_Chart'] = pd.date_range(end=pd.Timestamp.today(), periods=len(df_reg_chart))
+    df_reg_chart = df_reg_chart.sort_values('Data_Chart').dropna(subset=['Data_Chart']).tail(60)
+
+    fig_reg = go.Figure()
+    fig_reg.add_trace(go.Scatter(
+        x=df_reg_chart['Data_Chart'], y=df_reg_chart['FC Media'], mode='lines',
+        line=dict(color=C_STRESS, width=2), name="FC Reale"
+    ))
+    fig_reg.add_trace(go.Scatter(
+        x=df_reg_chart['Data_Chart'], y=df_reg_chart['FC_Prevista'], mode='lines',
+        line=dict(color=TXT_TERTIARY, width=2, dash='dot'), name="FC Prevista"
+    ))
+    fig_reg.update_layout(**layout_base)
+    fig_reg.update_layout(
+        yaxis_title="Battiti al minuto", showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0, font=dict(size=10))
+    )
+    residuo_oggi = analisi_ml["residuo_recente_bpm"]
+    if residuo_oggi > 3:
+        reg_txt = f"Negli ultimi 14 giorni il tuo cuore ha battuto in media <strong>{residuo_oggi:+.1f} bpm</strong> più del previsto rispetto a ritmo e meteo. È un segnale di affaticamento che i numeri esterni da soli non spiegano: vale la pena tenerlo d'occhio."
+    elif residuo_oggi < -3:
+        reg_txt = f"Negli ultimi 14 giorni il tuo cuore ha battuto in media <strong>{residuo_oggi:+.1f} bpm</strong> meno del previsto: probabilmente stai migliorando la tua efficienza cardiovascolare."
+    else:
+        reg_txt = f"Negli ultimi 14 giorni la differenza tra battito reale e previsto è stata di <strong>{residuo_oggi:+.1f} bpm</strong>, nella norma. Il tuo cuore risponde come atteso a ritmo e condizioni esterne."
+    chart_card(st.container(), "FC reale vs FC prevista (Linear Regression)", fig_reg, reg_txt, C_AMBRA)
+
+    # ---- Affidabilità dei modelli ----
+    md("<div style='height:10px;'></div>")
+    metr_rf = class_bundle["metriche"]["rf"]
+    metr_log = class_bundle["metriche"]["log"]
+    md(f"""
+    <div class='panel' style='padding:24px;'>
+        <p class='eyebrow' style='margin-bottom:16px;'>Quanto ci si può fidare dei modelli</p>
+        <div class='hud-grid'>
+            <div class='hud-stat'>
+                <h2 style='color:{C_RPE};'>{metr_rf['auc']:.2f}</h2>
+                <div class='mini-caption' style='margin:4px 0 0 0;'>AUC Random Forest<br>(1.0 = perfetto, 0.5 = a caso)</div>
+            </div>
+            <div class='hud-stat'>
+                <h2 style='color:{C_SONNO};'>{metr_log['auc']:.2f}</h2>
+                <div class='mini-caption' style='margin:4px 0 0 0;'>AUC Logistic Regression</div>
+            </div>
+            <div class='hud-stat'>
+                <h2 style='color:{C_AMBRA};'>{reg_bundle['r2']:.2f}</h2>
+                <div class='mini-caption' style='margin:4px 0 0 0;'>R² Linear Regression<br>(quanto bene predice la FC)</div>
+            </div>
+            <div class='hud-stat'>
+                <h2 style='color:{C_VIOLA};'>{cluster_bundle['silhouette']:.2f}</h2>
+                <div class='mini-caption' style='margin:4px 0 0 0;'>Silhouette K-Means<br>(quanto sono distinti i profili)</div>
+            </div>
+        </div>
+        <div class='chart-caption' style='margin-top:16px;'>
+            Questi numeri misurano quanto sono affidabili i modelli sul tuo storico, non la previsione di oggi in sé stessa. Più giorni alleni e registri, più questi indicatori tendono a migliorare.
+        </div>
+    </div>
+    """)
+
+    md("<div style='height:34px;'></div>")
 
     # =========================================================
     # SEZIONE 1: DINAMICHE AVANZATE E CARICO 
