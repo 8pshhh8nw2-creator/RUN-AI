@@ -174,6 +174,51 @@ else:
     
     .chart-caption {{ border-top: 1px solid {PANEL_BD}; margin-top: 10px; padding-top: 10px; color:{TXT_SECONDARY}; font-family:'Inter',sans-serif; font-size:.9rem; line-height:1.55; }}
 
+    /* ===================== ZONE FC (nuovo stile) ===================== */
+    .zone-track-wrap {{ margin-bottom: 22px; }}
+    .zone-track {{
+        height: 10px; border-radius: 6px; overflow: hidden; display: flex;
+        border: 1px solid {PANEL_BD}; box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+    }}
+    .zone-track .seg {{ height: 100%; }}
+    .zone-track-labels {{
+        display:flex; justify-content:space-between; margin-top:8px;
+        font-family:'JetBrains Mono',monospace; font-size:.68rem; letter-spacing:.06em;
+        text-transform:uppercase; color:{TXT_TERTIARY};
+    }}
+    .zone-card {{
+        background: {PANEL_BG}; border: 1px solid {PANEL_BD}; border-radius: 14px;
+        overflow: hidden; height: 100%;
+        transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.15);
+    }}
+    .zone-card:hover {{
+        border-color: {PANEL_BD_H}; transform: translateY(-3px);
+        box-shadow: 0 10px 28px rgba(0,0,0,0.32);
+    }}
+    .zone-card.is-active {{ border-color: var(--zc); }}
+    .zone-card-top {{ height: 4px; width: 100%; background: var(--zc); }}
+    .zone-card-body {{ padding: 20px 20px 22px 20px; }}
+    .zone-card-head {{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }}
+    .zone-badge {{
+        flex-shrink:0; display:flex; align-items:center; justify-content:center;
+        width:38px; height:38px; border-radius:50%;
+        border:2px solid var(--zc); color:var(--zc); background: var(--zc)14;
+        font-family:'JetBrains Mono',monospace; font-weight:700; font-size:1.05rem;
+    }}
+    .zone-head-txt {{ display:flex; flex-direction:column; gap:3px; }}
+    .zone-eyebrow {{
+        font-family:'JetBrains Mono',monospace; font-size:.68rem; letter-spacing:.1em;
+        text-transform:uppercase; color:{TXT_TERTIARY}; font-weight:700;
+    }}
+    .zone-title {{
+        font-family:'Oswald',sans-serif; font-weight:600; font-size:1.05rem;
+        text-transform:uppercase; letter-spacing:.02em; color:{TXT_PRIMARY};
+    }}
+    .zone-desc {{ font-family:'Inter',sans-serif; color:{TXT_SECONDARY}; font-size:.88rem; line-height:1.6; margin:0; }}
+
+    .chart-caption {{ border-top: 1px solid {PANEL_BD}; margin-top: 10px; padding-top: 10px; color:{TXT_SECONDARY}; font-family:'Inter',sans-serif; font-size:.9rem; line-height:1.55; }}
+
     /* ===================== NUOVI STILI "WOW" ===================== */
     @keyframes heroReveal {{
         from {{ opacity: 0; transform: translateY(10px); }}
@@ -377,8 +422,16 @@ else:
         circumference = 2 * 3.14159265 * radius
         offset = circumference * (1 - min(max(score, 0), 100) / 100)
 
+        # width/height fissi (oltre al viewBox): senza questi il browser
+        # tratta l'SVG come "responsivo" e lo stira per riempire tutta la
+        # larghezza della colonna che lo ospita. Se quella colonna è più
+        # larga dell'altezza fissa dell'iframe (embed_svg), il cerchio
+        # cresce oltre lo spazio disponibile e viene tagliato in alto/basso.
+        # Con width/height espliciti l'SVG mantiene sempre le sue
+        # dimensioni naturali e si rimpicciolisce (mai ingrandisce) per
+        # adattarsi, restando sempre dentro l'iframe.
         return f"""
-        <svg viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg">
+        <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg" style="display:block;">
             <circle cx="{center}" cy="{center}" r="{radius}" fill="none" stroke="{C_NEUTRO}" stroke-width="{stroke_width}"/>
             <circle cx="{center}" cy="{center}" r="{radius}" fill="none" stroke="{color}" stroke-width="{stroke_width}"
                 stroke-linecap="round" stroke-dasharray="{circumference:.2f}" stroke-dashoffset="{offset:.2f}"
@@ -398,6 +451,11 @@ else:
         # height include un margine di sicurezza extra: senza margine, in
         # alcune finestre l'SVG (specie le etichette sopra/sotto la barra)
         # veniva tagliato dall'iframe a altezza fissa.
+        # max-width E max-height (mai solo max-width) impediscono all'SVG di
+        # essere ingrandito oltre le sue dimensioni naturali quando la
+        # colonna che lo ospita è più larga dell'altezza fissa dell'iframe:
+        # senza max-height un SVG quadrato "responsivo" può crescere in
+        # altezza più dello spazio disponibile e finire tagliato.
         st.components.v1.html(f"""
         <html>
         <head>
@@ -408,7 +466,7 @@ else:
                 width:100%; height:100%; background:transparent;
                 padding:{extra_padding}px; box-sizing:border-box; overflow:visible;
             }}
-            .svg-wrap svg {{ max-width:100%; height:auto; overflow:visible; }}
+            .svg-wrap svg {{ max-width:100%; max-height:100%; width:auto; height:auto; overflow:visible; }}
         </style>
         </head>
         <body>
@@ -662,18 +720,42 @@ else:
     section_head("Riferimento", "Le tue Zone di Frequenza Cardiaca", "A quale intensità corrispondono le zone che vedi nei grafici qui sotto.")
 
     corsie = [
-        ("Corsia 1", "Zona 1-2", "Recupero / Base Aerobica", "Sforzo bassissimo: riesci a parlare senza fatica. L'energia arriva dai grassi. Perfetta per costruire resistenza senza accumulare stanchezza.", C_RPE),
-        ("Corsia 2", "Zona 3", "Soglia Aerobica / Tempo", "Ritmo sostenuto, respiro più profondo, poco acido lattico. Serve a rendere il cuore più forte ed efficiente.", C_AMBRA),
-        ("Corsia 3", "Zona 4-5", "Soglia Lattacida / VO2Max", "Sforzo massimo: parlare diventa difficile. Le fibre muscolari lavorano al limite per poi rinforzarsi. Da usare con moderazione se il rischio infortunio è medio o alto.", C_STRESS),
+        ("1", "Zona 1-2", "Recupero / Base Aerobica", "Sforzo bassissimo: riesci a parlare senza fatica. L'energia arriva dai grassi. Perfetta per costruire resistenza senza accumulare stanchezza.", C_RPE, 34),
+        ("2", "Zona 3", "Soglia Aerobica / Tempo", "Ritmo sostenuto, respiro più profondo, poco acido lattico. Serve a rendere il cuore più forte ed efficiente.", C_AMBRA, 33),
+        ("3", "Zona 4-5", "Soglia Lattacida / VO2Max", "Sforzo massimo: parlare diventa difficile. Le fibre muscolari lavorano al limite per poi rinforzarsi. Da usare con moderazione se il rischio infortunio è medio o alto.", C_STRESS, 33),
     ]
+
+    # Barra continua che riassume visivamente la progressione di intensità
+    # tra le tre zone, in stile "telemetria", coerente con il resto della
+    # pagina (invece delle vecchie card isolate senza un filo conduttore).
+    segmenti_track = "".join(
+        f"<div class='seg' style='width:{pct}%; background:{zcol};'></div>"
+        for _, _, _, _, zcol, pct in corsie
+    )
+    md(f"""
+    <div class='zone-track-wrap'>
+        <div class='zone-track'>{segmenti_track}</div>
+        <div class='zone-track-labels'>
+            <span>Sforzo minimo</span><span>Sforzo massimo</span>
+        </div>
+    </div>
+    """)
+
     cc1, cc2, cc3 = st.columns(3)
-    for c, (num, zt, zn, zd, zcol) in zip([cc1, cc2, cc3], corsie):
+    for c, (num, zt, zn, zd, zcol, _pct) in zip([cc1, cc2, cc3], corsie):
         c.markdown(f"""
-        <div class='lane-chip' style='--zc:{zcol};'>
-            <div class='lane-num'>{num}</div>
-            <div class='zt'>{zt}</div>
-            <div class='zn'>{zn}</div>
-            <div class='zd'>{zd}</div>
+        <div class='zone-card' style='--zc:{zcol};'>
+            <div class='zone-card-top'></div>
+            <div class='zone-card-body'>
+                <div class='zone-card-head'>
+                    <div class='zone-badge'>{num}</div>
+                    <div class='zone-head-txt'>
+                        <span class='zone-eyebrow'>{zt}</span>
+                        <span class='zone-title'>{zn}</span>
+                    </div>
+                </div>
+                <p class='zone-desc'>{zd}</p>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
