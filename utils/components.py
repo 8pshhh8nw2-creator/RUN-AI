@@ -36,8 +36,8 @@ def header_block(kicker, title, subtitle, image_url=None, image_tag=None):
             """, unsafe_allow_html=True)
         with col_img:
             st.markdown(f"""
-            <div class="hero-media">
-                <img src="{image_url}" />
+            <div class="hero-media" style="background:transparent;border:none;box-shadow:none;padding:0;">
+                <img src="{image_url}" style="display:block;width:100%;background:transparent;border:none;border-radius:0;mix-blend-mode:screen;" />
                 <div class="tag">{image_tag or ''}</div>
             </div>
             """, unsafe_allow_html=True)
