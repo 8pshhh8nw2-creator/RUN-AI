@@ -25,10 +25,25 @@ def get_svg_url(svg_string):
     return f"data:image/svg+xml;base64,{b64}"
 
 
+# Rete di sicurezza: azzera qualsiasi cornice/sfondo/bordo che il CSS globale
+# potesse applicare al contenitore dell'immagine (è la causa tipica del "rettangolo").
+_HERO_RESET_CSS = """
+<style>
+.hero-media, .hero-media > div, .hero-media img {
+    background: none !important; background-color: transparent !important;
+    border: none !important; outline: none !important; box-shadow: none !important;
+    border-radius: 0 !important; backdrop-filter: none !important; padding: 0 !important;
+}
+.hero-media::before, .hero-media::after { display: none !important; content: none !important; }
+</style>
+"""
+
+
 def header_block(kicker, title, subtitle, image_url=None, image_tag=None):
     st.markdown("<div class='telemetry-bar'></div>", unsafe_allow_html=True)
     if image_url:
-        col_txt, col_img = st.columns([1.2, 1.4])   # immagine più grande (prima [1.4, 1])
+        st.markdown(_HERO_RESET_CSS, unsafe_allow_html=True)
+        col_txt, col_img = st.columns([1.1, 1.5])
         with col_txt:
             st.markdown(f"""
             <div class="app-header">
@@ -55,59 +70,54 @@ def header_block(kicker, title, subtitle, image_url=None, image_tag=None):
 
 
 # =========================================================
-# LIBRERIA CONDIVISA — illustrazioni vettoriali senza sfondo.
-# Runner low-poly a mesh generato una sola volta e riusato con <use>.
-# Ogni scena passa da _svg(), che la sfuma ai bordi: nessun rettangolo.
+# LIBRERIA CONDIVISA
+# ---------------------------------------------------------
+# * Il runner è un vero modello 3D: arti e busto sono tubi rastremati a sezione
+#   ellittica (con i rigonfiamenti dei muscoli), testa a ellissoide, scarpe.
+#   Ogni faccia è un triangolo ombreggiato con luce direzionale (diffusa,
+#   speculare, bagliore sui bordi) e ordinato per profondità. Vista a 3/4.
+# * Ogni scena è divisa in SCENARIO (passa da una maschera ellittica sfumata,
+#   quindi non ha mai bordi o angoli) e FG (runner, pannelli, HUD).
 # =========================================================
 
-# ---------- modello del runner (posa da sprint) ----------
-# Capsule rastremate: nome, (x, y, raggio) inizio, (x, y, raggio) fine,
-# luminosità base, priorità (i valori alti stanno davanti).
-_K = 1.2
-_RAW = [
-    ("head", (128, 30, 15), (128, 30, 15), 0.52, 0),
-    ("neck", (123, 44, 5.5), (119, 57, 6.5), 0.36, 0),
-    ("chest", (114, 68, 14.5), (99, 92, 14.5), 0.62, 0),
-    ("abs", (99, 92, 12.5), (88, 120, 12), 0.50, 0),
-    ("hip", (82, 130, 14), (91, 132, 13), 0.30, 1),
-    ("delN", (116, 64, 8.5), (118, 70, 8), 0.62, 3),
-    ("uaN", (116, 64, 7.2), (129, 96, 5.6), 0.58, 3),
-    ("faN", (129, 96, 5.6), (155, 80, 3.9), 0.55, 3),
-    ("haN", (158, 78, 5.4), (158, 78, 5.4), 0.58, 3),
-    ("uaF", (111, 64, 6.8), (83, 80, 5.4), 0.26, -2),
-    ("faF", (83, 80, 5.4), (63, 103, 3.8), 0.24, -2),
-    ("haF", (61, 105, 5.0), (61, 105, 5.0), 0.24, -2),
-    ("thN", (88, 128, 13.5), (130, 138, 8.8), 0.52, 2),
-    ("shN", (130, 138, 7.6), (112, 182, 4.2), 0.55, 2),
-    ("clN", (127, 150, 8.0), (120, 166, 7.0), 0.56, 2),
-    ("ftN", (113, 184, 4.4), (133, 191, 3.0), 0.90, 2),
-    ("thF", (84, 130, 12.5), (56, 166, 8.2), 0.28, -1),
-    ("shF", (56, 166, 7.2), (20, 196, 4.0), 0.30, -1),
-    ("clF", (50, 172, 7.6), (38, 182, 6.5), 0.30, -1),
-    ("ftF", (20, 197, 4.2), (3, 203, 2.8), 0.62, -1),
-]
-_SEGS = [(n, tuple(v * _K for v in a), tuple(v * _K for v in b), base, prio)
-         for n, a, b, base, prio in _RAW]
-
-# giunti principali (coordinate locali già scalate)
-_JU = dict(head=(128, 30), neck=(121, 50), sh=(114, 64), chest=(107, 80), elN=(129, 96), haN=(156, 79),
-           elF=(83, 80), haF=(62, 104), hip=(86, 129), knN=(130, 138), anN=(112, 182),
-           knF=(56, 166), anF=(20, 196))
-_JT = {k: (v[0] * _K, v[1] * _K) for k, v in _JU.items()}
+# ---------- geometria 3D ----------
+_K = 1.2                      # scala globale del modello
+_YAW = 0.30                   # rotazione a 3/4 (rad)
+_CYAW, _SYAW = math.cos(_YAW), math.sin(_YAW)
+_PIV = 100.0
 
 
-def _at(x, y, s, name):
-    """Posizione assoluta di un giunto per un runner disegnato in (x, y) con scala s."""
-    return x + _JT[name][0] * s, y + _JT[name][1] * s
+def _rot(p):
+    dx = p[0] - _PIV
+    return (_PIV + dx * _CYAW - p[2] * _SYAW, p[1], dx * _SYAW + p[2] * _CYAW)
 
+
+def _rotv(v):
+    return (v[0] * _CYAW - v[2] * _SYAW, v[1], v[0] * _SYAW + v[2] * _CYAW)
+
+
+def _v3(a, b):
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def _cross(a, b):
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
+def _dot(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def _norm(a):
+    l = math.sqrt(_dot(a, a)) or 1.0
+    return (a[0] / l, a[1] / l, a[2] / l)
+
+
+_LIGHT = _norm((0.50, -0.62, 0.60))                      # alto-destra, davanti
+_HALF = _norm((_LIGHT[0], _LIGHT[1], _LIGHT[2] + 1.0))
 
 _RAMP = [(0.0, (6, 30, 95)), (0.3, (14, 72, 190)), (0.55, (40, 125, 235)),
          (0.8, (120, 195, 255)), (1.0, (230, 247, 255))]
-
-# luce da alto-destra, verso lo spettatore (vettore 3D normalizzato)
-_LIGHT = (0.55, -0.65, 0.52)
-_ln = math.sqrt(sum(c * c for c in _LIGHT))
-_LIGHT = tuple(c / _ln for c in _LIGHT)
 
 
 def _ramp(v):
@@ -119,65 +129,184 @@ def _ramp(v):
     return "#E6F7FF"
 
 
-def _nearest(px, py):
-    best = None
-    for name, (x1, y1, r1), (x2, y2, r2), base, prio in _SEGS:
-        dx, dy = x2 - x1, y2 - y1
-        l2 = dx * dx + dy * dy
-        t = 0.0 if l2 == 0 else max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / l2))
-        cx, cy, r = x1 + t * dx, y1 + t * dy, r1 + t * (r2 - r1)
-        raw = math.hypot(px - cx, py - cy) - r
-        if raw <= 0.5:
-            key = raw - prio * 2.5
-            if best is None or key < best[0]:
-                best = (key, name, base, (px - cx) / r, (py - cy) / r, t)
-    return best
+def _cr(p0, p1, p2, p3, t):
+    """Catmull-Rom su tuple (x, y, z, r_piano, r_profondità)."""
+    t2, t3 = t * t, t * t * t
+    return tuple(0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3)
+                 for a, b, c, d in zip(p0, p1, p2, p3))
 
 
-def _mesh_color(info, rnd):
-    _, name, base, nx_, ny_, t = info
-    m = math.hypot(nx_, ny_)
-    if m > 1:
-        nx_, ny_ = nx_ / m, ny_ / m
-    nz = math.sqrt(max(0.0, 1 - nx_ * nx_ - ny_ * ny_))      # normale "sferica"
-    diff = max(0.0, nx_ * _LIGHT[0] + ny_ * _LIGHT[1] + nz * _LIGHT[2])
-    v = base * (0.45 + 0.95 * diff) + 0.20 * diff ** 12 + rnd.uniform(-0.05, 0.05)
-    if name == "chest" and nx_ > 0.1:
-        v += 0.08
-    if name == "abs":
-        v -= 0.05
-    if name == "hip":
-        v -= 0.12
-    if name in ("thN", "thF") and t < 0.42:
-        v -= 0.16                                   # pantaloncini
-    if name in ("thN", "thF") and t >= 0.42:
-        v += 0.04 * math.sin(t * 7 + nx_ * 2)       # accenno di muscolatura
-    if name == "head" and ny_ < -0.15 and nx_ < 0.55:
-        v -= 0.30                                   # capelli
-    if name in ("ftN", "ftF") and ny_ > 0.4:
-        v -= 0.28                                   # suola
-    return _ramp(v)
+def _sample(nodes, per):
+    pts, n = [], len(nodes)
+    for i in range(n - 1):
+        p0, p1, p2, p3 = nodes[max(i - 1, 0)], nodes[i], nodes[i + 1], nodes[min(i + 2, n - 1)]
+        for k in range(per):
+            pts.append(_cr(p0, p1, p2, p3, k / per))
+    pts.append(nodes[-1])
+    return pts
 
 
-def _build_mesh(cs=4):
-    rnd = random.Random(42)
-    nx, ny = 50, 61                                  # stessa area di prima, celle più fini
-    P = [[(i * cs + rnd.uniform(-1.2, 1.2), 12 + j * cs + rnd.uniform(-1.2, 1.2))
-          for j in range(ny + 1)] for i in range(nx + 1)]
+def _rings(nodes, sides, per):
+    pts = _sample(nodes, per)
+    rings = []
+    for i, p in enumerate(pts):
+        a, b = pts[max(i - 1, 0)], pts[min(i + 1, len(pts) - 1)]
+        d = _norm((b[0] - a[0], b[1] - a[1], b[2] - a[2]))
+        ux, uy = d[1], -d[0]
+        m = math.hypot(ux, uy)
+        ux, uy = (1.0, 0.0) if m < 1e-6 else (ux / m, uy / m)
+        rin, rz = max(0.6, p[3]), max(0.6, p[4])
+        ring = []
+        for s in range(sides):
+            ang = 2 * math.pi * s / sides
+            ca, sa = math.cos(ang), math.sin(ang)
+            ring.append(_rot((p[0] + rin * ca * ux, p[1] + rin * ca * uy, p[2] + rz * sa)))
+        rings.append(dict(c=_rot(p[:3]), p=ring, d=_rotv(d), r=(rin + rz) / 2))
+    return rings
+
+
+# --- modificatori di materiale (t = posizione lungo il tubo, n = normale in vista)
+def _m_none(t, n):
+    return 0.0
+
+
+def _m_torso(t, n):
+    if t > 0.80:
+        return -0.16                                  # pantaloncini (fascia in vita)
+    return 0.06 if (t < 0.5 and n[0] > 0.25) else 0.0  # petto illuminato
+
+
+def _m_leg(t, n):
+    if t < 0.36:
+        return -0.15                                  # pantaloncini
+    if t < 0.41:
+        return 0.08                                   # bordo dei pantaloncini
+    return 0.03 * math.sin(t * 18)                    # accenno di muscolatura
+
+
+def _m_head(t, n):
+    v = 0.0
+    if n[1] < -0.2 and n[0] < 0.55:
+        v -= 0.40                                     # capelli
+    if 0.36 < t < 0.52 and n[0] > 0.3:
+        v -= 0.28                                     # visiera / occhiali
+    return v
+
+
+def _m_foot(t, n):
+    return -0.30 if n[1] > 0.45 else 0.0              # suola
+
+
+def _m_arm(t, n):
+    return 0.05 if t > 0.86 else 0.0
+
+
+# nodi: (x, y, z, raggio_nel_piano, raggio_in_profondità)
+_TORSO = [(119, 52, 0, 8.5, 10), (114, 66, 0, 14, 18), (105, 84, 0, 14.5, 16.5),
+          (96, 102, 0, 12, 13), (89, 120, 0, 13.5, 14.5), (86, 136, 0, 10.5, 12.5)]
+_NECK = [(125, 38, 0, 5.6, 5.8), (121, 48, 0, 5.8, 6.0), (117, 60, 0, 7.0, 7.5)]
+_HEAD = [(127, 15.2, 0, 6.0, 5.5), (127, 18, 0, 9.5, 8.5), (128, 25, 0, 14.5, 12),
+         (129, 33, 0, 14, 11.5), (129, 40, 0, 10.5, 9), (128, 46, 0, 4.5, 5)]
+_ARM_N = [(115, 62, 17, 8.6, 8.6), (121, 78, 17, 6.9, 7.1), (129, 96, 17, 5.5, 5.6),
+          (143, 88, 17, 5.6, 5.8), (155, 80, 17, 3.8, 4.0), (160, 77, 17, 5.0, 5.0)]
+_ARM_F = [(111, 62, -17, 8.2, 8.2), (97, 71, -17, 6.5, 6.7), (83, 80, -17, 5.3, 5.3),
+          (72, 92, -17, 5.1, 5.3), (63, 103, -17, 3.7, 3.9), (59, 107, -17, 4.8, 4.8)]
+_LEG_N = [(88, 126, 10, 14.5, 13), (101, 131, 10, 14.5, 12.5), (116, 135, 10, 12, 11.5),
+          (130, 138, 10, 8, 8.6), (125, 150, 10, 8.8, 9), (118, 166, 10, 6.4, 6.6), (112, 181, 10, 4.2, 4.6)]
+_LEG_F = [(86, 128, -10, 14, 12.5), (76, 141, -10, 13, 12), (65, 154, -10, 10.5, 10.4),
+          (56, 166, -10, 7.4, 7.8), (46, 175, -10, 8, 8.4), (33, 187, -10, 5.6, 5.8), (21, 196, -10, 4.0, 4.4)]
+_FOOT_N = [(112, 183, 10, 5.2, 5.0), (121, 189, 10, 4.6, 5.2), (134, 191, 10, 3.4, 4.4)]
+_FOOT_F = [(21, 197, -10, 4.6, 4.6), (11, 201, -10, 4.2, 4.6), (2, 204, -10, 3.0, 4.2)]
+
+# nome, nodi, lati, suddivisioni, luminosità, modificatore, lato lontano, tappi
+_CHAINS = [
+    ("torso", _TORSO, 12, 3, 0.62, _m_torso, False, ""),
+    ("neck", _NECK, 8, 2, 0.48, _m_none, False, ""),
+    ("head", _HEAD, 12, 2, 0.56, _m_head, False, "both"),
+    ("armN", _ARM_N, 8, 3, 0.58, _m_arm, False, "end"),
+    ("armF", _ARM_F, 8, 3, 0.58, _m_arm, True, "end"),
+    ("legN", _LEG_N, 10, 3, 0.54, _m_leg, False, ""),
+    ("legF", _LEG_F, 10, 3, 0.54, _m_leg, True, ""),
+    ("ftN", _FOOT_N, 8, 2, 0.92, _m_foot, False, "end"),
+    ("ftF", _FOOT_F, 8, 2, 0.92, _m_foot, True, "end"),
+]
+
+# giunti (per sensori, scheletro, linee dati) — proiettati dal modello 3D
+_J3 = dict(head=(128, 30, 0), neck=(121, 50, 0), sh=(114, 64, 17), shF=(112, 64, -17), chest=(107, 80, 0),
+           elN=(129, 96, 17), haN=(156, 79, 17), elF=(83, 80, -17), haF=(62, 104, -17), hip=(86, 129, 0),
+           knN=(130, 138, 10), anN=(112, 182, 10), knF=(56, 166, -10), anF=(20, 196, -10))
+_JT = {k: (_rot(v)[0] * _K, _rot(v)[1] * _K) for k, v in _J3.items()}
+
+
+def _at(x, y, s, name):
+    """Posizione assoluta di un giunto per un runner disegnato in (x, y) con scala s."""
+    return x + _JT[name][0] * s, y + _JT[name][1] * s
+
+
+def _place(cx, s, top):
+    """(x, y) con cui disegnare il runner: centrato su cx, cima della testa a 'top'."""
+    return cx - 100 * s, top - 17 * s
+
+
+def _emit(ch, out, rnd):
+    name, nodes, sides, per, base, mod, far, caps = ch
+    rings = _rings(nodes, sides, per)
+    nr = len(rings)
+
+    def add(a, b, c, cen, t):
+        n = _cross(_v3(b, a), _v3(c, a))
+        m = ((a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3)
+        if _dot(n, _v3(m, cen)) < 0:
+            n = (-n[0], -n[1], -n[2])
+        n = _norm(n)
+        if n[2] < -0.10:                              # facce di spalle: scartate
+            return
+        diff = max(0.0, _dot(n, _LIGHT))
+        spec = 0.24 * max(0.0, _dot(n, _HALF)) ** 14
+        rim = 0.20 * (1 - max(0.0, n[2])) ** 2
+        v = base * (0.42 + 0.95 * diff) + spec + rim + mod(t, n) + rnd.uniform(-0.035, 0.035)
+        if far:
+            v *= 0.66
+        out.append(((a[2] + b[2] + c[2]) / 3, ((a[0], a[1]), (b[0], b[1]), (c[0], c[1])), _ramp(v)))
+
+    for i in range(nr - 1):
+        r0, r1 = rings[i], rings[i + 1]
+        cen = tuple((p + q) / 2 for p, q in zip(r0["c"], r1["c"]))
+        t = (i + 0.5) / (nr - 1)
+        for s in range(sides):
+            s2 = (s + 1) % sides
+            a, b, c, d = r0["p"][s], r0["p"][s2], r1["p"][s2], r1["p"][s]
+            if (i + s) % 2:
+                add(a, b, c, cen, t)
+                add(a, c, d, cen, t)
+            else:
+                add(a, b, d, cen, t)
+                add(b, c, d, cen, t)
+
+    def cap(ring, sign, t):
+        c, d, r = ring["c"], ring["d"], ring["r"]
+        tip = (c[0] + sign * d[0] * r * 0.4, c[1] + sign * d[1] * r * 0.4, c[2] + sign * d[2] * r * 0.4)
+        for s in range(sides):
+            add(tip, ring["p"][s], ring["p"][(s + 1) % sides], c, t)
+
+    if caps in ("end", "both"):
+        cap(rings[-1], 1, 0.99)
+    if caps == "both":
+        cap(rings[0], -1, 0.01)
+
+
+def _build_mesh():
+    rnd = random.Random(7)
+    tris = []
+    for ch in _CHAINS:
+        _emit(ch, tris, rnd)
+    tris.sort(key=lambda t: t[0])                     # dal fondo al davanti
     polys, verts = [], []
-    for i in range(nx):
-        for j in range(ny):
-            a, b, c, d = P[i][j], P[i + 1][j], P[i + 1][j + 1], P[i][j + 1]
-            for tri in (((a, b, c), (a, c, d)) if (i + j) % 2 else ((a, b, d), (b, c, d))):
-                cx = sum(p[0] for p in tri) / 3
-                cy = sum(p[1] for p in tri) / 3
-                info = _nearest(cx, cy)
-                if info is None:
-                    continue
-                pts = " ".join(f"{p[0]:.0f},{p[1]:.0f}" for p in tri)
-                polys.append(f'<polygon points="{pts}" fill="{_mesh_color(info, rnd)}"/>')
-                verts.extend(tri)
-    spark = "".join(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="1.4"/>' for x, y in rnd.sample(verts, 60))
+    for _, pts, col in tris:
+        polys.append('<polygon points="' + " ".join(f"{x * _K:.1f},{y * _K:.1f}" for x, y in pts)
+                     + f'" fill="{col}"/>')
+        verts.extend(pts)
+    spark = "".join(f'<circle cx="{x * _K:.1f}" cy="{y * _K:.1f}" r="1.3"/>' for x, y in rnd.sample(verts, 48))
     return "".join(polys), spark
 
 
@@ -211,12 +340,6 @@ RUNNER_GLOW_DEFS = """
         <feFlood flood-color="#8FD3FF" flood-opacity="0.9"/>
         <feComposite in2="edge" operator="in"/>
     </filter>
-    <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#000000"/><stop offset="100%" stop-color="#040C1C"/>
-    </linearGradient>
-    <linearGradient id="groundG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#050A14"/><stop offset="100%" stop-color="#000000"/>
-    </linearGradient>
     <linearGradient id="speedG" x1="1" y1="0" x2="0" y2="0">
         <stop offset="0%" stop-color="#7EC8FF" stop-opacity="0.85"/>
         <stop offset="100%" stop-color="#7EC8FF" stop-opacity="0"/>
@@ -231,23 +354,31 @@ RUNNER_GLOW_DEFS = """
         <stop offset="0%" stop-color="#2F8FE0" stop-opacity="0.45"/>
         <stop offset="100%" stop-color="#2F8FE0" stop-opacity="0"/>
     </linearGradient>
-""" + (f'<g id="meshBody" stroke="#BFE6FF" stroke-width="0.5" stroke-opacity="0.45" stroke-linejoin="round">'
+""" + (f'<g id="meshBody" stroke="#BFE6FF" stroke-width="0.45" stroke-opacity="0.40" stroke-linejoin="round">'
        f'{_MESH}<g stroke="none" fill="#fff" opacity="0.9">{_SPARK}</g></g>')
 
+# Maschera ellittica: lo scenario sfuma a zero prima di toccare i bordi dell'immagine
+# (in alto, in basso, a destra e a sinistra), quindi non compare nessun rettangolo.
+_FADE_DEFS = (
+    '<radialGradient id="fadeG" gradientUnits="userSpaceOnUse" cx="600" cy="250" r="600" '
+    'gradientTransform="translate(0 250) scale(1 0.40) translate(0 -250)">'
+    '<stop offset="0" stop-color="#fff"/><stop offset="0.55" stop-color="#fff"/>'
+    '<stop offset="0.78" stop-color="#fff" stop-opacity="0.6"/>'
+    '<stop offset="0.92" stop-color="#fff" stop-opacity="0.15"/>'
+    '<stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>'
+    '<mask id="fadeMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="500">'
+    '<rect width="1200" height="500" fill="url(#fadeG)"/></mask>')
 
-def _svg(body, extra_defs=""):
-    """Avvolge la scena in un SVG con bordi sfumati (nessun rettangolo visibile)."""
+
+def _svg(scene, fg="", extra_defs=""):
+    """scene = scenario (sfumato ai bordi); fg = runner, pannelli, HUD (non mascherati)."""
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 20 1160 460">'
-            f'<defs>{RUNNER_GLOW_DEFS}{extra_defs}'
-            f'<filter id="feather" x="-20%" y="-20%" width="140%" height="140%">'
-            f'<feGaussianBlur stdDeviation="16"/></filter>'
-            f'<mask id="fadeMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="500">'
-            f'<rect x="20" y="20" width="1160" height="460" rx="36" fill="#fff" filter="url(#feather)"/>'
-            f'</mask></defs><g mask="url(#fadeMask)">{body}</g></svg>')
+            f'<defs>{RUNNER_GLOW_DEFS}{extra_defs}{_FADE_DEFS}</defs>'
+            f'<g mask="url(#fadeMask)">{scene}</g>{fg}</svg>')
 
 
 def _runner(x, y, s=1.0, nodes=True):
-    return (f'<g transform="translate({x},{y}) scale({s})">'
+    return (f'<g transform="translate({x:.1f},{y:.1f}) scale({s})">'
             f'<use href="#meshBody" filter="url(#meshGlow)" opacity="0.6"/>'
             f'<use href="#meshBody" filter="url(#rim)"/>'
             f'<use href="#meshBody"/>{_RUNNER_NODES if nodes else ""}</g>')
@@ -255,7 +386,7 @@ def _runner(x, y, s=1.0, nodes=True):
 
 def _runner_at(x, y, s=1.0, nodes=True):
     """Runner con riflesso blu sotto i piedi."""
-    gx, gy = x + 98 * s, y + 247 * s
+    gx, gy = x + 100 * s, y + 246 * s
     ground = (f'<ellipse cx="{gx:.0f}" cy="{gy:.0f}" rx="{115 * s:.0f}" ry="{16 * s:.0f}" fill="url(#runnerGlow)"/>'
               f'<ellipse cx="{gx:.0f}" cy="{gy:.0f}" rx="{70 * s:.0f}" ry="{4 * s:.0f}" fill="#2F8FE0" opacity="0.35"/>')
     return ground + _runner(x, y, s, nodes)
@@ -338,6 +469,19 @@ def _wave(x0, x1, y, amp, cycles, n=80, phase=0.0):
         for i in range(n + 1))
 
 
+def _ecg(x0, x1, y, beats=2):
+    beat = [(0, 0), (.10, 0), (.14, -14), (.18, 16), (.22, -40), (.26, 24), (.30, 0),
+            (.42, 0), (.47, -10), (.53, 6), (.58, 0), (1, 0)]
+    w = (x1 - x0) / beats
+    return " ".join(f"{x0 + w * (b + fx):.0f},{y + dy}" for b in range(beats) for fx, dy in beat)
+
+
+def _link(p, tx, ty):
+    """Curva a S dal sensore sul corpo al pannello."""
+    mx = (p[0] + tx) / 2
+    return f'<path d="M{p[0]:.0f},{p[1]:.0f} C{mx:.0f},{p[1]:.0f} {mx:.0f},{ty} {tx},{ty}"/>'
+
+
 def _ticks(cx, cy, r1, r2, a0, span, n, major=5):
     out = []
     for i in range(n + 1):
@@ -385,12 +529,14 @@ def _backdrop(cx, cy, rx, ry):
 # =========================================================
 # HOME — notte sulla città: skyline, luna a fasce, strada in prospettiva
 # con traccia GPS, pin di destinazione pulsante e pannelli dati.
+# Runner grande al centro-sinistra, pannelli negli spazi liberi.
 # =========================================================
 _SUN_BANDS = "".join(f'<rect x="820" y="{y}" width="160" height="{h}" fill="#01040A"/>'
                      for y, h in ((188, 3), (200, 5), (214, 7), (230, 9)))
+_HX, _HY = _place(470, 1.8, 36)
 
-SVG_HOME = _svg(f"""
-{_stars(90, 7, 0, 1200, 0, 240)}
+_HOME_SCENE = f"""
+{_stars(90, 7, 0, 1200, 0, 260)}
 <circle cx="900" cy="170" r="170" fill="url(#sunG)" opacity="0.55"/>
 <circle cx="900" cy="170" r="70" fill="#DDF1FF"/>
 <g clip-path="url(#sunClip)">{_SUN_BANDS}</g>
@@ -406,6 +552,8 @@ SVG_HOME = _svg(f"""
 </line>
 <path d="M330,500 C470,470 620,440 690,352" fill="none" stroke="url(#homeTrail)" stroke-width="5"
       stroke-dasharray="2,12" stroke-linecap="round"/>
+"""
+_HOME_FG = f"""
 <g transform="translate(700,244) scale(0.8)">
     <path d="M0,0 C-26,0 -46,20 -46,46 C-46,80 0,120 0,120 C0,120 46,80 46,46 C46,20 26,0 0,0 Z"
           fill="#1B5FA8" filter="url(#softGlow)"/>
@@ -417,15 +565,19 @@ SVG_HOME = _svg(f"""
     <animate attributeName="ry" values="4;14" dur="2s" repeatCount="indefinite"/>
     <animate attributeName="opacity" values="0.9;0" dur="2s" repeatCount="indefinite"/>
 </ellipse>
-{_speedlines(325, 190)}
-{_runner_at(300, 45, 1.75)}
+{_speedlines(330, 190)}
+{_runner_at(_HX, _HY, 1.8)}
+{_panel(40, 40, 250, 92, "DISTANZA")}
+{_t(60, 106, "12.4 km", 34, "#7EC8FF", mono=True, weight=700, op=1)}
+{_panel(40, 330, 250, 110, "FREQ. CARDIACA")}
+{_t(60, 400, "148", 40, "#7EC8FF", mono=True, weight=700, op=1)}{_t(138, 400, "bpm", 16, "#E8F6FF", op=0.8)}
+<polyline points="{_wave(160, 270, 384, 7, 3)}" fill="none" stroke="#00E5FF" stroke-width="2.4" stroke-linejoin="round"/>
 {_panel(880, 290, 280, 150, "PASSO MEDIO")}
 {_t(900, 366, "4:32", 46, "#7EC8FF", mono=True, weight=700, op=1)}
 {_t(1010, 366, "/km", 18, "#E8F6FF", op=0.8)}
 <polyline points="{_wave(900, 1140, 412, 10, 2.2, phase=0.6)}" fill="none" stroke="#00E5FF" stroke-width="2.5" stroke-linejoin="round"/>
-{_panel(40, 40, 250, 92, "DISTANZA")}
-{_t(60, 106, "12.4 km", 34, "#7EC8FF", mono=True, weight=700, op=1)}
-""", extra_defs="""
+"""
+SVG_HOME = _svg(_HOME_SCENE, _HOME_FG, extra_defs="""
     <clipPath id="sunClip"><circle cx="900" cy="170" r="70"/></clipPath>
     <linearGradient id="homeTrail" x1="0" y1="1" x2="1" y2="0">
         <stop offset="0%" stop-color="#2F8FE0" stop-opacity="0"/>
@@ -438,58 +590,63 @@ SVG_HOME = _svg(f"""
 # sweep animato, linea di scansione, sensori sul corpo collegati ai
 # pannelli HRV (ECG), SMA (movimento) e sonno (ipnogramma).
 # =========================================================
+_AX, _AY = _place(400, 1.8, 34)
 _SMA_BARS = "".join(
-    f'<rect x="{930 + i * 17}" y="{302 - h}" width="11" height="{h}" rx="3" fill="url(#statBarGrad)"/>'
+    f'<rect x="{860 + i * 23}" y="{302 - h}" width="15" height="{h}" rx="3" fill="url(#statBarGrad)"/>'
     for i, h in enumerate([18, 30, 24, 40, 34, 50, 42, 56, 38, 46, 30, 40]))
-_HR, _WR, _AK = (_at(310, 45, 1.75, n) for n in ("chest", "haN", "anN"))
+_HYP = [(0, 404), (15, 404), (15, 420), (45, 420), (45, 404), (65, 404), (65, 388), (90, 388), (90, 404),
+        (105, 404), (105, 420), (140, 420), (140, 388), (155, 388), (155, 404), (185, 404), (185, 388),
+        (205, 388), (205, 404), (240, 404)]
+_HYP_PTS = " ".join(f"{860 + x * 1.15:.0f},{y}" for x, y in _HYP)
+_HR, _WR, _AK = (_at(_AX, _AY, 1.8, n) for n in ("chest", "haN", "anN"))
 
-SVG_ANALISI = _svg(f"""
-{_stars(50, 21, 0, 1200, 0, 500)}
-<ellipse cx="480" cy="262" rx="330" ry="270" fill="url(#runnerGlow)"/>
+_ANALISI_SCENE = f"""
+{_stars(60, 21, 0, 1200, 0, 500)}
+<ellipse cx="400" cy="250" rx="360" ry="290" fill="url(#runnerGlow)"/>
+"""
+_ANALISI_FG = f"""
 <g fill="none" stroke="#2F8FE0" stroke-opacity="0.4">
-    <circle cx="480" cy="262" r="120" stroke-dasharray="3,7"/>
-    <circle cx="480" cy="262" r="175"/>
-    <circle cx="480" cy="262" r="225" stroke-dasharray="10,8"/>
+    <circle cx="400" cy="250" r="120" stroke-dasharray="3,7"/>
+    <circle cx="400" cy="250" r="175"/>
+    <circle cx="400" cy="250" r="225" stroke-dasharray="10,8"/>
 </g>
 <g>
-    <path d="M480,262 L480,37 A225,225 0 0 1 639,103 Z" fill="#2F8FE0" opacity="0.16"/>
-    <animateTransform attributeName="transform" type="rotate" from="0 480 262" to="360 480 262" dur="8s" repeatCount="indefinite"/>
+    <path d="M400,250 L400,25 A225,225 0 0 1 559,91 Z" fill="#2F8FE0" opacity="0.16"/>
+    <animateTransform attributeName="transform" type="rotate" from="0 400 250" to="360 400 250" dur="8s" repeatCount="indefinite"/>
 </g>
-{_runner_at(310, 45, 1.75, nodes=False)}
-<rect x="320" y="80" width="340" height="3" rx="1.5" fill="#00E5FF" filter="url(#softGlow)" opacity="0.9">
-    <animate attributeName="y" values="80;465;80" dur="4s" repeatCount="indefinite"/>
+{_runner_at(_AX, _AY, 1.8, nodes=False)}
+<rect x="240" y="70" width="320" height="3" rx="1.5" fill="#00E5FF" filter="url(#softGlow)" opacity="0.9">
+    <animate attributeName="y" values="70;440;70" dur="4s" repeatCount="indefinite"/>
 </rect>
 <g fill="none" stroke="#7EC8FF" stroke-width="1.2" stroke-dasharray="3,6" opacity="0.7">
-    <path d="M{_HR[0]:.0f},{_HR[1]:.0f} C650,{_HR[1]:.0f} 680,105 780,105"/>
-    <path d="M{_WR[0]:.0f},{_WR[1]:.0f} C700,{_WR[1]:.0f} 720,255 780,255"/>
-    <path d="M{_AK[0]:.0f},{_AK[1]:.0f} C660,{_AK[1]:.0f} 690,405 780,405"/>
+    {_link(_HR, 690, 105)}{_link(_WR, 690, 255)}{_link(_AK, 690, 405)}
 </g>
 <g fill="#00E5FF">
     <circle cx="{_HR[0]:.0f}" cy="{_HR[1]:.0f}" r="7" filter="url(#softGlow)"><animate attributeName="r" values="6;11;6" dur="1.1s" repeatCount="indefinite"/></circle>
     <circle cx="{_WR[0]:.0f}" cy="{_WR[1]:.0f}" r="6" filter="url(#softGlow)"><animate attributeName="opacity" values="1;0.4;1" dur="1.6s" repeatCount="indefinite"/></circle>
     <circle cx="{_AK[0]:.0f}" cy="{_AK[1]:.0f}" r="6" filter="url(#softGlow)"><animate attributeName="opacity" values="0.4;1;0.4" dur="1.6s" begin="0.5s" repeatCount="indefinite"/></circle>
 </g>
-{_panel(780, 40, 380, 130, "HRV · VARIABILITÀ CARDIACA")}
-{_t(800, 125, "62 ms", 40, "#7EC8FF", mono=True, weight=700, op=1)}
-{_t(800, 152, "media 7 giorni", 12, op=0.6)}
-<polyline points="930,118 958,118 968,104 978,134 990,80 1002,140 1012,118 1050,118 1062,108 1074,124 1086,118 1140,118"
-          fill="none" stroke="#00E5FF" stroke-width="2.5" stroke-linejoin="round"/>
-<circle r="4" fill="#fff" filter="url(#softGlow)"><animateMotion dur="2.2s" repeatCount="indefinite" path="M930,118 L1140,118"/></circle>
-{_panel(780, 190, 380, 130, "SMA · INTENSITÀ DI MOVIMENTO")}
-{_t(800, 275, "0.41", 40, "#7EC8FF", mono=True, weight=700, op=1)}
+{_panel(690, 40, 470, 130, "HRV · VARIABILITÀ CARDIACA")}
+{_t(710, 125, "62 ms", 40, "#7EC8FF", mono=True, weight=700, op=1)}
+{_t(710, 152, "media 7 giorni", 12, op=0.6)}
+<polyline points="{_ecg(860, 1140, 108)}" fill="none" stroke="#00E5FF" stroke-width="2.5" stroke-linejoin="round"/>
+<circle r="4" fill="#fff" filter="url(#softGlow)"><animateMotion dur="2.2s" repeatCount="indefinite" path="M860,108 L1140,108"/></circle>
+{_panel(690, 190, 470, 130, "SMA · INTENSITÀ DI MOVIMENTO")}
+{_t(710, 275, "0.41", 40, "#7EC8FF", mono=True, weight=700, op=1)}
 {_SMA_BARS}
-{_panel(780, 340, 380, 130, "SONNO · IPNOGRAMMA")}
-{_t(800, 425, "7h20", 40, "#7EC8FF", mono=True, weight=700, op=1)}
-{_t(800, 452, "profondo 1h35 · REM 1h50", 12, op=0.6)}
-<path d="M900,404 H915 V420 H945 V404 H965 V388 H990 V404 H1005 V420 H1040 V388 H1055 V404 H1085 V388 H1105 V404 H1140"
-      fill="none" stroke="#7EC8FF" stroke-width="3" stroke-linejoin="round"/>
-""")
+{_panel(690, 340, 470, 130, "SONNO · IPNOGRAMMA")}
+{_t(710, 425, "7h20", 40, "#7EC8FF", mono=True, weight=700, op=1)}
+{_t(710, 452, "profondo 1h35 · REM 1h50", 12, op=0.6)}
+<polyline points="{_HYP_PTS}" fill="none" stroke="#7EC8FF" stroke-width="3" stroke-linejoin="round"/>
+"""
+SVG_ANALISI = _svg(_ANALISI_SCENE, _ANALISI_FG)
 
 
 # =========================================================
 # STATISTICHE — runner e mini-dashboard: istogramma settimanale con
 # trend, ciambella delle zone di frequenza, calendario delle sessioni.
 # =========================================================
+_SX, _SY = _place(205, 1.8, 34)
 _rnd_hm = random.Random(5)
 _HEAT = "".join(
     f'<rect x="{396 + c * 23}" y="{342 + r * 23}" width="18" height="18" rx="4" '
@@ -508,10 +665,12 @@ for _i, (_n, _p, _c) in enumerate(_ZONES):
              + _t(1060, 115 + _i * 30, f"{_n} {int(_p * 100)}%", 14))
     _off += _C62 * _p
 
-SVG_STATS = _svg(f"""
+_STATS_SCENE = f"""
 {_stars(40, 4, 0, 1200, 0, 500)}
-{_backdrop(205, 255, 165, 200)}
-{_runner_at(60, 70, 1.5)}
+{_backdrop(205, 250, 170, 205)}
+"""
+_STATS_FG = f"""
+{_runner_at(_SX, _SY, 1.8)}
 {_panel(380, 30, 420, 250, "VOLUME SETTIMANALE")}
 <g stroke="#7EC8FF" stroke-opacity="0.15">
     <line x1="396" y1="210" x2="784" y2="210"/><line x1="396" y1="170" x2="784" y2="170"/>
@@ -526,13 +685,15 @@ SVG_STATS = _svg(f"""
 {_LEG}
 {_panel(380, 300, 780, 170, "CALENDARIO SESSIONI")}
 {_HEAT}
-""")
+"""
+SVG_STATS = _svg(_STATS_SCENE, _STATS_FG)
 
 
 # =========================================================
 # KPI DASHBOARD — indicatore principale a 270° con tacche e lancetta
 # animata, tre anelli secondari e trend a 30 giorni.
 # =========================================================
+_KX, _KY = _place(215, 1.8, 34)
 _KPI_TREND = [(870 + i * 9.4, 405 - i * 1.6 + 16 * math.sin(i / 2.2)) for i in range(30)]
 _KPI_LINE = " ".join(f"{x:.0f},{y:.0f}" for x, y in _KPI_TREND)
 _C42 = 2 * math.pi * 42
@@ -544,11 +705,13 @@ _RINGS = "".join(
     + _t(cx, 200, lab, 13, "#7EC8FF", "middle")
     for cx, v, lab in ((905, 0.74, "Recupero"), (1010, 0.61, "Carico"), (1115, 0.90, "Costanza")))
 
-SVG_KPI = _svg(f"""
+_KPI_SCENE = f"""
 {_stars(45, 9, 0, 1200, 0, 500)}
-{_backdrop(215, 262, 150, 200)}
-{_runner_at(50, 52, 1.7)}
-<circle cx="640" cy="255" r="200" fill="url(#runnerGlow)"/>
+{_backdrop(215, 255, 160, 205)}
+<circle cx="640" cy="255" r="210" fill="url(#runnerGlow)"/>
+"""
+_KPI_FG = f"""
+{_runner_at(_KX, _KY, 1.8)}
 {_ticks(640, 255, 172, 184, 135, 270, 54, major=9)}
 <circle cx="640" cy="255" r="150" fill="none" stroke="#12386B" stroke-width="24" stroke-linecap="round"
         stroke-dasharray="707 943" transform="rotate(135 640 255)"/>
@@ -568,7 +731,8 @@ SVG_KPI = _svg(f"""
 <polygon points="870,455 {_KPI_LINE} 1142,455" fill="url(#areaG)"/>
 <polyline points="{_KPI_LINE}" fill="none" stroke="#00E5FF" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="{_KPI_TREND[-1][0]:.0f}" cy="{_KPI_TREND[-1][1]:.0f}" r="6" fill="#fff" filter="url(#softGlow)"/>
-""")
+"""
+SVG_KPI = _svg(_KPI_SCENE, _KPI_FG)
 
 
 # =========================================================
@@ -576,6 +740,9 @@ SVG_KPI = _svg(f"""
 # (con impulsi animati) e diventano una previsione con cono di
 # incertezza, soglia di rischio e importanza delle variabili.
 # =========================================================
+_MX, _MY = _place(175, 1.55, 80)
+_MC = _at(_MX, _MY, 1.55, "chest")
+_MPATH = f"M{_MC[0]:.0f},{_MC[1]:.0f} C{_MC[0] + 90:.0f},{_MC[1]:.0f} 330,250 400,250"
 _XS, _CNT = [400, 500, 600, 700], [5, 6, 6, 2]
 _NODES = [[(x, 250 + (i - (n - 1) / 2) * 52) for i in range(n)] for x, n in zip(_XS, _CNT)]
 _LINKS = "".join(f'<line x1="{x1}" y1="{y1:.0f}" x2="{x2}" y2="{y2:.0f}"/>'
@@ -604,13 +771,15 @@ _FEAT = "".join(
     _t(870 + v * 2.6 + 8, 420 + i * 22, f"{v}%", 12, "#7EC8FF")
     for i, (lab, v) in enumerate((("Carico 7 gg", 80), ("HRV", 62), ("Sonno", 45))))
 
-SVG_ML = _svg(f"""
+_ML_SCENE = f"""
 {_stars(45, 13, 0, 1200, 0, 500)}
-{_backdrop(137, 300, 115, 170)}
-{_runner_at(20, 150, 1.2)}
-<path d="M255,285 C310,285 340,250 400,250" fill="none" stroke="#7EC8FF" stroke-width="1.2" stroke-dasharray="3,6" opacity="0.7"/>
-<circle r="4" fill="#fff"><animateMotion dur="1.6s" repeatCount="indefinite" path="M255,285 C310,285 340,250 400,250"/></circle>
-<circle r="4" fill="#00E5FF"><animateMotion dur="1.6s" begin="0.8s" repeatCount="indefinite" path="M255,285 C310,285 340,250 400,250"/></circle>
+{_backdrop(175, 262, 135, 190)}
+"""
+_ML_FG = f"""
+{_runner_at(_MX, _MY, 1.55)}
+<path d="{_MPATH}" fill="none" stroke="#7EC8FF" stroke-width="1.2" stroke-dasharray="3,6" opacity="0.7"/>
+<circle r="4" fill="#fff"><animateMotion dur="1.6s" repeatCount="indefinite" path="{_MPATH}"/></circle>
+<circle r="4" fill="#00E5FF"><animateMotion dur="1.6s" begin="0.8s" repeatCount="indefinite" path="{_MPATH}"/></circle>
 <g stroke="#7EC8FF" stroke-opacity="0.16">{_LINKS}</g>
 {_CIRC}
 {_PULSES}
@@ -632,7 +801,8 @@ SVG_ML = _svg(f"""
 <circle cx="930" cy="{_HIST[-1][1]:.0f}" r="6" fill="#fff" filter="url(#softGlow)"/>
 {_panel(760, 370, 420, 115, "IMPORTANZA VARIABILI")}
 {_FEAT}
-""", extra_defs="""
+"""
+SVG_ML = _svg(_ML_SCENE, _ML_FG, extra_defs="""
     <linearGradient id="mlConeG" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0%" stop-color="#2F8FE0" stop-opacity="0.35"/><stop offset="100%" stop-color="#2F8FE0" stop-opacity="0.05"/>
     </linearGradient>""")
@@ -642,7 +812,9 @@ SVG_ML = _svg(f"""
 # PIANO ALLENAMENTO — notte di montagna: creste a strati, pini,
 # sentiero a tornanti con le fasi (Base, Build, Specifico, Gara),
 # bandiera sulla vetta e settimana tipo con i tipi di seduta.
+# Vetta spostata a destra: il runner grande occupa il vuoto a sinistra.
 # =========================================================
+_PX, _PY = _place(235, 1.3, 178)
 _DAYS = [("L", "#12386B"), ("M", "#00E5FF"), ("M", "#2F8FE0"), ("G", "#00E5FF"),
          ("V", "#12386B"), ("S", "#7EC8FF"), ("D", "#2F8FE0")]
 _WEEK = "".join(
@@ -654,36 +826,39 @@ _LEGEND = "".join(
     for x, c, lab in ((60, "#12386B", "Riposo"), (140, "#2F8FE0", "Facile"),
                       (222, "#00E5FF", "Intervalli"), (320, "#7EC8FF", "Lungo")))
 
-SVG_PLAN = _svg(f"""
+_PLAN_SCENE = f"""
 {_stars(110, 17, 0, 1200, 0, 230)}
-<circle cx="1040" cy="90" r="90" fill="url(#sunG)" opacity="0.45"/>
-<circle cx="1040" cy="90" r="32" fill="#DDF1FF"/>
-<circle cx="1052" cy="82" r="28" fill="#000" opacity="0.18"/>
 <polygon points="0,400 150,250 260,330 400,200 560,340 700,230 860,350 1010,240 1200,360 1200,500 0,500" fill="#050D1C"/>
 <polygon points="0,450 200,330 330,400 520,270 700,400 880,300 1060,410 1200,340 1200,500 0,500" fill="#08152C"/>
-<polygon points="380,500 700,140 1020,500" fill="#0E2A54"/>
-<polygon points="700,140 1020,500 800,500" fill="#061631" opacity="0.7"/>
-<polygon points="700,140 656,206 680,196 700,222 724,194 744,208" fill="#E8F6FF" opacity="0.92"/>
+<polygon points="500,500 820,140 1140,500" fill="#0E2A54"/>
+<polygon points="820,140 1140,500 920,500" fill="#061631" opacity="0.7"/>
+<polygon points="820,140 776,206 800,196 820,222 844,194 864,208" fill="#E8F6FF" opacity="0.92"/>
 <polygon points="0,500 0,432 180,410 360,450 520,430 700,470 900,440 1200,470 1200,500" fill="#02050B"/>
 {_pines(2, 0, 1200, 470, 40)}
-<polyline points="110,478 340,455 250,425 480,396 390,360 590,332 530,292 660,262 620,226 700,196 700,148"
+<polyline points="330,474 460,455 370,425 600,396 510,360 710,332 650,292 780,262 740,226 820,196 820,148"
           fill="none" stroke="#7EC8FF" stroke-width="4" stroke-dasharray="3,10" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+"""
+_PLAN_FG = f"""
+<circle cx="1050" cy="95" r="90" fill="url(#sunG)" opacity="0.45"/>
+<circle cx="1050" cy="95" r="32" fill="#DDF1FF"/>
+<circle cx="1062" cy="87" r="28" fill="#000" opacity="0.18"/>
 <g fill="#00E5FF" filter="url(#softGlow)">
-    <circle cx="340" cy="455" r="7"/><circle cx="590" cy="332" r="7"/><circle cx="660" cy="262" r="7"/>
+    <circle cx="460" cy="455" r="7"/><circle cx="710" cy="332" r="7"/><circle cx="780" cy="262" r="7"/>
 </g>
-<line x1="700" y1="148" x2="700" y2="86" stroke="#E8F6FF" stroke-width="3"/>
-<path d="M700,86 L700,114 L748,100 Z" fill="#00E5FF" filter="url(#softGlow)">
+<line x1="820" y1="148" x2="820" y2="86" stroke="#E8F6FF" stroke-width="3"/>
+<path d="M820,86 L820,114 L868,100 Z" fill="#00E5FF" filter="url(#softGlow)">
     <animate attributeName="opacity" values="0.7;1;0.7" dur="1.6s" repeatCount="indefinite"/>
 </path>
-{_t(360, 480, "BASE", 14, "#CFEBFF", weight=700)}
-{_t(610, 352, "BUILD", 14, "#CFEBFF", weight=700)}
-{_t(680, 278, "SPECIFICO", 14, "#CFEBFF", weight=700)}
-{_t(720, 84, "GARA", 15, "#00E5FF", weight=700, op=1)}
-{_runner_at(133, 215, 0.9)}
+{_t(480, 478, "BASE", 14, "#CFEBFF", weight=700)}
+{_t(730, 352, "BUILD", 14, "#CFEBFF", weight=700)}
+{_t(800, 278, "SPECIFICO", 14, "#CFEBFF", weight=700)}
+{_t(840, 84, "GARA", 15, "#00E5FF", weight=700, op=1)}
+{_runner_at(_PX, _PY, 1.3)}
 {_panel(40, 30, 420, 140, "SETTIMANA TIPO")}
 {_WEEK}
 {_LEGEND}
-""")
+"""
+SVG_PLAN = _svg(_PLAN_SCENE, _PLAN_FG)
 
 
 # =========================================================
@@ -691,35 +866,38 @@ SVG_PLAN = _svg(f"""
 # giunti, riquadro di rilevamento, angoli articolari e pannelli con
 # ginocchio, cadenza e carico sulla tibia.
 # =========================================================
-_CV = {k: _at(310, 45, 1.75, k) for k in _JT}
-_BONES = [("head", "neck"), ("neck", "sh"), ("sh", "elN"), ("elN", "haN"), ("sh", "elF"), ("elF", "haF"),
-          ("neck", "hip"), ("hip", "knN"), ("knN", "anN"), ("hip", "knF"), ("knF", "anF")]
+_CS = 1.65
+_CVX, _CVY = _place(470, _CS, 66)
+_CV = {k: _at(_CVX, _CVY, _CS, k) for k in _JT}
+_BONES = [("head", "neck"), ("neck", "sh"), ("neck", "shF"), ("sh", "elN"), ("elN", "haN"),
+          ("shF", "elF"), ("elF", "haF"), ("neck", "hip"), ("hip", "knN"), ("knN", "anN"),
+          ("hip", "knF"), ("knF", "anF")]
 _CV_BONES = "".join(f'<line x1="{_CV[a][0]:.0f}" y1="{_CV[a][1]:.0f}" x2="{_CV[b][0]:.0f}" y2="{_CV[b][1]:.0f}"/>'
                     for a, b in _BONES)
 _CV_JOINTS = "".join(f'<circle cx="{_CV[k][0]:.0f}" cy="{_CV[k][1]:.0f}" r="6"/>'
-                     for k in ("head", "neck", "sh", "elN", "haN", "elF", "haF", "hip", "knN", "anN", "knF", "anF"))
+                     for k in ("head", "neck", "sh", "shF", "elN", "haN", "elF", "haF", "hip", "knN", "anN", "knF", "anF"))
 _CV_ARCS = "".join(f'<path d="{_arc(_CV[c], _CV[a], _CV[b], r)}"/>' for c, a, b, r in
                    (("knN", "hip", "anN", 34), ("elN", "sh", "haN", 26), ("hip", "neck", "knN", 30)))
 _CAD = "".join(
     f'<rect x="{760 + i * 15}" y="{300 - h:.0f}" width="8" height="{h:.0f}" rx="3" fill="url(#statBarGrad)"/>'
     for i, h in ((i, 30 + 22 * (1 + math.sin(i * 0.6))) for i in range(24)))
 
-SVG_CV = _svg(f"""
+_CV_SCENE = f"""
 {_grid_floor(600, 330, rows=(10, 26, 48, 80, 120, 160), opacity=0.22)}
-<ellipse cx="480" cy="270" rx="330" ry="260" fill="url(#runnerGlow)"/>
-<g opacity="0.10">{_runner(150, 45, 1.75, nodes=False)}</g>
-<g opacity="0.22">{_runner(230, 45, 1.75, nodes=False)}</g>
-<g opacity="0.6">{_runner_at(310, 45, 1.75, nodes=False)}</g>
+<ellipse cx="470" cy="270" rx="350" ry="270" fill="url(#runnerGlow)"/>
+"""
+_CV_FG = f"""
+<g opacity="0.10">{_runner(_CVX - 150, _CVY, _CS, nodes=False)}</g>
+<g opacity="0.22">{_runner(_CVX - 75, _CVY, _CS, nodes=False)}</g>
+<g opacity="0.6">{_runner_at(_CVX, _CVY, _CS, nodes=False)}</g>
 <g stroke="#00E5FF" stroke-width="3.5" stroke-linecap="round" filter="url(#softGlow)">{_CV_BONES}</g>
 <g fill="#000" stroke="#00E5FF" stroke-width="2.5">{_CV_JOINTS}</g>
 <g fill="none" stroke="#FFB84D" stroke-width="2">{_CV_ARCS}</g>
-{_corners(318, 66, 340, 412, 30, "#00E5FF")}
-<rect x="318" y="38" width="128" height="24" rx="5" fill="#00E5FF"/>
-{_t(330, 55, "ATLETA · 98%", 13, "#040A18", mono=True, weight=700, op=1)}
+{_corners(290, 52, 360, 424, 30, "#00E5FF")}
+<rect x="290" y="26" width="128" height="24" rx="5" fill="#00E5FF"/>
+{_t(302, 43, "ATLETA · 98%", 13, "#040A18", mono=True, weight=700, op=1)}
 <g fill="none" stroke="#7EC8FF" stroke-width="1.2" stroke-dasharray="3,6" opacity="0.7">
-    <path d="M{_CV['knN'][0]:.0f},{_CV['knN'][1]:.0f} C690,300 700,120 740,105"/>
-    <path d="M{_CV['hip'][0]:.0f},{_CV['hip'][1]:.0f} C640,290 690,255 740,250"/>
-    <path d="M{_CV['anN'][0]:.0f},{_CV['anN'][1]:.0f} C660,450 700,405 740,400"/>
+    {_link(_CV["knN"], 740, 105)}{_link(_CV["hip"], 740, 250)}{_link(_CV["anN"], 740, 400)}
 </g>
 {_panel(740, 40, 420, 130, "GINOCCHIO · 128°")}
 <line x1="760" y1="120" x2="1140" y2="120" stroke="#7EC8FF" stroke-dasharray="4,5" opacity="0.35"/>
@@ -733,4 +911,5 @@ SVG_CV = _svg(f"""
 <polyline points="{_wave(760, 1140, 420, 10, 3)}" fill="none" stroke="#7EC8FF" stroke-width="2.8" stroke-linejoin="round"/>
 <circle cx="52" cy="46" r="6" fill="#FF5A5F"><animate attributeName="opacity" values="1;0.2;1" dur="1.2s" repeatCount="indefinite"/></circle>
 {_t(68, 51, "REC · 00:12:48 · F3841", 14, "#E8F6FF", mono=True)}
-""", extra_defs="")
+"""
+SVG_CV = _svg(_CV_SCENE, _CV_FG)
