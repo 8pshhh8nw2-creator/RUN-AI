@@ -54,38 +54,59 @@ def header_block(kicker, title, subtitle, image_url=None, image_tag=None):
 # ... qui sotto incolla il blocco "LIBRERIA CONDIVISA" con RUNNER_GLOW_DEFS,
 # _backdrop, _runner, _ground e tutte le SVG_* ...
 
-
 # =========================================================
-# LIBRERIA CONDIVISA — illustrazioni vettoriali originali su sfondo
-# nero. Il runner è una figura low-poly a mesh triangolata, come quelle
-# del portfolio: viene generata una volta sola e riusata con <use>.
+# LIBRERIA CONDIVISA — illustrazioni vettoriali su sfondo nero.
+# Runner low-poly a mesh generato una sola volta e riusato con <use>.
+# Ogni scena passa da _svg(), che la sfuma ai bordi: nessun rettangolo.
 # =========================================================
 
 import math
 import random
 
-# ---------- runner a mesh low-poly ----------
-# nome, (x, y, raggio) di inizio, (x, y, raggio) di fine, luminosità base
-_SEGS = [
-    ("head", (112, 32, 17), (112, 32, 17), 0.50),
-    ("neck", (108, 52, 6), (106, 64, 7), 0.35),
-    ("torso", (106, 68, 19), (86, 146, 14), 0.58),
-    ("uaN", (104, 74, 9), (138, 100, 8), 0.55),
-    ("faN", (138, 100, 7), (156, 72, 5.5), 0.50),
-    ("haN", (157, 70, 6), (157, 70, 6), 0.50),
-    ("uaF", (100, 74, 8), (66, 96, 7), 0.28),
-    ("faF", (66, 96, 6.5), (50, 122, 5), 0.25),
-    ("haF", (49, 124, 5.5), (49, 124, 5.5), 0.25),
-    ("thN", (88, 148, 15), (134, 172, 11), 0.50),
-    ("shN", (134, 172, 10), (122, 224, 6.5), 0.55),
-    ("ftN", (118, 229, 7), (150, 240, 4), 0.45),
-    ("thF", (84, 150, 14), (56, 192, 10.5), 0.30),
-    ("shF", (56, 192, 9.5), (22, 174, 6), 0.27),
-    ("ftF", (22, 174, 6), (9, 163, 4), 0.25),
+# ---------- modello del runner (posa da sprint) ----------
+# Capsule rastremate: nome, (x, y, raggio) inizio, (x, y, raggio) fine,
+# luminosità base, priorità (i valori alti stanno davanti).
+_K = 1.2
+_RAW = [
+    ("head", (128, 30, 15), (128, 30, 15), 0.52, 0),
+    ("neck", (123, 44, 5.5), (119, 57, 6.5), 0.36, 0),
+    ("chest", (114, 68, 14.5), (99, 92, 14.5), 0.62, 0),
+    ("abs", (99, 92, 12.5), (88, 120, 12), 0.50, 0),
+    ("hip", (82, 130, 14), (91, 132, 13), 0.30, 1),
+    ("delN", (116, 64, 8.5), (118, 70, 8), 0.62, 3),
+    ("uaN", (116, 64, 7.2), (129, 96, 5.6), 0.58, 3),
+    ("faN", (129, 96, 5.6), (155, 80, 3.9), 0.55, 3),
+    ("haN", (158, 78, 4.6), (158, 78, 4.6), 0.58, 3),
+    ("uaF", (111, 64, 6.8), (83, 80, 5.4), 0.26, -2),
+    ("faF", (83, 80, 5.4), (63, 103, 3.8), 0.24, -2),
+    ("haF", (61, 105, 4.4), (61, 105, 4.4), 0.24, -2),
+    ("thN", (88, 128, 13.5), (130, 138, 8.8), 0.52, 2),
+    ("shN", (130, 138, 7.6), (112, 182, 4.2), 0.55, 2),
+    ("clN", (127, 150, 8.0), (120, 166, 7.0), 0.56, 2),
+    ("ftN", (113, 184, 4.4), (133, 191, 3.0), 0.90, 2),
+    ("thF", (84, 130, 12.5), (56, 166, 8.2), 0.28, -1),
+    ("shF", (56, 166, 7.2), (20, 196, 4.0), 0.30, -1),
+    ("clF", (50, 172, 7.6), (38, 182, 6.5), 0.30, -1),
+    ("ftF", (20, 197, 4.2), (3, 203, 2.8), 0.62, -1),
 ]
-_RAMP = [(0.0, (8, 40, 110)), (0.35, (22, 92, 200)), (0.65, (60, 145, 235)),
-         (0.85, (140, 205, 255)), (1.0, (225, 245, 255))]
-_LIGHT = (-0.5, -0.85)
+_SEGS = [(n, tuple(v * _K for v in a), tuple(v * _K for v in b), base, prio)
+         for n, a, b, base, prio in _RAW]
+
+# giunti principali (coordinate locali già scalate)
+_JU = dict(head=(128, 30), neck=(121, 50), sh=(114, 64), chest=(107, 80), elN=(129, 96), haN=(156, 79),
+           elF=(83, 80), haF=(62, 104), hip=(86, 129), knN=(130, 138), anN=(112, 182),
+           knF=(56, 166), anF=(20, 196))
+_JT = {k: (v[0] * _K, v[1] * _K) for k, v in _JU.items()}
+
+
+def _at(x, y, s, name):
+    """Posizione assoluta di un giunto per un runner disegnato in (x, y) con scala s."""
+    return x + _JT[name][0] * s, y + _JT[name][1] * s
+
+
+_RAMP = [(0.0, (6, 30, 95)), (0.3, (14, 72, 190)), (0.55, (40, 125, 235)),
+         (0.8, (120, 195, 255)), (1.0, (230, 247, 255))]
+_LIGHT = (0.6, -0.8)
 
 
 def _ramp(v):
@@ -94,38 +115,49 @@ def _ramp(v):
         if v <= b:
             f = (v - a) / (b - a)
             return "#%02X%02X%02X" % tuple(int(ca[i] + (cb[i] - ca[i]) * f) for i in range(3))
-    return "#E1F5FF"
+    return "#E6F7FF"
 
 
 def _nearest(px, py):
     best = None
-    for name, (x1, y1, r1), (x2, y2, r2), base in _SEGS:
+    for name, (x1, y1, r1), (x2, y2, r2), base, prio in _SEGS:
         dx, dy = x2 - x1, y2 - y1
         l2 = dx * dx + dy * dy
         t = 0.0 if l2 == 0 else max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / l2))
         cx, cy, r = x1 + t * dx, y1 + t * dy, r1 + t * (r2 - r1)
-        score = math.hypot(px - cx, py - cy) - r
-        if best is None or score < best[0]:
-            best = (score, name, base, (px - cx) / r, (py - cy) / r, t)
-    return best if best[0] <= 0.6 else None
+        raw = math.hypot(px - cx, py - cy) - r
+        if raw <= 0.5:
+            key = raw - prio * 2.5
+            if best is None or key < best[0]:
+                best = (key, name, base, (px - cx) / r, (py - cy) / r, t)
+    return best
 
 
-def _mesh_color(info, py, rnd):
+def _mesh_color(info, rnd):
     _, name, base, nx_, ny_, t = info
-    v = base + 0.32 * (nx_ * _LIGHT[0] + ny_ * _LIGHT[1]) + rnd.uniform(-0.13, 0.13)
-    if name == "torso":
-        v += -0.25 if py > 122 else (0.12 if 72 < py < 118 else 0)
-    if name in ("thN", "thF") and t < 0.45:
-        v -= 0.22
-    if name == "head" and py < 28:
-        v -= 0.2
+    m = math.hypot(nx_, ny_)
+    if m > 1:
+        nx_, ny_ = nx_ / m, ny_ / m
+    v = base + 0.38 * (nx_ * _LIGHT[0] + ny_ * _LIGHT[1]) + rnd.uniform(-0.10, 0.10)
+    if name == "chest" and nx_ > 0.1:
+        v += 0.10
+    if name == "abs":
+        v -= 0.05
+    if name == "hip":
+        v -= 0.12
+    if name in ("thN", "thF") and t < 0.42:
+        v -= 0.20                                   # pantaloncini
+    if name == "head" and ny_ < -0.15 and nx_ < 0.55:
+        v -= 0.34                                   # capelli
+    if name in ("ftN", "ftF") and ny_ > 0.4:
+        v -= 0.28                                   # suola
     return _ramp(v)
 
 
-def _build_mesh(cs=7):
+def _build_mesh(cs=5):
     rnd = random.Random(42)
-    nx, ny = 26, 36
-    P = [[(i * cs + rnd.uniform(-2.2, 2.2), 8 + j * cs + rnd.uniform(-2.2, 2.2))
+    nx, ny = 40, 49
+    P = [[(i * cs + rnd.uniform(-1.6, 1.6), 12 + j * cs + rnd.uniform(-1.6, 1.6))
           for j in range(ny + 1)] for i in range(nx + 1)]
     polys, verts = [], []
     for i in range(nx):
@@ -138,19 +170,18 @@ def _build_mesh(cs=7):
                 if info is None:
                     continue
                 pts = " ".join(f"{p[0]:.0f},{p[1]:.0f}" for p in tri)
-                polys.append(f'<polygon points="{pts}" fill="{_mesh_color(info, cy, rnd)}"/>')
+                polys.append(f'<polygon points="{pts}" fill="{_mesh_color(info, rnd)}"/>')
                 verts.extend(tri)
-    spark = "".join(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="1.5"/>' for x, y in rnd.sample(verts, 16))
+    spark = "".join(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="1.6"/>' for x, y in rnd.sample(verts, 34))
     return "".join(polys), spark
 
 
 _MESH, _SPARK = _build_mesh()
 
-_JOINTS_LOCAL = [(104, 74), (138, 100), (157, 70), (88, 148), (134, 172),
-                 (122, 224), (66, 96), (56, 192), (22, 174)]
+_NODE_NAMES = ("sh", "elN", "haN", "hip", "knN", "anN", "elF", "knF", "anF")
 _RUNNER_NODES = "".join(
-    f'<circle cx="{x}" cy="{y}" r="6" fill="none" stroke="#fff" stroke-opacity="0.45"/>'
-    f'<circle cx="{x}" cy="{y}" r="2.8" fill="#fff"/>' for x, y in _JOINTS_LOCAL)
+    f'<circle cx="{_JT[n][0]:.0f}" cy="{_JT[n][1]:.0f}" r="6.5" fill="none" stroke="#fff" stroke-opacity="0.45"/>'
+    f'<circle cx="{_JT[n][0]:.0f}" cy="{_JT[n][1]:.0f}" r="2.8" fill="#fff"/>' for n in _NODE_NAMES)
 
 RUNNER_GLOW_DEFS = """
     <radialGradient id="runnerGlow" cx="50%" cy="50%" r="60%">
@@ -167,7 +198,13 @@ RUNNER_GLOW_DEFS = """
         <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
     <filter id="meshGlow" x="-40%" y="-40%" width="180%" height="180%">
-        <feGaussianBlur stdDeviation="7"/>
+        <feGaussianBlur stdDeviation="8"/>
+    </filter>
+    <filter id="rim" x="-10%" y="-10%" width="120%" height="120%">
+        <feMorphology in="SourceAlpha" operator="dilate" radius="1.3" result="d"/>
+        <feComposite in="d" in2="SourceAlpha" operator="out" result="edge"/>
+        <feFlood flood-color="#8FD3FF" flood-opacity="0.9"/>
+        <feComposite in2="edge" operator="in"/>
     </filter>
     <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="#000000"/><stop offset="100%" stop-color="#040C1C"/>
@@ -189,15 +226,34 @@ RUNNER_GLOW_DEFS = """
         <stop offset="0%" stop-color="#2F8FE0" stop-opacity="0.45"/>
         <stop offset="100%" stop-color="#2F8FE0" stop-opacity="0"/>
     </linearGradient>
-""" + (f'<g id="meshBody" stroke="#B4E0FF" stroke-width="0.6" stroke-opacity="0.5" stroke-linejoin="round">'
-       f'{_MESH}<g stroke="none" fill="#fff" opacity="0.85">{_SPARK}</g></g>')
+""" + (f'<g id="meshBody" stroke="#BFE6FF" stroke-width="0.5" stroke-opacity="0.45" stroke-linejoin="round">'
+       f'{_MESH}<g stroke="none" fill="#fff" opacity="0.9">{_SPARK}</g></g>')
+
+
+def _svg(body, extra_defs=""):
+    """Avvolge la scena in un SVG con bordi sfumati (nessun rettangolo visibile)."""
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">'
+            f'<defs>{RUNNER_GLOW_DEFS}{extra_defs}'
+            f'<filter id="feather" x="-20%" y="-20%" width="140%" height="140%">'
+            f'<feGaussianBlur stdDeviation="16"/></filter>'
+            f'<mask id="fadeMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="500">'
+            f'<rect x="20" y="20" width="1160" height="460" rx="36" fill="#fff" filter="url(#feather)"/>'
+            f'</mask></defs><g mask="url(#fadeMask)">{body}</g></svg>')
 
 
 def _runner(x, y, s=1.0, nodes=True):
-    """Runner low-poly a mesh blu con alone. Ingombro locale circa 170x250."""
     return (f'<g transform="translate({x},{y}) scale({s})">'
-            f'<use href="#meshBody" filter="url(#meshGlow)" opacity="0.55"/>'
+            f'<use href="#meshBody" filter="url(#meshGlow)" opacity="0.6"/>'
+            f'<use href="#meshBody" filter="url(#rim)"/>'
             f'<use href="#meshBody"/>{_RUNNER_NODES if nodes else ""}</g>')
+
+
+def _runner_at(x, y, s=1.0, nodes=True):
+    """Runner con riflesso blu sotto i piedi."""
+    gx, gy = x + 98 * s, y + 247 * s
+    ground = (f'<ellipse cx="{gx:.0f}" cy="{gy:.0f}" rx="{115 * s:.0f}" ry="{16 * s:.0f}" fill="url(#runnerGlow)"/>'
+              f'<ellipse cx="{gx:.0f}" cy="{gy:.0f}" rx="{70 * s:.0f}" ry="{4 * s:.0f}" fill="#2F8FE0" opacity="0.35"/>')
+    return ground + _runner(x, y, s, nodes)
 
 
 # ---------- helper grafici ----------
@@ -311,12 +367,6 @@ def _bar_chart(x0, base, vals, labels, w=34, gap=20):
             f'stroke-linejoin="round" stroke-linecap="round"/>' + dots + "".join(lab))
 
 
-def _ground(x1, x2, y):
-    """Alone blu sul pavimento sotto i piedi del runner."""
-    return (f'<ellipse cx="{(x1 + x2) / 2}" cy="{y}" rx="{(x2 - x1) / 2}" ry="14" fill="url(#runnerGlow)"/>'
-            f'<ellipse cx="{(x1 + x2) / 2}" cy="{y}" rx="{(x2 - x1) / 3}" ry="4" fill="#2F8FE0" opacity="0.35"/>')
-
-
 def _backdrop(cx, cy, rx, ry):
     return f"""
     <ellipse cx="{cx}" cy="{cy}" rx="{rx + 60}" ry="{ry + 60}" fill="url(#runnerGlow)"/>
@@ -334,14 +384,7 @@ def _backdrop(cx, cy, rx, ry):
 _SUN_BANDS = "".join(f'<rect x="820" y="{y}" width="160" height="{h}" fill="#01040A"/>'
                      for y, h in ((188, 3), (200, 5), (214, 7), (230, 9)))
 
-SVG_HOME = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>{RUNNER_GLOW_DEFS}
-    <clipPath id="sunClip"><circle cx="900" cy="170" r="70"/></clipPath>
-    <linearGradient id="homeTrail" x1="0" y1="1" x2="1" y2="0">
-        <stop offset="0%" stop-color="#2F8FE0" stop-opacity="0"/>
-        <stop offset="100%" stop-color="#00E5FF" stop-opacity="0.95"/>
-    </linearGradient>
-</defs>
+SVG_HOME = _svg(f"""
 <rect width="1200" height="500" fill="url(#skyG)"/>
 {_stars(90, 7, 0, 1200, 0, 240)}
 <circle cx="900" cy="170" r="170" fill="url(#sunG)" opacity="0.55"/>
@@ -371,17 +414,20 @@ SVG_HOME = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
     <animate attributeName="ry" values="4;14" dur="2s" repeatCount="indefinite"/>
     <animate attributeName="opacity" values="0.9;0" dur="2s" repeatCount="indefinite"/>
 </ellipse>
-{_ground(300, 560, 470)}
 {_speedlines(325, 190)}
-{_runner(300, 45, 1.75)}
+{_runner_at(300, 45, 1.75)}
 {_panel(880, 290, 280, 150, "PASSO MEDIO")}
 {_t(900, 366, "4:32", 46, "#7EC8FF", mono=True, weight=700, op=1)}
 {_t(1010, 366, "/km", 18, "#E8F6FF", op=0.8)}
 <polyline points="{_wave(900, 1140, 412, 10, 2.2, phase=0.6)}" fill="none" stroke="#00E5FF" stroke-width="2.5" stroke-linejoin="round"/>
 {_panel(40, 40, 250, 92, "DISTANZA")}
 {_t(60, 106, "12.4 km", 34, "#7EC8FF", mono=True, weight=700, op=1)}
-{_corners(14, 14, 1172, 472)}
-</svg>"""
+""", extra_defs="""
+    <clipPath id="sunClip"><circle cx="900" cy="170" r="70"/></clipPath>
+    <linearGradient id="homeTrail" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0%" stop-color="#2F8FE0" stop-opacity="0"/>
+        <stop offset="100%" stop-color="#00E5FF" stop-opacity="0.95"/>
+    </linearGradient>""")
 
 
 # =========================================================
@@ -392,34 +438,34 @@ SVG_HOME = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 _SMA_BARS = "".join(
     f'<rect x="{930 + i * 17}" y="{302 - h}" width="11" height="{h}" rx="3" fill="url(#statBarGrad)"/>'
     for i, h in enumerate([18, 30, 24, 40, 34, 50, 42, 56, 38, 46, 30, 40]))
+_HR, _WR, _AK = (_at(310, 45, 1.75, n) for n in ("chest", "haN", "anN"))
 
-SVG_ANALISI = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>{RUNNER_GLOW_DEFS}</defs>
+SVG_ANALISI = _svg(f"""
 <rect width="1200" height="500" fill="#000"/>
 {_stars(50, 21, 0, 1200, 0, 500)}
-<ellipse cx="457" cy="262" rx="330" ry="270" fill="url(#runnerGlow)"/>
+<ellipse cx="480" cy="262" rx="330" ry="270" fill="url(#runnerGlow)"/>
 <g fill="none" stroke="#2F8FE0" stroke-opacity="0.4">
-    <circle cx="457" cy="262" r="120" stroke-dasharray="3,7"/>
-    <circle cx="457" cy="262" r="175"/>
-    <circle cx="457" cy="262" r="225" stroke-dasharray="10,8"/>
+    <circle cx="480" cy="262" r="120" stroke-dasharray="3,7"/>
+    <circle cx="480" cy="262" r="175"/>
+    <circle cx="480" cy="262" r="225" stroke-dasharray="10,8"/>
 </g>
 <g>
-    <path d="M457,262 L457,37 A225,225 0 0 1 616,103 Z" fill="#2F8FE0" opacity="0.16"/>
-    <animateTransform attributeName="transform" type="rotate" from="0 457 262" to="360 457 262" dur="8s" repeatCount="indefinite"/>
+    <path d="M480,262 L480,37 A225,225 0 0 1 639,103 Z" fill="#2F8FE0" opacity="0.16"/>
+    <animateTransform attributeName="transform" type="rotate" from="0 480 262" to="360 480 262" dur="8s" repeatCount="indefinite"/>
 </g>
-{_runner(310, 45, 1.75, nodes=False)}
-<rect x="330" y="80" width="290" height="3" rx="1.5" fill="#00E5FF" filter="url(#softGlow)" opacity="0.9">
+{_runner_at(310, 45, 1.75, nodes=False)}
+<rect x="320" y="80" width="340" height="3" rx="1.5" fill="#00E5FF" filter="url(#softGlow)" opacity="0.9">
     <animate attributeName="y" values="80;465;80" dur="4s" repeatCount="indefinite"/>
 </rect>
 <g fill="none" stroke="#7EC8FF" stroke-width="1.2" stroke-dasharray="3,6" opacity="0.7">
-    <path d="M485,199 C620,199 660,105 780,105"/>
-    <path d="M580,175 C680,175 700,255 780,255"/>
-    <path d="M524,441 C650,441 680,405 780,405"/>
+    <path d="M{_HR[0]:.0f},{_HR[1]:.0f} C650,{_HR[1]:.0f} 680,105 780,105"/>
+    <path d="M{_WR[0]:.0f},{_WR[1]:.0f} C700,{_WR[1]:.0f} 720,255 780,255"/>
+    <path d="M{_AK[0]:.0f},{_AK[1]:.0f} C660,{_AK[1]:.0f} 690,405 780,405"/>
 </g>
 <g fill="#00E5FF">
-    <circle cx="485" cy="199" r="7" filter="url(#softGlow)"><animate attributeName="r" values="6;11;6" dur="1.1s" repeatCount="indefinite"/></circle>
-    <circle cx="580" cy="175" r="6" filter="url(#softGlow)"><animate attributeName="opacity" values="1;0.4;1" dur="1.6s" repeatCount="indefinite"/></circle>
-    <circle cx="524" cy="441" r="6" filter="url(#softGlow)"><animate attributeName="opacity" values="0.4;1;0.4" dur="1.6s" begin="0.5s" repeatCount="indefinite"/></circle>
+    <circle cx="{_HR[0]:.0f}" cy="{_HR[1]:.0f}" r="7" filter="url(#softGlow)"><animate attributeName="r" values="6;11;6" dur="1.1s" repeatCount="indefinite"/></circle>
+    <circle cx="{_WR[0]:.0f}" cy="{_WR[1]:.0f}" r="6" filter="url(#softGlow)"><animate attributeName="opacity" values="1;0.4;1" dur="1.6s" repeatCount="indefinite"/></circle>
+    <circle cx="{_AK[0]:.0f}" cy="{_AK[1]:.0f}" r="6" filter="url(#softGlow)"><animate attributeName="opacity" values="0.4;1;0.4" dur="1.6s" begin="0.5s" repeatCount="indefinite"/></circle>
 </g>
 {_panel(780, 40, 380, 130, "HRV · VARIABILITÀ CARDIACA")}
 {_t(800, 125, "62 ms", 40, "#7EC8FF", mono=True, weight=700, op=1)}
@@ -435,8 +481,7 @@ SVG_ANALISI = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500"
 {_t(800, 452, "profondo 1h35 · REM 1h50", 12, op=0.6)}
 <path d="M900,404 H915 V420 H945 V404 H965 V388 H990 V404 H1005 V420 H1040 V388 H1055 V404 H1085 V388 H1105 V404 H1140"
       fill="none" stroke="#7EC8FF" stroke-width="3" stroke-linejoin="round"/>
-{_corners(14, 14, 1172, 472)}
-</svg>"""
+""")
 
 
 # =========================================================
@@ -461,13 +506,11 @@ for _i, (_n, _p, _c) in enumerate(_ZONES):
              + _t(1060, 115 + _i * 30, f"{_n} {int(_p * 100)}%", 14))
     _off += _C62 * _p
 
-SVG_STATS = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>{RUNNER_GLOW_DEFS}</defs>
+SVG_STATS = _svg(f"""
 <rect width="1200" height="500" fill="#000"/>
 {_stars(40, 4, 0, 1200, 0, 500)}
-{_backdrop(195, 265, 165, 205)}
-{_ground(90, 300, 442)}
-{_runner(60, 70, 1.5)}
+{_backdrop(205, 255, 165, 200)}
+{_runner_at(60, 70, 1.5)}
 {_panel(380, 30, 420, 250, "VOLUME SETTIMANALE")}
 <g stroke="#7EC8FF" stroke-opacity="0.15">
     <line x1="396" y1="210" x2="784" y2="210"/><line x1="396" y1="170" x2="784" y2="170"/>
@@ -482,8 +525,7 @@ SVG_STATS = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 {_LEG}
 {_panel(380, 300, 780, 170, "CALENDARIO SESSIONI")}
 {_HEAT}
-{_corners(14, 14, 1172, 472)}
-</svg>"""
+""")
 
 
 # =========================================================
@@ -501,13 +543,11 @@ _RINGS = "".join(
     + _t(cx, 200, lab, 13, "#7EC8FF", "middle")
     for cx, v, lab in ((905, 0.74, "Recupero"), (1010, 0.61, "Carico"), (1115, 0.90, "Costanza")))
 
-SVG_KPI = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>{RUNNER_GLOW_DEFS}</defs>
+SVG_KPI = _svg(f"""
 <rect width="1200" height="500" fill="#000"/>
 {_stars(45, 9, 0, 1200, 0, 500)}
-{_backdrop(190, 265, 150, 205)}
-{_ground(80, 300, 447)}
-{_runner(50, 60, 1.7)}
+{_backdrop(215, 262, 150, 200)}
+{_runner_at(50, 52, 1.7)}
 <circle cx="640" cy="255" r="200" fill="url(#runnerGlow)"/>
 {_ticks(640, 255, 172, 184, 135, 270, 54, major=9)}
 <circle cx="640" cy="255" r="150" fill="none" stroke="#12386B" stroke-width="24" stroke-linecap="round"
@@ -528,8 +568,7 @@ SVG_KPI = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 <polygon points="870,455 {_KPI_LINE} 1142,455" fill="url(#areaG)"/>
 <polyline points="{_KPI_LINE}" fill="none" stroke="#00E5FF" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="{_KPI_TREND[-1][0]:.0f}" cy="{_KPI_TREND[-1][1]:.0f}" r="6" fill="#fff" filter="url(#softGlow)"/>
-{_corners(14, 14, 1172, 472)}
-</svg>"""
+""")
 
 
 # =========================================================
@@ -565,20 +604,14 @@ _FEAT = "".join(
     _t(870 + v * 2.6 + 8, 420 + i * 22, f"{v}%", 12, "#7EC8FF")
     for i, (lab, v) in enumerate((("Carico 7 gg", 80), ("HRV", 62), ("Sonno", 45))))
 
-SVG_ML = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>{RUNNER_GLOW_DEFS}
-    <linearGradient id="mlConeG" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stop-color="#2F8FE0" stop-opacity="0.35"/><stop offset="100%" stop-color="#2F8FE0" stop-opacity="0.05"/>
-    </linearGradient>
-</defs>
+SVG_ML = _svg(f"""
 <rect width="1200" height="500" fill="#000"/>
 {_stars(45, 13, 0, 1200, 0, 500)}
-{_backdrop(125, 300, 115, 170)}
-{_ground(40, 200, 446)}
-{_runner(20, 150, 1.2)}
-<path d="M215,290 C290,290 330,250 400,250" fill="none" stroke="#7EC8FF" stroke-width="1.2" stroke-dasharray="3,6" opacity="0.7"/>
-<circle r="4" fill="#fff"><animateMotion dur="1.6s" repeatCount="indefinite" path="M215,290 C290,290 330,250 400,250"/></circle>
-<circle r="4" fill="#00E5FF"><animateMotion dur="1.6s" begin="0.8s" repeatCount="indefinite" path="M215,290 C290,290 330,250 400,250"/></circle>
+{_backdrop(137, 300, 115, 170)}
+{_runner_at(20, 150, 1.2)}
+<path d="M255,285 C310,285 340,250 400,250" fill="none" stroke="#7EC8FF" stroke-width="1.2" stroke-dasharray="3,6" opacity="0.7"/>
+<circle r="4" fill="#fff"><animateMotion dur="1.6s" repeatCount="indefinite" path="M255,285 C310,285 340,250 400,250"/></circle>
+<circle r="4" fill="#00E5FF"><animateMotion dur="1.6s" begin="0.8s" repeatCount="indefinite" path="M255,285 C310,285 340,250 400,250"/></circle>
 <g stroke="#7EC8FF" stroke-opacity="0.16">{_LINKS}</g>
 {_CIRC}
 {_PULSES}
@@ -600,8 +633,10 @@ SVG_ML = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 <circle cx="930" cy="{_HIST[-1][1]:.0f}" r="6" fill="#fff" filter="url(#softGlow)"/>
 {_panel(760, 370, 420, 115, "IMPORTANZA VARIABILI")}
 {_FEAT}
-{_corners(14, 14, 1172, 472)}
-</svg>"""
+""", extra_defs="""
+    <linearGradient id="mlConeG" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#2F8FE0" stop-opacity="0.35"/><stop offset="100%" stop-color="#2F8FE0" stop-opacity="0.05"/>
+    </linearGradient>""")
 
 
 # =========================================================
@@ -620,8 +655,7 @@ _LEGEND = "".join(
     for x, c, lab in ((60, "#12386B", "Riposo"), (140, "#2F8FE0", "Facile"),
                       (222, "#00E5FF", "Intervalli"), (320, "#7EC8FF", "Lungo")))
 
-SVG_PLAN = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>{RUNNER_GLOW_DEFS}</defs>
+SVG_PLAN = _svg(f"""
 <rect width="1200" height="500" fill="url(#skyG)"/>
 {_stars(110, 17, 0, 1200, 0, 230)}
 <circle cx="1040" cy="90" r="90" fill="url(#sunG)" opacity="0.45"/>
@@ -647,13 +681,11 @@ SVG_PLAN = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 {_t(610, 352, "BUILD", 14, "#CFEBFF", weight=700)}
 {_t(680, 278, "SPECIFICO", 14, "#CFEBFF", weight=700)}
 {_t(720, 84, "GARA", 15, "#00E5FF", weight=700, op=1)}
-{_ground(140, 270, 432)}
-{_runner(133, 215, 0.9)}
+{_runner_at(133, 215, 0.9)}
 {_panel(40, 30, 420, 140, "SETTIMANA TIPO")}
 {_WEEK}
 {_LEGEND}
-{_corners(14, 14, 1172, 472)}
-</svg>"""
+""")
 
 
 # =========================================================
@@ -661,44 +693,37 @@ SVG_PLAN = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 # giunti, riquadro di rilevamento, angoli articolari e pannelli con
 # ginocchio, cadenza e carico sulla tibia.
 # =========================================================
-_J = dict(head=(112, 32), neck=(106, 58), sh=(102, 72), elN=(138, 100), haN=(156, 72), elF=(66, 96),
-          haF=(50, 122), hip=(86, 148), knN=(134, 172), anN=(122, 226), knF=(56, 192), anF=(20, 172))
-_CV = {k: (310 + 1.75 * v[0], 45 + 1.75 * v[1]) for k, v in _J.items()}
+_CV = {k: _at(310, 45, 1.75, k) for k in _JT}
 _BONES = [("head", "neck"), ("neck", "sh"), ("sh", "elN"), ("elN", "haN"), ("sh", "elF"), ("elF", "haF"),
           ("neck", "hip"), ("hip", "knN"), ("knN", "anN"), ("hip", "knF"), ("knF", "anF")]
 _CV_BONES = "".join(f'<line x1="{_CV[a][0]:.0f}" y1="{_CV[a][1]:.0f}" x2="{_CV[b][0]:.0f}" y2="{_CV[b][1]:.0f}"/>'
                     for a, b in _BONES)
-_CV_JOINTS = "".join(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="6"/>' for x, y in _CV.values())
+_CV_JOINTS = "".join(f'<circle cx="{_CV[k][0]:.0f}" cy="{_CV[k][1]:.0f}" r="6"/>'
+                     for k in ("head", "neck", "sh", "elN", "haN", "elF", "haF", "hip", "knN", "anN", "knF", "anF"))
 _CV_ARCS = "".join(f'<path d="{_arc(_CV[c], _CV[a], _CV[b], r)}"/>' for c, a, b, r in
                    (("knN", "hip", "anN", 34), ("elN", "sh", "haN", 26), ("hip", "neck", "knN", 30)))
 _CAD = "".join(
     f'<rect x="{760 + i * 15}" y="{300 - h:.0f}" width="8" height="{h:.0f}" rx="3" fill="url(#statBarGrad)"/>'
     for i, h in ((i, 30 + 22 * (1 + math.sin(i * 0.6))) for i in range(24)))
 
-SVG_CV = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
-<defs>{RUNNER_GLOW_DEFS}
-    <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">
-        <rect width="4" height="1" fill="#7EC8FF" opacity="0.07"/>
-    </pattern>
-</defs>
+SVG_CV = _svg(f"""
 <rect width="1200" height="500" fill="#000"/>
 <rect y="330" width="1200" height="170" fill="url(#groundG)"/>
 {_grid_floor(600, 330, rows=(10, 26, 48, 80, 120, 160), opacity=0.22)}
-<ellipse cx="457" cy="270" rx="330" ry="260" fill="url(#runnerGlow)"/>
+<ellipse cx="480" cy="270" rx="330" ry="260" fill="url(#runnerGlow)"/>
 <g opacity="0.10">{_runner(150, 45, 1.75, nodes=False)}</g>
 <g opacity="0.22">{_runner(230, 45, 1.75, nodes=False)}</g>
-{_ground(330, 600, 474)}
-<g opacity="0.6">{_runner(310, 45, 1.75, nodes=False)}</g>
+<g opacity="0.6">{_runner_at(310, 45, 1.75, nodes=False)}</g>
 <g stroke="#00E5FF" stroke-width="3.5" stroke-linecap="round" filter="url(#softGlow)">{_CV_BONES}</g>
 <g fill="#000" stroke="#00E5FF" stroke-width="2.5">{_CV_JOINTS}</g>
 <g fill="none" stroke="#FFB84D" stroke-width="2">{_CV_ARCS}</g>
-{_corners(318, 66, 282, 412, 30, "#00E5FF")}
+{_corners(318, 66, 340, 412, 30, "#00E5FF")}
 <rect x="318" y="38" width="128" height="24" rx="5" fill="#00E5FF"/>
 {_t(330, 55, "ATLETA · 98%", 13, "#040A18", mono=True, weight=700, op=1)}
 <g fill="none" stroke="#7EC8FF" stroke-width="1.2" stroke-dasharray="3,6" opacity="0.7">
-    <path d="M{_CV['knN'][0]:.0f},{_CV['knN'][1]:.0f} C660,330 680,120 740,105"/>
+    <path d="M{_CV['knN'][0]:.0f},{_CV['knN'][1]:.0f} C690,300 700,120 740,105"/>
     <path d="M{_CV['hip'][0]:.0f},{_CV['hip'][1]:.0f} C640,290 690,255 740,250"/>
-    <path d="M{_CV['anN'][0]:.0f},{_CV['anN'][1]:.0f} C640,450 690,405 740,400"/>
+    <path d="M{_CV['anN'][0]:.0f},{_CV['anN'][1]:.0f} C660,450 700,405 740,400"/>
 </g>
 {_panel(740, 40, 420, 130, "GINOCCHIO · 128°")}
 <line x1="760" y1="120" x2="1140" y2="120" stroke="#7EC8FF" stroke-dasharray="4,5" opacity="0.35"/>
@@ -710,7 +735,6 @@ SVG_CV = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 {_t(1140, 366, "limite", 12, "#FFB84D", "end")}
 <polygon points="760,455 {_wave(760, 1140, 420, 10, 3)} 1140,455" fill="url(#areaG)"/>
 <polyline points="{_wave(760, 1140, 420, 10, 3)}" fill="none" stroke="#7EC8FF" stroke-width="2.8" stroke-linejoin="round"/>
-<circle cx="40" cy="42" r="6" fill="#FF5A5F"><animate attributeName="opacity" values="1;0.2;1" dur="1.2s" repeatCount="indefinite"/></circle>
-{_t(56, 47, "REC · 00:12:48 · F3841", 14, "#E8F6FF", mono=True)}
-<rect width="1200" height="500" fill="url(#scan)"/>
-</svg>"""
+<circle cx="52" cy="46" r="6" fill="#FF5A5F"><animate attributeName="opacity" values="1;0.2;1" dur="1.2s" repeatCount="indefinite"/></circle>
+{_t(68, 51, "REC · 00:12:48 · F3841", 14, "#E8F6FF", mono=True)}
+""", extra_defs="")
