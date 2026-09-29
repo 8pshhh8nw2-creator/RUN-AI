@@ -1,4 +1,7 @@
 import base64
+import math
+import random
+
 import streamlit as st
 import plotly.io as pio
 
@@ -25,7 +28,7 @@ def get_svg_url(svg_string):
 def header_block(kicker, title, subtitle, image_url=None, image_tag=None):
     st.markdown("<div class='telemetry-bar'></div>", unsafe_allow_html=True)
     if image_url:
-        col_txt, col_img = st.columns([1.4, 1])
+        col_txt, col_img = st.columns([1.2, 1.4])   # immagine più grande (prima [1.4, 1])
         with col_txt:
             st.markdown(f"""
             <div class="app-header">
@@ -51,17 +54,11 @@ def header_block(kicker, title, subtitle, image_url=None, image_tag=None):
         """, unsafe_allow_html=True)
 
 
-# ... qui sotto incolla il blocco "LIBRERIA CONDIVISA" con RUNNER_GLOW_DEFS,
-# _backdrop, _runner, _ground e tutte le SVG_* ...
-
 # =========================================================
-# LIBRERIA CONDIVISA — illustrazioni vettoriali su sfondo nero.
+# LIBRERIA CONDIVISA — illustrazioni vettoriali senza sfondo.
 # Runner low-poly a mesh generato una sola volta e riusato con <use>.
 # Ogni scena passa da _svg(), che la sfuma ai bordi: nessun rettangolo.
 # =========================================================
-
-import math
-import random
 
 # ---------- modello del runner (posa da sprint) ----------
 # Capsule rastremate: nome, (x, y, raggio) inizio, (x, y, raggio) fine,
@@ -76,10 +73,10 @@ _RAW = [
     ("delN", (116, 64, 8.5), (118, 70, 8), 0.62, 3),
     ("uaN", (116, 64, 7.2), (129, 96, 5.6), 0.58, 3),
     ("faN", (129, 96, 5.6), (155, 80, 3.9), 0.55, 3),
-    ("haN", (158, 78, 4.6), (158, 78, 4.6), 0.58, 3),
+    ("haN", (158, 78, 5.4), (158, 78, 5.4), 0.58, 3),
     ("uaF", (111, 64, 6.8), (83, 80, 5.4), 0.26, -2),
     ("faF", (83, 80, 5.4), (63, 103, 3.8), 0.24, -2),
-    ("haF", (61, 105, 4.4), (61, 105, 4.4), 0.24, -2),
+    ("haF", (61, 105, 5.0), (61, 105, 5.0), 0.24, -2),
     ("thN", (88, 128, 13.5), (130, 138, 8.8), 0.52, 2),
     ("shN", (130, 138, 7.6), (112, 182, 4.2), 0.55, 2),
     ("clN", (127, 150, 8.0), (120, 166, 7.0), 0.56, 2),
@@ -106,7 +103,11 @@ def _at(x, y, s, name):
 
 _RAMP = [(0.0, (6, 30, 95)), (0.3, (14, 72, 190)), (0.55, (40, 125, 235)),
          (0.8, (120, 195, 255)), (1.0, (230, 247, 255))]
-_LIGHT = (0.6, -0.8)
+
+# luce da alto-destra, verso lo spettatore (vettore 3D normalizzato)
+_LIGHT = (0.55, -0.65, 0.52)
+_ln = math.sqrt(sum(c * c for c in _LIGHT))
+_LIGHT = tuple(c / _ln for c in _LIGHT)
 
 
 def _ramp(v):
@@ -138,26 +139,30 @@ def _mesh_color(info, rnd):
     m = math.hypot(nx_, ny_)
     if m > 1:
         nx_, ny_ = nx_ / m, ny_ / m
-    v = base + 0.38 * (nx_ * _LIGHT[0] + ny_ * _LIGHT[1]) + rnd.uniform(-0.10, 0.10)
+    nz = math.sqrt(max(0.0, 1 - nx_ * nx_ - ny_ * ny_))      # normale "sferica"
+    diff = max(0.0, nx_ * _LIGHT[0] + ny_ * _LIGHT[1] + nz * _LIGHT[2])
+    v = base * (0.45 + 0.95 * diff) + 0.20 * diff ** 12 + rnd.uniform(-0.05, 0.05)
     if name == "chest" and nx_ > 0.1:
-        v += 0.10
+        v += 0.08
     if name == "abs":
         v -= 0.05
     if name == "hip":
         v -= 0.12
     if name in ("thN", "thF") and t < 0.42:
-        v -= 0.20                                   # pantaloncini
+        v -= 0.16                                   # pantaloncini
+    if name in ("thN", "thF") and t >= 0.42:
+        v += 0.04 * math.sin(t * 7 + nx_ * 2)       # accenno di muscolatura
     if name == "head" and ny_ < -0.15 and nx_ < 0.55:
-        v -= 0.34                                   # capelli
+        v -= 0.30                                   # capelli
     if name in ("ftN", "ftF") and ny_ > 0.4:
         v -= 0.28                                   # suola
     return _ramp(v)
 
 
-def _build_mesh(cs=5):
+def _build_mesh(cs=4):
     rnd = random.Random(42)
-    nx, ny = 40, 49
-    P = [[(i * cs + rnd.uniform(-1.6, 1.6), 12 + j * cs + rnd.uniform(-1.6, 1.6))
+    nx, ny = 50, 61                                  # stessa area di prima, celle più fini
+    P = [[(i * cs + rnd.uniform(-1.2, 1.2), 12 + j * cs + rnd.uniform(-1.2, 1.2))
           for j in range(ny + 1)] for i in range(nx + 1)]
     polys, verts = [], []
     for i in range(nx):
@@ -172,7 +177,7 @@ def _build_mesh(cs=5):
                 pts = " ".join(f"{p[0]:.0f},{p[1]:.0f}" for p in tri)
                 polys.append(f'<polygon points="{pts}" fill="{_mesh_color(info, rnd)}"/>')
                 verts.extend(tri)
-    spark = "".join(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="1.6"/>' for x, y in rnd.sample(verts, 34))
+    spark = "".join(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="1.4"/>' for x, y in rnd.sample(verts, 60))
     return "".join(polys), spark
 
 
@@ -232,7 +237,7 @@ RUNNER_GLOW_DEFS = """
 
 def _svg(body, extra_defs=""):
     """Avvolge la scena in un SVG con bordi sfumati (nessun rettangolo visibile)."""
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">'
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 20 1160 460">'
             f'<defs>{RUNNER_GLOW_DEFS}{extra_defs}'
             f'<filter id="feather" x="-20%" y="-20%" width="140%" height="140%">'
             f'<feGaussianBlur stdDeviation="16"/></filter>'
@@ -385,14 +390,12 @@ _SUN_BANDS = "".join(f'<rect x="820" y="{y}" width="160" height="{h}" fill="#010
                      for y, h in ((188, 3), (200, 5), (214, 7), (230, 9)))
 
 SVG_HOME = _svg(f"""
-<rect width="1200" height="500" fill="url(#skyG)"/>
 {_stars(90, 7, 0, 1200, 0, 240)}
 <circle cx="900" cy="170" r="170" fill="url(#sunG)" opacity="0.55"/>
 <circle cx="900" cy="170" r="70" fill="#DDF1FF"/>
 <g clip-path="url(#sunClip)">{_SUN_BANDS}</g>
 {_skyline(0, 1200, 346, 40, 120, 3, "#061226", lit=False)}
 {_skyline(0, 1200, 346, 60, 170, 11, "#030912")}
-<rect y="346" width="1200" height="154" fill="url(#groundG)"/>
 {_grid_floor(700, 346)}
 <polygon points="694,346 706,346 830,500 130,500" fill="#0A1A33" opacity="0.95"/>
 <g stroke="#2F8FE0" stroke-width="3" opacity="0.85" filter="url(#softGlow)">
@@ -441,7 +444,6 @@ _SMA_BARS = "".join(
 _HR, _WR, _AK = (_at(310, 45, 1.75, n) for n in ("chest", "haN", "anN"))
 
 SVG_ANALISI = _svg(f"""
-<rect width="1200" height="500" fill="#000"/>
 {_stars(50, 21, 0, 1200, 0, 500)}
 <ellipse cx="480" cy="262" rx="330" ry="270" fill="url(#runnerGlow)"/>
 <g fill="none" stroke="#2F8FE0" stroke-opacity="0.4">
@@ -507,7 +509,6 @@ for _i, (_n, _p, _c) in enumerate(_ZONES):
     _off += _C62 * _p
 
 SVG_STATS = _svg(f"""
-<rect width="1200" height="500" fill="#000"/>
 {_stars(40, 4, 0, 1200, 0, 500)}
 {_backdrop(205, 255, 165, 200)}
 {_runner_at(60, 70, 1.5)}
@@ -544,7 +545,6 @@ _RINGS = "".join(
     for cx, v, lab in ((905, 0.74, "Recupero"), (1010, 0.61, "Carico"), (1115, 0.90, "Costanza")))
 
 SVG_KPI = _svg(f"""
-<rect width="1200" height="500" fill="#000"/>
 {_stars(45, 9, 0, 1200, 0, 500)}
 {_backdrop(215, 262, 150, 200)}
 {_runner_at(50, 52, 1.7)}
@@ -605,7 +605,6 @@ _FEAT = "".join(
     for i, (lab, v) in enumerate((("Carico 7 gg", 80), ("HRV", 62), ("Sonno", 45))))
 
 SVG_ML = _svg(f"""
-<rect width="1200" height="500" fill="#000"/>
 {_stars(45, 13, 0, 1200, 0, 500)}
 {_backdrop(137, 300, 115, 170)}
 {_runner_at(20, 150, 1.2)}
@@ -656,7 +655,6 @@ _LEGEND = "".join(
                       (222, "#00E5FF", "Intervalli"), (320, "#7EC8FF", "Lungo")))
 
 SVG_PLAN = _svg(f"""
-<rect width="1200" height="500" fill="url(#skyG)"/>
 {_stars(110, 17, 0, 1200, 0, 230)}
 <circle cx="1040" cy="90" r="90" fill="url(#sunG)" opacity="0.45"/>
 <circle cx="1040" cy="90" r="32" fill="#DDF1FF"/>
@@ -707,8 +705,6 @@ _CAD = "".join(
     for i, h in ((i, 30 + 22 * (1 + math.sin(i * 0.6))) for i in range(24)))
 
 SVG_CV = _svg(f"""
-<rect width="1200" height="500" fill="#000"/>
-<rect y="330" width="1200" height="170" fill="url(#groundG)"/>
 {_grid_floor(600, 330, rows=(10, 26, 48, 80, 120, 160), opacity=0.22)}
 <ellipse cx="480" cy="270" rx="330" ry="260" fill="url(#runnerGlow)"/>
 <g opacity="0.10">{_runner(150, 45, 1.75, nodes=False)}</g>
