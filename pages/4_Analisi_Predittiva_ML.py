@@ -51,7 +51,6 @@ else:
     filtro_tempo = "Ultimi 30 giorni"
 
 IMG_HERO_ML = get_svg_url(SVG_ML)
-
 df_base = st.session_state.dati.copy()
 
 # =========================
@@ -82,22 +81,123 @@ header_block(
 
 st.markdown(
     """
-    <div style='background: linear-gradient(135deg, #0E1420 0%, #101A2E 100%);
-                border: 1px solid #202B3D; border-radius: 16px; padding: 18px 22px; margin: 18px 0 24px 0;'>
-        <h3 style='margin:0 0 10px 0; color:#00E5FF;'>Come lavora il sistema</h3>
-        <p style='margin:0; color:#B8C2D0; line-height:1.6;'>
-            RUN AI usa il tuo storico di allenamenti per capire i tuoi pattern. Guarda <strong>distanza, sonno, stress, frequenza cardiaca e sforzo percepito</strong>,
-            e poi stima il rischio di infortunio. In pratica: insegna a un coach virtuale a riconoscere i segnali del tuo corpo.
+    <style>
+    .coach-panel {
+        background: linear-gradient(135deg, rgba(0,229,255,0.08), rgba(255,176,32,0.04));
+        border: 1px solid rgba(255,255,255,0.08);
+        border-left: 4px solid #00E5FF;
+        border-radius: 16px;
+        padding: 20px 22px;
+        margin: 18px 0 20px 0;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.18);
+    }
+    .coach-panel h3 {
+        margin: 0 0 8px 0;
+        color: #FFFFFF;
+        font-size: 1.15rem;
+    }
+    .coach-panel p {
+        margin: 0;
+        color: #B8C2D0;
+        line-height: 1.7;
+        font-size: 0.98rem;
+    }
+    .coach-kicker {
+        display: inline-block;
+        margin-bottom: 12px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(0,229,255,0.5);
+        background: rgba(0,229,255,0.08);
+        color: #7EEBFF;
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+    .coach-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        margin: 16px 0 28px 0;
+    }
+    .coach-card {
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 16px;
+        padding: 18px 18px 16px 18px;
+    }
+    .coach-card h4 {
+        color: #FFFFFF;
+        margin: 0 0 8px 0;
+        font-size: 1rem;
+    }
+    .coach-card p {
+        margin: 0;
+        color: #B8C2D0;
+        line-height: 1.6;
+        font-size: 0.92rem;
+    }
+    .narrative-title {
+        color: #FFFFFF;
+        margin: 26px 0 10px 0;
+        font-size: 1.35rem;
+    }
+    .mini-note {
+        color: #B8C2D0;
+        border-left: 3px solid #00E5FF;
+        padding: 12px 14px;
+        background: rgba(0,229,255,0.04);
+        border-radius: 0 12px 12px 0;
+        margin: 10px 0 18px 0;
+        line-height: 1.7;
+    }
+    @media (max-width: 800px) {
+        .coach-grid { grid-template-columns: 1fr; }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+    <div class='coach-panel'>
+        <div class='coach-kicker'>Il modello spiegato in pratica</div>
+        <h3>RUN AI non dice “fai così” a caso.</h3>
+        <p>
+            Guarda i tuoi dati come un allenatore esperto guarderebbe un atleta in training camp: volume, recupero,
+            stress, frequenza cardiaca e profondità dell'allenamento. L'obiettivo non è insegnare a un computer a “sentire” la corsa,
+            ma a riconoscere i segnali precoci di sforzo eccessivo prima che diventano fatica accumulata o infortunio.
         </p>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
+st.markdown(
+    """
+    <div class='coach-grid'>
+        <div class='coach-card'>
+            <h4>Per l'atleta</h4>
+            <p>
+                Questi modelli ti aiutano a capire se oggi la seduta è adatta al tuo stato di recupero.
+                Non si basano su un numero astratto: guardano il tuo corpo come un sistema dinamico.
+            </p>
+        </div>
+        <div class='coach-card'>
+            <h4>Per l'allenatore</h4>
+            <p>
+                La piattaforma riassume i segnali più importanti per leggere il trend del carico e capire se la preparazione
+                sta crescendo in modo sostenibile o se c'è rischio di sovrallenamento.
+            </p>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 try:
-    # =========================
-    # LOAD MODELLI
-    # =========================
     feature_names = FEATURE_LABELS_CLASS
 
     class_bundle = get_bundle_classificazione(df_base)
@@ -111,9 +211,6 @@ try:
     y_pred_log = class_bundle["y_pred_log"]
     y_proba_log = class_bundle["y_proba_log"]
 
-    # =========================
-    # KPI INIZIALI
-    # =========================
     acc_rf = (y_pred_rf == y_train_class).mean() * 100
     prec_rf = precision_score(y_train_class, y_pred_rf, zero_division=0) * 100
     rec_rf = recall_score(y_train_class, y_pred_rf, zero_division=0) * 100
@@ -129,9 +226,6 @@ try:
     with col4:
         st.metric("Giorni a rischio", f"{giorni_rischio_pct:.0f}%", "percentuale del tuo storico")
 
-    # =========================
-    # TABS
-    # =========================
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "Rischio infortunio",
         "FC e fatica",
@@ -141,18 +235,14 @@ try:
         "Confronto modelli"
     ])
 
-    # =============================================================
-    # TAB 1 - RANDOM FOREST: rischio infortunio
-    # =============================================================
     with tab1:
-        st.subheader("Come RUN AI capisce se oggi è rischioso correre")
+        st.subheader("Come si decide se oggi è un giorno da fare attenzione")
         st.markdown(
             """
-            <div style='background: #0E1420; border-left: 4px solid #00E5FF; padding: 14px 16px; border-radius: 8px;'>
-                <p style='margin:0; color:#B8C2D0; line-height:1.6;'>
-                    Il modello Random Forest è come una giuria di tanti allenatori esperti. Accumula tanti piccoli giudizi
-                    su distanza, sonno, stress e sforzo, e poi decide insieme: <strong>rischio alto o basso?</strong>
-                </p>
+            <div class='mini-note'>
+                Il modello si comporta come un analista di performance: guarda il profilo dell'allenamento e verifica se il mix di volume,
+                recupero, stress e sforzo ha i tratti di una sessione che può creare carico eccessivo.
+                In parole semplici: se il giorno ha segnali di debito di recupero, distanza forte e sforzo alto, la probabilità di rischio sale.
             </div>
             """,
             unsafe_allow_html=True,
@@ -190,10 +280,10 @@ try:
             st.plotly_chart(style_fig(fig_imp), use_container_width=True)
 
             top_feat = imp_data[0][0]
-            st.info(f"Il fattore più importante per te è: **{top_feat}**. Quando sale, il rischio cresce molto rapidamente.")
+            st.info(f"Il fattore dominante nel tuo profilo è: **{top_feat}**. Quando questo valore si alza, il rischio cresce in modo molto rapido.")
 
         with col_b:
-            st.markdown("#### Quante volte ha azzeccato le previsioni?")
+            st.markdown("#### Quante volte il modello ha ragionato bene?")
             cm = confusion_matrix(y_train_class, y_pred_rf)
             tn, fp, fn, tp = cm.ravel()
 
@@ -228,7 +318,7 @@ try:
             )
 
         st.markdown('---')
-        st.markdown("#### Curva ROC: quanto distingue i giorni sicuri da quelli a rischio?")
+        st.markdown("#### Curva ROC: quanto il modello separa i giorni buoni da quelli critici?")
 
         fpr, tpr, _ = roc_curve(y_train_class, y_proba_rf)
         roc_auc = auc(fpr, tpr)
@@ -267,26 +357,32 @@ try:
         st.plotly_chart(style_fig(fig_roc), use_container_width=True)
 
         if roc_auc >= 0.85:
-            verdict = 'Molto buono — distingue bene i periodi critici.'
+            verdict = 'Molto buono: distingue bene i periodi critici.'
         elif roc_auc >= 0.75:
-            verdict = 'Buono — utile e abbastanza affidabile.'
+            verdict = 'Buono: utile e affidabile.'
         else:
-            verdict = 'Discreto — utile, ma non è un giudizio assoluto.'
+            verdict = 'Discreto: utile, ma non sostituisce il giudizio dell'allenatore.'
 
         st.success(f"**AUC = {roc_auc:.3f}** → {verdict}")
 
-    # =============================================================
-    # TAB 2 - REGRESSIONE LINEARE: FC media
-    # =============================================================
-    with tab2:
-        st.subheader("La frequenza cardiaca: come il modello capisce se stai lavorando troppo")
         st.markdown(
             """
-            <div style='background: #0E1420; border-left: 4px solid #FFB020; padding: 14px 16px; border-radius: 8px;'>
-                <p style='margin:0; color:#B8C2D0; line-height:1.6;'>
-                    Questo modulo cerca di capire quale dovrebbe essere la tua FC media in base a distanza, sforzo e condizione del giorno.
-                    Se la tua FC reale è molto più alta del previsto, c'è un segnale di stress o affaticamento extra.
-                </p>
+            <div class='mini-note'>
+                Per un atleta, questa parte è importante perché mostra quanto il modello riesce a separare un giorno “sicuro” da un giorno potenzialmente troppo intenso.
+                Per un allenatore, è il primo controllo di qualità della decisione: non è solo una previsione, è una valutazione della capacità del sistema di leggere il rischio.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with tab2:
+        st.subheader("La frequenza cardiaca come segnale di fatica")
+        st.markdown(
+            """
+            <div class='mini-note'>
+                La FC media è un indicatore molto utile: non racconta solo quanto hai fatto, ma quanto il tuo corpo ha reagito a quel carico.
+                Se la frequenza cardiaca reale sale oltre il livello atteso per una seduta simile, può significare che il recupero era peggiore del previsto,
+                che lo stress era più alto o che il lavoro è stato troppo intenso per il giorno.
             </div>
             """,
             unsafe_allow_html=True,
@@ -331,7 +427,7 @@ try:
             )
             st.plotly_chart(style_fig(fig_lr), use_container_width=True)
 
-            st.info(f"**R² = {r2*100:.0f}%** — il modello spiega circa il {r2*100:.0f}% della variazione della tua FC. Se un punto è lontano dalla linea verde, vuol dire che il tuo corpo sta lavorando oltre il solito.")
+            st.info(f"**R² = {r2*100:.0f}%** — il modello spiega circa il {r2*100:.0f}% della variazione della FC. Se un punto è lontano dalla linea verde, vuol dire che quel giorno il corpo ha lavorato oltre il solito per quella specifica seduta.")
 
         with col_b:
             st.markdown("#### Scostamenti: quando la FC è fuori norma")
@@ -354,20 +450,16 @@ try:
             st.plotly_chart(style_fig(fig_resid), use_container_width=True)
 
             giorni_fuori = int((df_base['Residuo'] > 5).sum())
-            st.warning(f"**Giorni fuori norma:** {giorni_fuori}.\n\nErrore medio del modello: ±{mae:.1f} bpm. Questi sono i giorni in cui il tuo corpo sta dicendo che è vicino al limite.")
+            st.warning(f"**Giorni fuori norma:** {giorni_fuori}.\n\nErrore medio del modello: ±{mae:.1f} bpm. Questi sono i giorni in cui il corpo ha mostrato un segnale di stress aggiuntivo o di adattamento più difficile del previsto.")
 
-    # =============================================================
-    # TAB 3 - CLUSTERING: tipi di allenamento
-    # =============================================================
     with tab3:
-        st.subheader("I tuoi allenamenti si dividono in gruppi naturali")
+        st.subheader("I tuoi allenamenti si raggruppano in pattern ricorrenti")
         st.markdown(
             """
-            <div style='background: #0E1420; border-left: 4px solid #00F5A0; padding: 14px 16px; border-radius: 8px;'>
-                <p style='margin:0; color:#B8C2D0; line-height:1.6;'>
-                    Il clustering trova gruppi di allenamenti simili senza che tu glieli dica in anticipo:
-                    giorni leggeri, misurati e intensi. Serve a capire se stai sempre facendo lo stesso tipo di lavoro.
-                </p>
+            <div class='mini-note'>
+                Il clustering aiuta a capire se l'allenamento è molto diverso da quello che fai di solito. Non classifica in modo “giusto o sbagliato”,
+                ma identifica gruppi naturali di seduta: leggere, misurate e intense. Questo aiuta l'atleta a riconoscere il proprio profilo di lavoro e
+                all'allenatore a valutare se il programma è troppo sbilanciato.
             </div>
             """,
             unsafe_allow_html=True,
@@ -385,7 +477,7 @@ try:
         col_a, col_b = st.columns(2)
 
         with col_a:
-            st.markdown("#### Perché 3 gruppi?")
+            st.markdown("#### Perché tre gruppi?")
             inertias = []
             for k in range(2, 7):
                 km_test = KMeans(n_clusters=k, random_state=42, n_init=10).fit(X_clust)
@@ -414,7 +506,7 @@ try:
             st.plotly_chart(style_fig(fig_elbow), use_container_width=True)
 
         with col_b:
-            st.markdown("#### I tuoi allenamenti nel grafico")
+            st.markdown("#### La distribuzione dei tuoi allenamenti")
             fig_cluster = px.scatter(
                 df_base,
                 x='Distanza (km)',
@@ -465,22 +557,17 @@ try:
         st.plotly_chart(style_fig(fig_profile), use_container_width=True)
 
         if sil > 0.6:
-            st.success(f"**Silhouette score: {sil:.2f}** — i gruppi sono ben separati e molto leggibili.")
+            st.success(f"**Silhouette score: {sil:.2f}** — i gruppi sono ben separati e il profilo del tuo allenamento è molto leggibile.")
         else:
-            st.info(f"**Silhouette score: {sil:.2f}** — i gruppi esistono ma ci sono ancora sovrapposizioni tra tipi di allenamento.")
+            st.info(f"**Silhouette score: {sil:.2f}** — i gruppi esistono ma ci sono ancora sovrapposizioni tra tipi di seduta.")
 
-    # =============================================================
-    # TAB 4 - STRESS CRONICO / FATICA nell'ultimo periodo
-    # =============================================================
     with tab4:
-        st.subheader("Il carico cronico: stai accumulando fatica nel tempo?")
+        st.subheader("Il carico cronico: quando la fatica si accumula")
         st.markdown(
             """
-            <div style='background: #0E1420; border-left: 4px solid #FF6A3D; padding: 14px 16px; border-radius: 8px;'>
-                <p style='margin:0; color:#B8C2D0; line-height:1.6;'>
-                    Non conta solo il singolo allenamento. Il tuo corpo accumula fatica settimana dopo settimana.
-                    Se il carico medio resta troppo alto, aumentano i rischi di infortunio anche se oggi sembri "ok".
-                </p>
+            <div class='mini-note'>
+                Un singolo allenamento può sembrare sostenibile, ma il vero rischio arriva quando il carico semplice e quello complessivo sembrano crescere insieme a lungo termine.
+                Il carico cronico è il modo in cui RUN AI legge l'accumulo di fatica nel tempo, prima che diventi sovrallenamento.
             </div>
             """,
             unsafe_allow_html=True,
@@ -531,20 +618,15 @@ try:
 
         giorni_sopra = int((df_stress['SMA_Rolling'] > 15).sum())
         pct_sopra = (giorni_sopra / len(df_stress)) * 100
-        st.warning(f"**Hai superato la soglia critica per {giorni_sopra} giorni** ({pct_sopra:.0f}% del periodo). Se questo numero è alto, il tuo corpo sta accumulando troppa fatica.")
+        st.warning(f"**Hai superato la soglia critica per {giorni_sopra} giorni** ({pct_sopra:.0f}% del periodo).\n\nPer un atleta, questo significa che il carico si sta accumulando; per un allenatore, è un segnale chiaro da monitorare con calma e da correggere prima che ci siano problemi di performance o infortunio.")
 
-    # =============================================================
-    # TAB 5 - SIMULATORE WHAT-IF
-    # =============================================================
     with tab5:
-        st.subheader("Simulatore fast: cosa succederebbe se facessi oggi questa seduta?")
+        st.subheader("Simulatore: cosa succederebbe se oggi facessi una seduta così?")
         st.markdown(
             """
-            <div style='background: #0E1420; border-left: 4px solid #00E5FF; padding: 14px 16px; border-radius: 8px;'>
-                <p style='margin:0; color:#B8C2D0; line-height:1.6;'>
-                    Muovi gli slider per provare uno scenario. Il sistema ti dice in tempo reale quanto il tuo rischio cambierebbe
-                    con distanza, sonno, stress e sforzo diversi.
-                </p>
+            <div class='mini-note'>
+                Questo piano è utile per allenatore e atleta perché mostra in tempo reale come cambiano i rischi quando mutano i fattori più importanti:
+                distanza, recupero, stress e percezione del carico. È lo strumento perfetto per valutare prima di partire in allenamento.
             </div>
             """,
             unsafe_allow_html=True,
@@ -574,15 +656,15 @@ try:
         if sim_prob >= 60:
             color = ORANGE
             label = 'Rischio elevato'
-            advice = f'Un giorno così pesante ({sim_prob:.0f}% di rischio) non è adatto a oggi. Riduci la distanza o fai un allenamento più leggero.'
+            advice = f'Questo scenario è troppo intenso rispetto allo stato di recupero: con {sim_prob:.0f}% di rischio, la seduta andrebbe ridotta o spostata in un giorno più favorevole.'
         elif sim_prob >= 35:
             color = AMBER
             label = 'Rischio moderato'
-            advice = f'Il rischio è presente ({sim_prob:.0f}%). Valuta di ridurre la distanza o di fare più recupero.'
+            advice = f'Il rischio non è alto, ma c'è un segnale di compressione del recupero. Un allenamento leggermente più corto o un giorno più riposato sarebbe più prudente.'
         else:
             color = GREEN
             label = 'Rischio basso'
-            advice = f'Questo scenario è sostenibile. Il rischio è basso ({sim_prob:.0f}%), quindi puoi procedere con prudenza.'
+            advice = f'Questo scenario è sostenibile. La seduta entra nella fascia di rischio basso e può essere considerata compatibile con il tuo profilo attuale.'
 
         st.markdown(
             f"""
@@ -639,18 +721,13 @@ try:
             )
             st.plotly_chart(style_fig(fig_sens), use_container_width=True)
 
-    # =============================================================
-    # TAB 6 - CONFRONTO MODELLI
-    # =============================================================
     with tab6:
         st.subheader("Random Forest vs Logistic Regression")
         st.markdown(
             """
-            <div style='background: #0E1420; border-left: 4px solid #FFB020; padding: 14px 16px; border-radius: 8px;'>
-                <p style='margin:0; color:#B8C2D0; line-height:1.6;'>
-                    Due approcci diversi: <strong>Random Forest</strong> è più precisa e sofisticata, mentre <strong>Logistic Regression</strong>
-                    è più semplice da leggere e capire. Entrambi hanno un ruolo utile nella tua analisi.
-                </p>
+            <div class='mini-note'>
+                I due modelli hanno uno scopo diverso. La Random Forest è più adatta a catturare relazioni complesse e a dare un allarme forte quando un profilo di allenamento è molto vicino a una situazione critica.
+                La Logistic Regression è più semplice da leggere e aiuta a capire quali fattori stanno davvero determinando il rischio.
             </div>
             """,
             unsafe_allow_html=True,
@@ -751,8 +828,8 @@ try:
                 - spesso più preciso sul tuo storico
 
                 **Limiti:**
-                - è meno trasparente
-                - non spiega sempre il perché in modo semplice
+                - meno trasparente
+                - non spiega sempre in modo semplice il perché del giudizio
                 """
             )
 
@@ -761,17 +838,17 @@ try:
                 """
                 ### Logistic Regression
                 **Punti forti:**
-                - spiegabile
+                - più semplice da interpretare
                 - mostra quali fattori pesano di più
-                - utile per capire la causa del rischio
+                - utile per capire dove va il problema
 
                 **Limiti:**
                 - meno efficace su pattern molto complessi
-                - più semplice e quindi meno ricca di dettagli
+                - meno ricca di sfumature rispetto al modello più avanzato
                 """
             )
 
-        st.success("**Regola pratica:** usa Random Forest come allarme principale e Logistic Regression per capire quale fattore sta spingendo il rischio verso l'alto. Insieme danno sia previsione che spiegazione.")
+        st.success("**Regola pratica:** usa Random Forest come allarme principale e Logistic Regression per capire quale fattore sta spingendo il rischio verso l'alto. Insieme hanno un ruolo chiaro: previsione e spiegazione.")
 
 except Exception as e:
     st.error(f"Errore nel caricamento dei modelli ML: {str(e)}")
