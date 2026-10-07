@@ -711,8 +711,9 @@ with tab_ml:
 
     st.markdown("---")
 
-       # ---------------------------------------------------------
-    # RIGA 4 — Simulatore what-if
+   # ---------------------------------------------------------
+    # RIGA 4 — Simulatore what-if  (INIZIO BLOCCO DA INCOLLARE)
+    # Sostituisce tutto da "# RIGA 4" fino a PRIMA di "# RIGA 5"
     # ---------------------------------------------------------
     st.markdown("#### Simulatore: cosa succederebbe se...")
     st.markdown("""
@@ -720,185 +721,152 @@ with tab_ml:
     lasciando invariati gli altri fattori.
     """)
 
-    # Valori attuali protetti: garantiscono che gli slider ricevano
-    # sempre float validi e compresi nei rispettivi intervalli.
-    sonno_attuale = float(r.get(COL_SONNO, r.get("ore_sonno", 7.0)))
-    volume_attuale = float(
-        r.get(
-            "volume_settimanale_km",
-            df_base[COL_DISTANZA].tail(7).sum()
-            if COL_DISTANZA in df_base.columns
-            else 25.0
-        )
+    def _num(v, default):
+        try:
+            v = float(v)
+            return v if np.isfinite(v) else default
+        except Exception:
+            return default
+
+    # --- Valori attuali (baseline) ---------------------------------
+    vol_fallback = (
+        float(df_base[COL_DISTANZA].tail(7).sum())
+        if COL_DISTANZA in df_base.columns
+        else 25.0
     )
-    passo_attuale = float(r.get("passo_medio", 5.0))
+    sonno_attuale = _num(r.get(COL_SONNO, r.get("ore_sonno", 7.0)), 7.0)
+    volume_attuale = _num(r.get("volume_settimanale_km", vol_fallback), 25.0)
+    passo_attuale = _num(r.get("passo_medio", 5.0), 5.0)
 
     sonno_default = float(np.clip(sonno_attuale, 3.0, 10.0))
     volume_default = float(np.clip(volume_attuale, 0.0, 100.0))
     passo_default = float(np.clip(passo_attuale, 3.5, 8.0))
 
     sim_c1, sim_c2, sim_c3 = st.columns(3)
-
     with sim_c1:
-        sonno_sim = st.slider(
-            "Ore di sonno",
-            min_value=3.0,
-            max_value=10.0,
-            value=sonno_default,
-            step=0.5,
-            key="sim_sonno"
-        )
-
+        sonno_sim = st.slider("Ore di sonno", 3.0, 10.0, sonno_default,
+                              step=0.5, key="sim_sonno")
     with sim_c2:
-        volume_sim = st.slider(
-            "Volume settimanale (km)",
-            min_value=0.0,
-            max_value=100.0,
-            value=volume_default,
-            step=1.0,
-            key="sim_volume"
-        )
-
+        volume_sim = st.slider("Volume settimanale (km)", 0.0, 100.0, volume_default,
+                               step=1.0, key="sim_volume")
     with sim_c3:
-        passo_sim = st.slider(
-            "Passo medio (min/km)",
-            min_value=3.5,
-            max_value=8.0,
-            value=passo_default,
-            step=0.1,
-            key="sim_passo"
-        )
+        passo_sim = st.slider("Passo medio (min/km)", 3.5, 8.0, passo_default,
+                              step=0.1, key="sim_passo")
 
-    # Ricalcolo del rischio nello scenario simulato.
-    try:
-        risultato_sim = calcola_risk_score_pesato(
+    # --- 1) Tentativo con il motore KPI reale -----------------------
+    def _rischio_engine(sonno, volume, passo):
+        res = calcola_risk_score_pesato(
             oggi={
                 "ISLR": kpi_oggi["ISLR"],
-                "IDET": (
-                    kpi_oggi["IDET"]
-                    if pd.notna(kpi_oggi["IDET"])
-                    else 0.0
-                ),
-                "Ore Sonno": sonno_sim,
-                "Volume Settimanale": volume_sim,
-                "Passo Medio": passo_sim,
+                "IDET": kpi_oggi["IDET"] if pd.notna(kpi_oggi["IDET"]) else 0.0,
+                "Ore Sonno": sonno,
+                "Volume Settimanale": volume,
+                "Passo Medio": passo,
             },
-            storico=(
-                kpi_storico
-                if kpi_storico is not None
-                else pd.DataFrame()
-            ),
+            storico=kpi_storico if kpi_storico is not None else pd.DataFrame(),
         )
+        return float(res[0])
 
-        risk_sim = float(risultato_sim[0])
+    risk_score_safe = float(np.clip(_num(risk_score, 50.0), 0, 100))
 
+    errore_engine = None
+    base_engine = sim_engine = None
+    try:
+        base_engine = _rischio_engine(sonno_attuale, volume_attuale, passo_attuale)
+        sim_engine = _rischio_engine(sonno_sim, volume_sim, passo_sim)
     except Exception as e:
-        risk_sim = float(risk_score)
+        errore_engine = repr(e)
 
-    # Protezione definitiva contro None, NaN, inf o valori fuori scala.
-    if not np.isfinite(risk_sim):
-        risk_sim = float(risk_score)
+    slider_mossi = (
+        abs(sonno_sim - sonno_default) > 1e-9
+        or abs(volume_sim - volume_default) > 1e-9
+        or abs(passo_sim - passo_default) > 1e-9
+    )
+    engine_reattivo = (
+        base_engine is not None
+        and sim_engine is not None
+        and np.isfinite(base_engine)
+        and np.isfinite(sim_engine)
+        and (not slider_mossi or abs(sim_engine - base_engine) > 1e-6)
+    )
 
-    risk_sim = float(np.clip(risk_sim, 0, 100))
-    risk_score_safe = float(np.clip(float(risk_score), 0, 100))
+    # --- 2) Contributi per fattore (usati anche per il grafico) -----
+    def _contributi(sonno, volume, passo):
+        return {
+            "Sonno": float(np.clip((8.0 - sonno) / 5.0 * 100, 0, 100)),
+            "Volume settimanale": float(np.clip(volume / 80.0 * 100, 0, 100)),
+            "Intensità (passo)": float(np.clip((7.0 - passo) / 3.5 * 100, 0, 100)),
+        }
 
+    PESI = {"Sonno": 0.30, "Volume settimanale": 0.25, "Intensità (passo)": 0.15}
+
+    c_base = _contributi(sonno_default, volume_default, passo_default)
+    c_sim = _contributi(sonno_sim, volume_sim, passo_sim)
+
+    if engine_reattivo:
+        # Il motore risponde ai cursori: uso la sua variazione
+        risk_sim = risk_score_safe + (sim_engine - base_engine)
+        metodo = "calcolato con il modello dei tuoi KPI"
+    else:
+        # Il motore ignora i cursori (o va in errore): stima trasparente
+        delta_stima = sum(PESI[k] * (c_sim[k] - c_base[k]) for k in PESI)
+        risk_sim = risk_score_safe + delta_stima
+        metodo = "stima semplificata (sonno 30%, volume 25%, passo 15%)"
+
+    risk_sim = float(np.clip(_num(risk_sim, risk_score_safe), 0, 100))
     delta_sim = risk_sim - risk_score_safe
 
     colore_sim = (
-        "#00F5A0"
-        if risk_sim < 25
-        else "#FFB020"
-        if risk_sim < 60
-        else "#FF6A3D"
+        "#00F5A0" if risk_sim < 25 else "#FFB020" if risk_sim < 60 else "#FF6A3D"
     )
 
+    # --- 3) Visualizzazione ----------------------------------------
     sim_res1, sim_res2 = st.columns([1, 1.4], gap="large")
 
     with sim_res1:
-        fig_gauge_sim = go.Figure(
-            go.Indicator(
-                mode="gauge+number+delta",
-                value=risk_sim,
-                number={
-                    "suffix": "%",
-                    "font": {
-                        "color": "#FFFFFF",
-                        "size": 30
-                    }
-                },
-                delta={
-                    "reference": risk_score_safe,
-                    "valueformat": ".1f",
-                    "increasing": {
-                        "color": "#FF6A3D"
-                    },
-                    "decreasing": {
-                        "color": "#00F5A0"
-                    }
-                },
-                gauge={
-                    "axis": {
-                        "range": [0, 100],
-                        "tickfont": {
-                            "size": 11,
-                            "color": "#8792A3"
-                        }
-                    },
-                    "bar": {
-                        "color": colore_sim,
-                        "thickness": 0.65
-                    },
-                    "bgcolor": "rgba(255,255,255,0.02)",
-                    "borderwidth": 1,
-                    "bordercolor": "rgba(0,229,255,0.25)",
-                    "steps": [
-                        {
-                            "range": [0, 25],
-                            "color": "rgba(0,245,160,0.10)"
-                        },
-                        {
-                            "range": [25, 60],
-                            "color": "rgba(255,176,32,0.10)"
-                        },
-                        {
-                            "range": [60, 100],
-                            "color": "rgba(255,106,61,0.10)"
-                        }
-                    ]
-                }
-            )
-        )
-
+        fig_gauge_sim = go.Figure(go.Indicator(
+            mode="gauge+number+delta",
+            value=risk_sim,
+            number={"suffix": "%", "font": {"color": "#FFFFFF", "size": 30}},
+            delta={
+                "reference": risk_score_safe,
+                "valueformat": ".1f",
+                "increasing": {"color": "#FF6A3D"},
+                "decreasing": {"color": "#00F5A0"},
+            },
+            gauge={
+                "axis": {"range": [0, 100], "tickfont": {"size": 11, "color": "#8792A3"}},
+                "bar": {"color": colore_sim, "thickness": 0.65},
+                "bgcolor": "rgba(255,255,255,0.02)",
+                "borderwidth": 1,
+                "bordercolor": "rgba(0,229,255,0.25)",
+                "steps": [
+                    {"range": [0, 25], "color": "rgba(0,245,160,0.10)"},
+                    {"range": [25, 60], "color": "rgba(255,176,32,0.10)"},
+                    {"range": [60, 100], "color": "rgba(255,106,61,0.10)"},
+                ],
+            },
+        ))
         fig_gauge_sim.update_layout(
-            height=240,
-            margin=dict(l=10, r=10, t=20, b=10),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)"
+            height=240, margin=dict(l=10, r=10, t=20, b=10),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         )
-
-        st.plotly_chart(
-            style_fig(fig_gauge_sim),
-            use_container_width=True,
-            key="gauge_rischio_simulato"
-        )
+        st.plotly_chart(style_fig(fig_gauge_sim), use_container_width=True,
+                        key="gauge_rischio_simulato")
 
     with sim_res2:
         if delta_sim > 0.5:
-            verso = "aumenterebbe"
-            colore_verso = "#FF6A3D"
+            verso, colore_verso = "aumenterebbe", "#FF6A3D"
         elif delta_sim < -0.5:
-            verso = "diminuirebbe"
-            colore_verso = "#00F5A0"
+            verso, colore_verso = "diminuirebbe", "#00F5A0"
         else:
-            verso = "resterebbe sostanzialmente stabile"
-            colore_verso = "#8792A3"
+            verso, colore_verso = "resterebbe sostanzialmente stabile", "#8792A3"
 
         st.markdown(f"""
         <div class='tech-box' style='font-size: 1em; border-left-color: {colore_verso};'>
             Con queste impostazioni, il rischio
             <strong style='color: {colore_verso};'>{verso}</strong>
-            di circa <strong>{abs(delta_sim):.1f} punti</strong>
-            rispetto a oggi:
+            di circa <strong>{abs(delta_sim):.1f} punti</strong> rispetto a oggi:
             <strong>{risk_score_safe:.0f}% → {risk_sim:.0f}%</strong>.
         </div>
         """, unsafe_allow_html=True)
@@ -907,79 +875,65 @@ with tab_ml:
         <div class='tech-box'>
             Scenario simulato: <strong>{sonno_sim:.1f} ore</strong> di sonno,
             <strong>{volume_sim:.0f} km</strong> settimanali e
-            passo medio di <strong>{passo_sim:.1f} min/km</strong>.
+            passo medio di <strong>{passo_sim:.1f} min/km</strong>.<br>
+            <span style='color:#8792A3;'>Metodo: {metodo}.</span>
         </div>
         """, unsafe_allow_html=True)
 
-        fig_confronto_sim = go.Figure()
-
-        fig_confronto_sim.add_hrect(
-            y0=0,
-            y1=25,
-            fillcolor="rgba(0,245,160,0.06)",
-            line_width=0
-        )
-        fig_confronto_sim.add_hrect(
-            y0=25,
-            y1=60,
-            fillcolor="rgba(255,176,32,0.06)",
-            line_width=0
-        )
-        fig_confronto_sim.add_hrect(
-            y0=60,
-            y1=100,
-            fillcolor="rgba(255,106,61,0.06)",
-            line_width=0
-        )
-
-        fig_confronto_sim.add_trace(
-            go.Bar(
-                x=["Rischio attuale", "Rischio simulato"],
-                y=[risk_score_safe, risk_sim],
-                marker_color=[status_color, colore_sim],
-                text=[
-                    f"{risk_score_safe:.0f}%",
-                    f"{risk_sim:.0f}%"
-                ],
-                textposition="outside",
-                textfont=dict(
-                    color="#FFFFFF",
-                    size=15
-                ),
-                hovertemplate=(
-                    "<b>%{x}</b><br>"
-                    "Rischio: %{y:.1f}%"
-                    "<extra></extra>"
-                )
-            )
-        )
-
-        fig_confronto_sim.update_layout(
-            title="Confronto scenario attuale e simulato",
-            height=300,
+        # Grafico per fattore: attuale vs simulato
+        nomi_f = list(PESI.keys())
+        fig_fattori = go.Figure()
+        fig_fattori.add_trace(go.Bar(
+            y=nomi_f, x=[c_base[k] for k in nomi_f], orientation="h",
+            name="Attuale", marker_color="#566178",
+        ))
+        fig_fattori.add_trace(go.Bar(
+            y=nomi_f, x=[c_sim[k] for k in nomi_f], orientation="h",
+            name="Simulato", marker_color=colore_sim,
+        ))
+        fig_fattori.update_layout(
+            barmode="group", height=260,
+            title="Quanto pesa ogni abitudine (0 = ottimo, 100 = critico)",
             margin=dict(l=20, r=20, t=45, b=20),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            showlegend=False,
-            yaxis=dict(
-                title="Rischio complessivo (%)",
-                range=[0, 110],
-                gridcolor="rgba(255,255,255,0.08)",
-                zeroline=False
-            ),
-            xaxis=dict(
-                tickfont=dict(
-                    color="#D1D5DB",
-                    size=12
-                )
-            )
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            xaxis=dict(range=[0, 100], gridcolor="rgba(255,255,255,0.08)"),
+            legend=dict(orientation="h", y=1.18),
         )
+        st.plotly_chart(style_fig(fig_fattori), use_container_width=True,
+                        key="fattori_rischio_simulato")
 
-        st.plotly_chart(
-            style_fig(fig_confronto_sim),
-            use_container_width=True,
-            key="confronto_rischio_simulato"
+        # Confronto rischio attuale vs simulato
+        fig_confronto_sim = go.Figure()
+        fig_confronto_sim.add_hrect(y0=0, y1=25, fillcolor="rgba(0,245,160,0.06)", line_width=0)
+        fig_confronto_sim.add_hrect(y0=25, y1=60, fillcolor="rgba(255,176,32,0.06)", line_width=0)
+        fig_confronto_sim.add_hrect(y0=60, y1=100, fillcolor="rgba(255,106,61,0.06)", line_width=0)
+        fig_confronto_sim.add_trace(go.Bar(
+            x=["Rischio attuale", "Rischio simulato"],
+            y=[risk_score_safe, risk_sim],
+            marker_color=[status_color, colore_sim],
+            text=[f"{risk_score_safe:.0f}%", f"{risk_sim:.0f}%"],
+            textposition="outside",
+            textfont=dict(color="#FFFFFF", size=15),
+            hovertemplate="<b>%{x}</b><br>Rischio: %{y:.1f}%<extra></extra>",
+        ))
+        fig_confronto_sim.update_layout(
+            title="Confronto scenario attuale e simulato", height=300,
+            margin=dict(l=20, r=20, t=45, b=20),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            showlegend=False,
+            yaxis=dict(title="Rischio complessivo (%)", range=[0, 110],
+                       gridcolor="rgba(255,255,255,0.08)", zeroline=False),
+            xaxis=dict(tickfont=dict(color="#D1D5DB", size=12)),
         )
+        st.plotly_chart(style_fig(fig_confronto_sim), use_container_width=True,
+                        key="confronto_rischio_simulato")
+
+    if errore_engine:
+        with st.expander("Dettagli tecnici (solo per debug)"):
+            st.code(errore_engine)
+    # ---------------------------------------------------------
+    # FINE BLOCCO — qui sotto continua "# RIGA 5 — Raccomandazione..."
+    # ---------------------------------------------------------
     # ---------------------------------------------------------
     # RIGA 5 — Raccomandazione basata sul driver principale
     # ---------------------------------------------------------
