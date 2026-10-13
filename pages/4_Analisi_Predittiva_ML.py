@@ -4,30 +4,22 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
-from sklearn.cluster import KMeans
-from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_score, recall_score, f1_score
+from sklearn.metrics import confusion_matrix, precision_score, recall_score
 
 from utils.style import carica_css
 from utils.data import genera_dati
 from utils.components import header_block, get_svg_url, style_fig, SVG_ML
 from utils.sidebar import sidebar_comune
 from utils.ml_engine import (
-    get_bundle_classificazione,
-    get_bundle_regressione,
-    get_bundle_cluster,
-    stima_rischio_oggi,
-    FEATURE_LABELS_CLASS,
+    get_bundle_classificazione, get_bundle_regressione, get_bundle_cluster,
+    stima_rischio_oggi, FEATURE_LABELS_CLASS,
 )
 
-# =========================
-# CONFIGURAZIONE PAGINA
-# =========================
-st.set_page_config(page_title="RUN AI - Modelli personali", layout="wide")
+# 1. Configurazione pagina
+st.set_page_config(page_title="Rischio e Previsioni", layout="wide")
 carica_css()
 
-# =========================
-# INIT SESSION STATE
-# =========================
+# 2. Stato base
 if 'dati' not in st.session_state or st.session_state.dati is None:
     st.session_state.dati = genera_dati()
 if 'device_connected' not in st.session_state:
@@ -39,9 +31,7 @@ if 'analisi_fatta' not in st.session_state:
 if 'risultati_analisi' not in st.session_state:
     st.session_state.risultati_analisi = {}
 
-# =========================
-# DATI / FILTRI
-# =========================
+# 3. Sidebar comune
 sidebar_result = sidebar_comune()
 if sidebar_result and isinstance(sidebar_result, tuple) and len(sidebar_result) == 3:
     df, df_full, filtro_tempo = sidebar_result
@@ -51,151 +41,37 @@ else:
     filtro_tempo = "Ultimi 30 giorni"
 
 IMG_HERO_ML = get_svg_url(SVG_ML)
+
+BG_DARK, BG_DARK2, BD = "#0B1017", "#0E1420", "#202B3D"
+TXT_PRI, TXT_SEC, TXT_TER = "#FFFFFF", "#B8C2D0", "#8792A3"
+C_CYAN, C_AMBER, C_ORANGE, C_GREEN = "#00E5FF", "#FFB020", "#FF6A3D", "#00F5A0"
+RISK_SCALE = [[0, C_GREEN], [0.3, C_AMBER], [1, C_ORANGE]]
+
+
+def dot(c):
+    return f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:{c};margin-right:8px;vertical-align:middle;'></span>"
+
+
+def colore_rischio(p):
+    return C_ORANGE if p >= 60 else C_AMBER if p >= 25 else C_GREEN
+
+
+header_block(
+    "Modulo 04 — Le previsioni",
+    "RISCHIO E PREVISIONI",
+    "Il sistema studia i tuoi allenamenti passati e ti dice quando il rischio di farti male sale.",
+    IMG_HERO_ML, "Previsioni"
+)
+
 df_base = st.session_state.dati.copy()
 
-# =========================
-# TEMA
-# =========================
-BG = "#0B1017"
-BG2 = "#0E1420"
-BD = "#202B3D"
-TXT = "#FFFFFF"
-TXT_SEC = "#B8C2D0"
-TXT_MUTED = "#8792A3"
-CYAN = "#00E5FF"
-GREEN = "#00F5A0"
-AMBER = "#FFB020"
-ORANGE = "#FF6A3D"
-RED = "#ff5b5b"
-
-# =========================
-# HEADER
-# =========================
-header_block(
-    "Modulo 04 — I tuoi modelli",
-    "COME RUN AI TI PROTEGGE",
-    "I modelli imparano dal tuo storico per capire quando la fatica è troppo alta e quando la distanza è troppo forte per te.",
-    IMG_HERO_ML,
-    "Machine Learning Engine"
-)
-
-st.markdown(
-    """
-    <style>
-    .coach-panel {
-        background: linear-gradient(135deg, rgba(0,229,255,0.08), rgba(255,176,32,0.04));
-        border: 1px solid rgba(255,255,255,0.08);
-        border-left: 4px solid #00E5FF;
-        border-radius: 16px;
-        padding: 20px 22px;
-        margin: 18px 0 20px 0;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.18);
-    }
-    .coach-panel h3 {
-        margin: 0 0 8px 0;
-        color: #FFFFFF;
-        font-size: 1.15rem;
-    }
-    .coach-panel p {
-        margin: 0;
-        color: #B8C2D0;
-        line-height: 1.7;
-        font-size: 0.98rem;
-    }
-    .coach-kicker {
-        display: inline-block;
-        margin-bottom: 12px;
-        padding: 5px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(0,229,255,0.5);
-        background: rgba(0,229,255,0.08);
-        color: #7EEBFF;
-        font-size: 0.72rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        font-weight: 700;
-    }
-    .coach-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 16px;
-        margin: 16px 0 28px 0;
-    }
-    .coach-card {
-        background: rgba(255,255,255,0.02);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 16px;
-        padding: 18px 18px 16px 18px;
-    }
-    .coach-card h4 {
-        color: #FFFFFF;
-        margin: 0 0 8px 0;
-        font-size: 1rem;
-    }
-    .coach-card p {
-        margin: 0;
-        color: #B8C2D0;
-        line-height: 1.6;
-        font-size: 0.92rem;
-    }
-    .narrative-title {
-        color: #FFFFFF;
-        margin: 26px 0 10px 0;
-        font-size: 1.35rem;
-    }
-    .mini-note {
-        color: #B8C2D0;
-        border-left: 3px solid #00E5FF;
-        padding: 12px 14px;
-        background: rgba(0,229,255,0.04);
-        border-radius: 0 12px 12px 0;
-        margin: 10px 0 18px 0;
-        line-height: 1.7;
-    }
-    @media (max-width: 800px) {
-        .coach-grid { grid-template-columns: 1fr; }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    """
-    <div class='coach-panel'>
-        <div class='coach-kicker'>Il modello spiegato in pratica</div>
-        <h3>RUN AI non dice “fai così” a caso.</h3>
-        <p>
-            Guarda i tuoi dati come un allenatore esperto guarderebbe un atleta in training camp: volume, recupero,
-            stress, frequenza cardiaca e profondità dell'allenamento. L'obiettivo non è insegnare a un computer a “sentire” la corsa,
-            ma a riconoscere i segnali precoci di sforzo eccessivo prima che diventano fatica accumulata o infortunio.
-        </p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    """
-    <div class='coach-grid'>
-        <div class='coach-card'>
-            <h4>Per l'atleta</h4>
-            <p>
-                Questi modelli ti aiutano a capire se oggi la seduta è adatta al tuo stato di recupero.
-                Non si basano su un numero astratto: guardano il tuo corpo come un sistema dinamico.
-            </p>
-        </div>
-        <div class='coach-card'>
-            <h4>Per l'allenatore</h4>
-            <p>
-                La piattaforma riassume i segnali più importanti per leggere il trend del carico e capire se la preparazione
-                sta crescendo in modo sostenibile o se c'è rischio di sovrallenamento.
-            </p>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown(f"""
+<div class='info-box'>
+<h3>Cosa fa questa pagina, in parole semplici</h3>
+<p style='color: #B8C2D0; font-family:"Inter",sans-serif;'>Il sistema guarda tutte le tue uscite (km, sonno, stress, cuore, fatica percepita) e impara quali combinazioni hanno preceduto i giorni a rischio. Poi le usa per avvisarti prima. Sono gli stessi calcoli che decidono il verdetto nella pagina "Consiglio Finale".<br><br>
+<strong style='color:#fff;'>Colori:</strong> &nbsp;{dot(C_GREEN)}verde = tutto ok &nbsp;&nbsp; {dot(C_AMBER)}giallo = attenzione &nbsp;&nbsp; {dot(C_ORANGE)}rosso = meglio rallentare</p>
+</div>
+""", unsafe_allow_html=True)
 
 try:
     feature_names = FEATURE_LABELS_CLASS
@@ -205,651 +81,521 @@ try:
     log_model = class_bundle["log_model"]
     scaler = class_bundle["scaler"]
 
-    y_train_class = df_base['Rischio Infortunio'].values
+    y_real = df_base['Rischio Infortunio'].values
+
+    # Previsioni "oneste": ogni giorno è previsto da un modello che non l'ha mai visto
     y_pred_rf = class_bundle["y_pred_rf"]
     y_proba_rf = class_bundle["y_proba_rf"]
-    y_pred_log = class_bundle["y_pred_log"]
     y_proba_log = class_bundle["y_proba_log"]
+    y_pred_log = (y_proba_log >= 0.5).astype(int)
 
-    acc_rf = (y_pred_rf == y_train_class).mean() * 100
-    prec_rf = precision_score(y_train_class, y_pred_rf, zero_division=0) * 100
-    rec_rf = recall_score(y_train_class, y_pred_rf, zero_division=0) * 100
-    giorni_rischio_pct = (df_base['Rischio Infortunio'].sum() / len(df_base)) * 100
+    def rischio_rf(X):
+        """Rischio (%) della giuria per una matrice [km, sonno, stress, fc, rpe]."""
+        return rf_model.predict_proba(scaler.transform(np.asarray(X, dtype=float)))[:, 1] * 100
 
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Accuratezza", f"{acc_rf:.0f}%", "quanto il modello indovina in media")
-    with col2:
-        st.metric("Sensibilità", f"{rec_rf:.0f}%", "stima i giorni davvero a rischio")
-    with col3:
-        st.metric("Precisione", f"{prec_rf:.0f}%", "quando dice rischio, ha ragione")
-    with col4:
-        st.metric("Giorni a rischio", f"{giorni_rischio_pct:.0f}%", "percentuale del tuo storico")
+    st.markdown(f"""
+    <style>
+    @keyframes mlxReveal {{ from {{ opacity:0; transform:translateY(14px); }} to {{ opacity:1; transform:translateY(0); }} }}
+    @keyframes mlxGlow {{ 0%,100% {{ box-shadow:0 0 0 rgba(0,229,255,0); }} 50% {{ box-shadow:0 0 22px rgba(0,229,255,0.22); }} }}
+    .mlx-hero {{ background: linear-gradient(135deg, {BG_DARK2} 0%, #101A2E 100%); border:1px solid {BD}; border-radius:18px; padding:28px 32px; margin:6px 0 26px 0; box-shadow:0 8px 26px rgba(0,0,0,0.28); animation: mlxReveal .6s ease-out; }}
+    .mlx-eyebrow {{ font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:{TXT_TER}; font-weight:700; margin:0 0 8px 0; }}
+    .mlx-hero-title {{ font-family:'Inter', sans-serif; font-weight:700; font-size:1.5rem; color:{TXT_PRI}; margin:0 0 6px 0; }}
+    .mlx-hero-msg {{ font-family:'Inter', sans-serif; color:{TXT_SEC}; font-size:.95rem; line-height:1.6; margin:0 0 20px 0; }}
+    .mlx-stat-grid {{ display:grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap:16px; }}
+    .mlx-stat-card {{ background: rgba(255,255,255,0.025); border:1px solid {BD}; border-top:3px solid var(--stat-color, {BD}); border-radius:12px; padding:16px 18px; animation: mlxReveal .7s ease-out both; }}
+    .mlx-stat-card:nth-child(2) {{ animation-delay:.08s; }} .mlx-stat-card:nth-child(3) {{ animation-delay:.16s; }}
+    .mlx-stat-card:nth-child(4) {{ animation-delay:.24s; }} .mlx-stat-card:nth-child(5) {{ animation-delay:.32s; }}
+    .mlx-stat-card .v {{ font-family:'JetBrains Mono', monospace; font-weight:700; font-size:1.7rem; color: var(--stat-color, {TXT_PRI}); }}
+    .mlx-stat-card .l {{ font-family:'Inter', sans-serif; font-size:.82rem; color:{TXT_SEC}; margin-top:7px; line-height:1.45; }}
+    .mlx-section-head {{ display:flex; align-items:baseline; gap:14px; margin: 26px 0 12px 0; }}
+    .mlx-section-head h3 {{ margin:0; font-family:'Inter',sans-serif; font-weight:700; color:{TXT_PRI}; font-size:1.15rem; }}
+    .mlx-section-head .rule {{ flex:1; height:1px; background: linear-gradient(90deg, {BD} 0%, transparent 100%); align-self:center; }}
+    .mlx-insight {{ border-left:3px solid var(--ic-color, {C_CYAN}); background: rgba(255,255,255,0.02); padding:12px 16px; border-radius:0 8px 8px 0; margin-top:10px; font-family:'Inter',sans-serif; font-size:.93rem; color:{TXT_SEC}; line-height:1.6; }}
+    .mlx-insight strong {{ color:{TXT_PRI}; }}
+    .mlx-box {{ background: rgba(255,255,255,0.03); border:1px solid var(--bc, {BD}); border-radius:12px; padding:16px 18px; text-align:center; animation: mlxReveal .6s ease-out both; }}
+    .mlx-box .n {{ font-family:'JetBrains Mono', monospace; font-size:2rem; font-weight:700; color: var(--bc, {TXT_PRI}); }}
+    .mlx-box .t {{ font-family:'Inter',sans-serif; font-size:.85rem; color:{TXT_SEC}; line-height:1.4; margin-top:4px; }}
+    .mlx-rule {{ background: linear-gradient(160deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%); border:1px solid var(--bc, {BD}); border-radius:16px; padding:22px 20px; text-align:center; animation: mlxReveal .7s ease-out both; }}
+    .mlx-rule .k {{ font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; color:{TXT_TER}; }}
+    .mlx-rule .big {{ font-family:'JetBrains Mono', monospace; font-size:2.6rem; font-weight:700; color: var(--bc, {TXT_PRI}); margin:8px 0 4px 0; }}
+    .mlx-rule .d {{ font-family:'Inter',sans-serif; font-size:.88rem; color:{TXT_SEC}; line-height:1.5; }}
+    .mlx-bigsafe {{ background: linear-gradient(135deg, #0E1F1B 0%, #0E1420 100%); border:1px solid {C_GREEN}55; border-radius:16px; padding:22px 26px; margin:16px 0; animation: mlxGlow 3.5s ease-in-out infinite; }}
+    .mlx-bigsafe .big {{ font-family:'JetBrains Mono', monospace; font-size:2.8rem; font-weight:700; color:{C_GREEN}; }}
+    .mlx-note {{ font-family:'Inter',sans-serif; font-size:.74rem; color:{TXT_TER}; margin-top:6px; }}
+    </style>
+    """, unsafe_allow_html=True)
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "Rischio infortunio",
-        "FC e fatica",
-        "Tipi di allenamento",
-        "Carico cronico",
-        "Simulatore What-If",
-        "Confronto modelli"
+    def mlx_section(title):
+        st.markdown(f"<div class='mlx-section-head'><h3>{title}</h3><div class='rule'></div></div>", unsafe_allow_html=True)
+
+    def mlx_insight(html_text, color=C_CYAN):
+        st.markdown(f"<div class='mlx-insight' style='--ic-color:{color};'>{html_text}</div>", unsafe_allow_html=True)
+
+    def su10(pct):
+        return f"{pct/10:.0f} su 10"
+
+    # -------- Numeri chiave --------
+    n_giorni = len(y_real)
+    acc_rf = (y_pred_rf == y_real).mean() * 100
+    prec_rf = precision_score(y_real, y_pred_rf, zero_division=0) * 100
+    rec_rf = recall_score(y_real, y_pred_rf, zero_division=0) * 100
+    giorni_rischio_pct = y_real.sum() / n_giorni * 100
+
+    df_t = pd.DataFrame({'Giorno': df_base['Giorno'].values, 'p': np.asarray(y_proba_rf) * 100}).sort_values('Giorno').reset_index(drop=True)
+    p_ultimo = float(df_t['p'].iloc[-1])
+    col_ultimo = colore_rischio(p_ultimo)
+    lab_ultimo = "Alto" if p_ultimo >= 60 else "Attenzione" if p_ultimo >= 25 else "Basso"
+
+    st.markdown(f"""
+    <div class='mlx-hero'>
+        <p class='mlx-eyebrow'>Quanto ci si può fidare</p>
+        <h2 class='mlx-hero-title'>Come se la cava il sistema sui tuoi {n_giorni} allenamenti</h2>
+        <p class='mlx-hero-msg'>Per essere onesti, ogni giorno è stato previsto "al buio": il sistema non aveva mai visto quell'allenamento quando ha dato il suo giudizio.</p>
+        <div class='mlx-stat-grid'>
+            <div class='mlx-stat-card' style='--stat-color:{col_ultimo};'>
+                <div class='v'>{lab_ultimo}</div>
+                <div class='l'>Rischio stimato per la tua ultima uscita ({p_ultimo:.0f}%).</div>
+            </div>
+            <div class='mlx-stat-card' style='--stat-color:{C_CYAN};'>
+                <div class='v'>{su10(acc_rf)}</div>
+                <div class='l'>Giorni giudicati correttamente (a rischio o sicuro).</div>
+            </div>
+            <div class='mlx-stat-card' style='--stat-color:{C_GREEN};'>
+                <div class='v'>{su10(prec_rf)}</div>
+                <div class='l'>Quando dà l'allarme, quante volte il rischio c'era davvero.</div>
+            </div>
+            <div class='mlx-stat-card' style='--stat-color:{C_AMBER};'>
+                <div class='v'>{su10(rec_rf)}</div>
+                <div class='l'>Dei giorni davvero a rischio, quanti ne ha scoperti.</div>
+            </div>
+            <div class='mlx-stat-card' style='--stat-color:{C_ORANGE};'>
+                <div class='v'>{giorni_rischio_pct:.0f}%</div>
+                <div class='l'>Quota di allenamenti a rischio nel tuo storico.</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs([
+        "Il tuo andamento", "Cosa ti mette a rischio", "Le tue regole personali", "Il tuo cuore sotto sforzo",
+        "I tuoi tipi di allenamento", "Fatica accumulata", "E se domani...?", "Quale sistema scegliere"
     ])
 
-    with tab1:
-        st.subheader("Come si decide se oggi è un giorno da fare attenzione")
-        st.markdown(
-            """
-            <div class='mini-note'>
-                Il modello si comporta come un analista di performance: guarda il profilo dell'allenamento e verifica se il mix di volume,
-                recupero, stress e sforzo ha i tratti di una sessione che può creare carico eccessivo.
-                In parole semplici: se il giorno ha segnali di debito di recupero, distanza forte e sforzo alto, la probabilità di rischio sale.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    # =========================================================
+    # TAB 1 — ANDAMENTO + CALENDARIO
+    # =========================================================
+    with t1:
+        mlx_section("Il tuo rischio, allenamento dopo allenamento")
+        mlx_insight("Ogni punto è una tua uscita. Più è in alto, più il sistema la considerava rischiosa. Le fasce colorate ti dicono subito dove sei: verde sicuro, giallo attenzione, rosso pericolo.")
 
-        col_a, col_b = st.columns(2)
+        fig_t = go.Figure()
+        fig_t.add_hrect(y0=0, y1=25, fillcolor=C_GREEN, opacity=0.07, line_width=0)
+        fig_t.add_hrect(y0=25, y1=60, fillcolor=C_AMBER, opacity=0.07, line_width=0)
+        fig_t.add_hrect(y0=60, y1=100, fillcolor=C_ORANGE, opacity=0.09, line_width=0)
+        fig_t.add_trace(go.Scatter(
+            x=df_t['Giorno'], y=df_t['p'], mode='lines+markers',
+            line=dict(color=C_CYAN, width=2, shape='spline'),
+            marker=dict(size=10, color=df_t['p'], colorscale=RISK_SCALE, cmin=0, cmax=100, line=dict(color=BG_DARK, width=1)),
+            hovertemplate="%{x}<br>Rischio: %{y:.0f}%<extra></extra>"))
+        fig_t.update_layout(height=360, title="Rischio stimato per ogni uscita", yaxis=dict(range=[0, 100], title="Rischio (%)"), showlegend=False)
+        st.plotly_chart(style_fig(fig_t), use_container_width=True)
 
-        with col_a:
-            st.markdown("#### Quali segnali contano di più?")
-            importances = rf_model.feature_importances_
-            imp_data = sorted(list(zip(feature_names, importances)), key=lambda x: x[1], reverse=True)
+        n_rossi = int((df_t['p'] >= 60).sum())
+        n_gialli = int(((df_t['p'] >= 25) & (df_t['p'] < 60)).sum())
+        n_verdi = int((df_t['p'] < 25).sum())
+        a, b, c = st.columns(3)
+        a.markdown(f"<div class='mlx-box' style='--bc:{C_GREEN};'><div class='n'>{n_verdi}</div><div class='t'>uscite in zona verde</div></div>", unsafe_allow_html=True)
+        b.markdown(f"<div class='mlx-box' style='--bc:{C_AMBER};'><div class='n'>{n_gialli}</div><div class='t'>uscite in zona di attenzione</div></div>", unsafe_allow_html=True)
+        c.markdown(f"<div class='mlx-box' style='--bc:{C_ORANGE};'><div class='n'>{n_rossi}</div><div class='t'>uscite in zona rossa</div></div>", unsafe_allow_html=True)
 
-            fig_imp = go.Figure(
-                go.Bar(
-                    y=[x[0] for x in imp_data],
-                    x=[x[1] * 100 for x in imp_data],
-                    orientation='h',
-                    marker=dict(
-                        color=[CYAN if x[1] > 0.18 else AMBER if x[1] > 0.12 else GREEN for x in imp_data],
-                        line=dict(color='white', width=1)
-                    ),
-                    text=[f'{x[1]*100:.0f}%' for x in imp_data],
-                    textposition='auto',
-                )
-            )
-            fig_imp.update_layout(
-                height=310,
-                yaxis=dict(autorange='reversed'),
-                xaxis_title='Peso nel modello',
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color=TXT_SEC),
-                title='Fattori che pesano di più'
-            )
+        # Calendario del rischio (stile "mappa di calore" settimanale)
+        date = pd.to_datetime(df_t['Giorno'], errors='coerce')
+        if date.notna().sum() >= 5:
+            mlx_section("Il calendario del rischio")
+            ok = date.notna()
+            d0 = date[ok].min().normalize()
+            start = d0 - pd.Timedelta(days=d0.weekday())
+            cal = pd.DataFrame({
+                'sett': ((date[ok] - start).dt.days // 7).values,
+                'gs': date[ok].dt.weekday.values,
+                'p': df_t.loc[ok, 'p'].values})
+            piv = cal.pivot_table(index='gs', columns='sett', values='p', aggfunc='mean')
+            piv = piv.reindex(index=range(7), columns=range(int(cal['sett'].max()) + 1))
+            etich_sett = [(start + pd.Timedelta(weeks=int(w))).strftime('%d/%m') for w in piv.columns]
+            fig_cal = go.Figure(go.Heatmap(
+                z=piv.values, x=etich_sett, y=['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'],
+                colorscale=RISK_SCALE, zmin=0, zmax=100, xgap=4, ygap=4, hoverongaps=False,
+                colorbar=dict(title="Rischio %"),
+                hovertemplate="Settimana del %{x}, %{y}<br>Rischio: %{z:.0f}%<extra></extra>"))
+            fig_cal.update_layout(height=300, title="Ogni quadratino è un giorno (vuoto = non hai corso)", yaxis=dict(autorange="reversed"))
+            st.plotly_chart(style_fig(fig_cal), use_container_width=True)
+
+            per_gs = cal.groupby('gs')['p'].mean()
+            nomi_gs = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica']
+            peggiore_gs = nomi_gs[int(per_gs.idxmax())]
+            mlx_insight(f"<strong>Cosa notare:</strong> cerca le strisce di quadratini caldi (arancioni) ravvicinati: sono i periodi in cui hai accumulato troppo. Il giorno in cui sei in media più a rischio è il <strong>{peggiore_gs}</strong>.", C_AMBER)
+
+    # =========================================================
+    # TAB 2 — COSA TI METTE A RISCHIO
+    # =========================================================
+    with t2:
+        mlx_section("Cosa ti mette più a rischio")
+        mlx_insight("Immagina una giuria di 100 allenatori esperti: ognuno guarda i tuoi dati e vota se quel giorno era a rischio. Vince la maggioranza. <span class='mlx-note'>(Nome tecnico: Random Forest)</span>")
+
+        c1, c2 = st.columns(2)
+        with c1:
+            imp = sorted(zip(feature_names, rf_model.feature_importances_), key=lambda x: x[1], reverse=True)
+            fig_imp = go.Figure(go.Bar(
+                y=[x[0] for x in imp], x=[x[1] * 100 for x in imp], orientation='h',
+                marker=dict(color=[x[1] for x in imp], colorscale=[[0, '#00B8D4'], [1, C_CYAN]]),
+                text=[f'{x[1]*100:.0f}%' for x in imp], textposition='auto'))
+            fig_imp.update_traces(hovertemplate="%{y}: pesa il %{x:.0f}%<extra></extra>")
+            fig_imp.update_layout(height=320, yaxis=dict(autorange="reversed"),
+                                  title="Quanto conta ogni fattore nel giudizio", xaxis_title="Peso (%)")
             st.plotly_chart(style_fig(fig_imp), use_container_width=True)
+            mlx_insight(f"<strong>In pratica:</strong> il fattore che pesa di più è <strong>{imp[0][0]}</strong>. Tienilo d'occhio prima di aumentare i carichi.", C_AMBER)
 
-            top_feat = imp_data[0][0]
-            st.info(f"Il fattore dominante nel tuo profilo è: **{top_feat}**. Quando questo valore si alza, il rischio cresce in modo molto rapido.")
-
-        with col_b:
-            st.markdown("#### Quante volte il modello ha ragionato bene?")
-            cm = confusion_matrix(y_train_class, y_pred_rf)
+        with c2:
+            cm = confusion_matrix(y_real, y_pred_rf, labels=[0, 1])
             tn, fp, fn, tp = cm.ravel()
+            st.markdown("<p style='color:#fff; font-weight:700; font-family:Inter,sans-serif; margin:6px 0 10px 0;'>Com'è andata, giorno per giorno</p>", unsafe_allow_html=True)
+            a, b = st.columns(2)
+            a.markdown(f"<div class='mlx-box' style='--bc:{C_GREEN};'><div class='n'>{tn}</div><div class='t'>Giorni sicuri,<br>riconosciuti come sicuri</div></div>", unsafe_allow_html=True)
+            b.markdown(f"<div class='mlx-box' style='--bc:{C_CYAN};'><div class='n'>{tp}</div><div class='t'>Giorni a rischio,<br>scoperti in tempo</div></div>", unsafe_allow_html=True)
+            st.write("")
+            c, d = st.columns(2)
+            c.markdown(f"<div class='mlx-box' style='--bc:{C_AMBER};'><div class='n'>{fp}</div><div class='t'>Falsi allarmi:<br>segnalato rischio, ma era ok</div></div>", unsafe_allow_html=True)
+            d.markdown(f"<div class='mlx-box' style='--bc:{C_ORANGE};'><div class='n'>{fn}</div><div class='t'>Rischi sfuggiti:<br>detto ok, ma c'era rischio</div></div>", unsafe_allow_html=True)
+            mlx_insight("<strong>Come leggere:</strong> le due caselle in alto sono le risposte giuste. Gli errori più pericolosi sono i <strong>rischi sfuggiti</strong>; i falsi allarmi sono solo prudenza in eccesso.", C_CYAN)
 
-            fig_cm = go.Figure(
-                data=go.Heatmap(
-                    z=cm,
-                    x=['Previsto: sicuro', 'Previsto: rischio'],
-                    y=['Reale: sicuro', 'Reale: rischio'],
-                    text=cm,
-                    texttemplate='%{text}',
-                    textfont={'size': 18, 'color': 'white'},
-                    colorscale=[[0, '#0E1420'], [1, '#00E5FF']],
-                )
-            )
-            fig_cm.update_layout(
-                height=310,
-                title='Matrice di confusioni',
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color=TXT_SEC)
-            )
-            st.plotly_chart(style_fig(fig_cm), use_container_width=True)
-
-            st.markdown(
-                f"""
-                **Come leggere il grafico:**
-                - {tn} giorni: sicuro → sicuro
-                - {fp} giorni: rischio previsto ma in realtà sicuro
-                - {fn} giorni: sicuro previsto ma in realtà rischio
-                - {tp} giorni: rischio → rischio
-                """
-            )
-
-        st.markdown('---')
-        st.markdown("#### Curva ROC: quanto il modello separa i giorni buoni da quelli critici?")
-
-        fpr, tpr, _ = roc_curve(y_train_class, y_proba_rf)
-        roc_auc = auc(fpr, tpr)
-
-        fig_roc = go.Figure()
-        fig_roc.add_trace(
-            go.Scatter(
-                x=fpr,
-                y=tpr,
-                mode='lines',
-                line=dict(color=CYAN, width=3),
-                fill='tozeroy',
-                fillcolor='rgba(0,229,255,0.18)',
-                name=f'Random Forest (AUC={roc_auc:.2f})',
-                hovertemplate='Falsi allarmi: %{x:.2f}<br>Giorni corretti: %{y:.2f}<extra></extra>'
-            )
-        )
-        fig_roc.add_trace(
-            go.Scatter(
-                x=[0, 1],
-                y=[0, 1],
-                mode='lines',
-                line=dict(color=TXT_MUTED, dash='dash'),
-                name='Caso casuale'
-            )
-        )
-        fig_roc.update_layout(
-            height=350,
-            xaxis_title='Probabilità di falso allarme',
-            yaxis_title='Probabilità di rilevare il rischio',
-            title='Curva ROC',
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(color=TXT_SEC)
-        )
-        st.plotly_chart(style_fig(fig_roc), use_container_width=True)
-
-        if roc_auc >= 0.85:
-            verdict = 'Molto buono: distingue bene i periodi critici.'
-        elif roc_auc >= 0.75:
-            verdict = 'Buono: utile e affidabile.'
+        mlx_section("Giorni a rischio contro giorni sicuri: cosa cambia?")
+        fattori = {'Distanza (km)': 'Km corsi', 'Ore Sonno': 'Ore di sonno', 'Stress Lavoro': 'Stress',
+                   'RPE': 'Fatica percepita', 'FC Media': 'Battiti medi'}
+        g = df_base.groupby('Rischio Infortunio')[list(fattori)].mean()
+        if 0 in g.index and 1 in g.index:
+            diff = ((g.loc[1] - g.loc[0]) / g.loc[0].replace(0, np.nan) * 100).dropna()
+            diff = diff.reindex(diff.abs().sort_values().index)
+            fig_d = go.Figure(go.Bar(
+                y=[fattori[k] for k in diff.index], x=diff.values, orientation='h',
+                marker_color=[C_ORANGE if v > 0 else C_GREEN for v in diff.values],
+                text=[f"{v:+.0f}%" for v in diff.values], textposition='outside'))
+            fig_d.add_vline(x=0, line_color="#E8ECF2", line_width=1)
+            fig_d.update_traces(hovertemplate="%{y}: %{x:+.0f}% rispetto ai giorni sicuri<extra></extra>")
+            fig_d.update_layout(height=320, title="Nei giorni a rischio, rispetto a quelli sicuri, hai avuto...", xaxis_title="Differenza (%)")
+            st.plotly_chart(style_fig(fig_d), use_container_width=True)
+            top = diff.abs().idxmax()
+            verso = "più" if diff[top] > 0 else "meno"
+            mlx_insight(f"<strong>La differenza più grande:</strong> nei giorni a rischio hai avuto in media il <strong>{abs(diff[top]):.0f}% {verso}</strong> di <strong>{fattori[top].lower()}</strong> rispetto ai giorni sicuri.", C_AMBER)
         else:
-            verdict = 'Discreto: utile, ma non sostituisce il giudizio dell'allenatore.'
+            mlx_insight("Nel periodo selezionato non ci sono abbastanza giorni a rischio per fare questo confronto.", C_AMBER)
 
-        st.success(f"**AUC = {roc_auc:.3f}** → {verdict}")
+    # =========================================================
+    # TAB 3 — REGOLE PERSONALI
+    # =========================================================
+    with t3:
+        mlx_section("Le tue regole personali")
+        mlx_insight("Non sono regole prese da un manuale: sono ricavate dai <strong>tuoi</strong> allenamenti. Il sistema ha cercato il punto in cui, per te, il rischio supera il 25%. Gli altri fattori sono tenuti sui tuoi valori tipici.", C_GREEN)
 
-        st.markdown(
-            """
-            <div class='mini-note'>
-                Per un atleta, questa parte è importante perché mostra quanto il modello riesce a separare un giorno “sicuro” da un giorno potenzialmente troppo intenso.
-                Per un allenatore, è il primo controllo di qualità della decisione: non è solo una previsione, è una valutazione della capacità del sistema di leggere il rischio.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        med = df_base[['Distanza (km)', 'Ore Sonno', 'Stress Lavoro', 'FC Media', 'RPE']].median().values.astype(float)
 
-    with tab2:
-        st.subheader("La frequenza cardiaca come segnale di fatica")
-        st.markdown(
-            """
-            <div class='mini-note'>
-                La FC media è un indicatore molto utile: non racconta solo quanto hai fatto, ma quanto il tuo corpo ha reagito a quel carico.
-                Se la frequenza cardiaca reale sale oltre il livello atteso per una seduta simile, può significare che il recupero era peggiore del previsto,
-                che lo stress era più alto o che il lavoro è stato troppo intenso per il giorno.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        def griglia(idx, valori):
+            X = np.tile(med, (len(valori), 1))
+            X[:, idx] = valori
+            return rischio_rf(X)
+
+        s_vals = np.arange(4, 10.01, 0.25)
+        p_s = griglia(1, s_vals)
+        d_vals = np.arange(0, 42.01, 0.5)
+        p_d = griglia(0, d_vals)
+        st_vals = np.arange(1, 11, 1.0)
+        p_st = griglia(2, st_vals)
+
+        sopra_s = np.where(p_s >= 25)[0]
+        sopra_d = np.where(p_d >= 25)[0]
+        sopra_st = np.where(p_st >= 25)[0]
+
+        r1, r2, r3 = st.columns(3)
+        if len(sopra_s) and sopra_s.max() < len(s_vals) - 1:
+            lim = s_vals[sopra_s.max()] + 0.25
+            r1.markdown(f"<div class='mlx-rule' style='--bc:{C_CYAN};'><div class='k'>Sonno</div><div class='big'>{lim:.1f} h</div><div class='d'>Dormi meno di così e il rischio supera il 25%. Questa è la tua soglia minima.</div></div>", unsafe_allow_html=True)
+        else:
+            r1.markdown(f"<div class='mlx-rule' style='--bc:{C_GREEN};'><div class='k'>Sonno</div><div class='big'>nessun limite</div><div class='d'>Nel tuo storico il sonno da solo non porta il rischio sopra il 25%.</div></div>", unsafe_allow_html=True)
+        if len(sopra_d):
+            lim = d_vals[sopra_d.min()]
+            r2.markdown(f"<div class='mlx-rule' style='--bc:{C_AMBER};'><div class='k'>Distanza</div><div class='big'>{lim:.0f} km</div><div class='d'>Oltre questa distanza il rischio supera il 25%. Questo è il tuo tetto con i valori tipici.</div></div>", unsafe_allow_html=True)
+        else:
+            r2.markdown(f"<div class='mlx-rule' style='--bc:{C_GREEN};'><div class='k'>Distanza</div><div class='big'>nessun limite</div><div class='d'>Nel tuo storico i km da soli non portano il rischio sopra il 25%.</div></div>", unsafe_allow_html=True)
+        if len(sopra_st):
+            lim = st_vals[sopra_st.min()]
+            r3.markdown(f"<div class='mlx-rule' style='--bc:{C_ORANGE};'><div class='k'>Stress</div><div class='big'>{lim:.0f} / 10</div><div class='d'>Da questo livello di stress in su il rischio supera il 25%. Attenzione ai periodi pesanti al lavoro.</div></div>", unsafe_allow_html=True)
+        else:
+            r3.markdown(f"<div class='mlx-rule' style='--bc:{C_GREEN};'><div class='k'>Stress</div><div class='big'>nessun limite</div><div class='d'>Nel tuo storico lo stress da solo non porta il rischio sopra il 25%.</div></div>", unsafe_allow_html=True)
+
+        mlx_section("Quanto pesa ogni fattore")
+        mlx_insight("Qui il sistema è una semplice bilancia: ogni fattore o <strong>aumenta</strong> o <strong>riduce</strong> il rischio, e il grafico mostra di quanto. <span class='mlx-note'>(Nome tecnico: Regressione Logistica)</span>", C_AMBER)
+
+        coefs = log_model.coef_[0]
+        order = np.argsort(np.abs(coefs))
+        nomi = [feature_names[i] for i in order]
+        vals = [coefs[i] for i in order]
+        fig_log = go.Figure(go.Bar(y=nomi, x=vals, orientation='h', marker_color=[C_ORANGE if v > 0 else C_GREEN for v in vals]))
+        fig_log.update_traces(hovertemplate="%{y}<extra></extra>")
+        fig_log.add_vline(x=0, line_color="#E8ECF2", line_width=1)
+        fig_log.update_layout(height=320, title="Verso destra (arancione) aumenta il rischio, verso sinistra (verde) lo protegge",
+                              xaxis=dict(showticklabels=False, title="Più la barra è lunga, più il fattore conta"))
+        st.plotly_chart(style_fig(fig_log), use_container_width=True)
+
+        peggiore = feature_names[int(np.argmax(coefs))]
+        migliore = feature_names[int(np.argmin(coefs))]
+        txt = f"Il fattore che <strong>spinge di più il rischio verso l'alto</strong> è <strong>{peggiore}</strong>."
+        if coefs.min() < 0:
+            txt += f" Quello che <strong>ti protegge di più</strong> è <strong>{migliore}</strong>."
+        mlx_insight(txt, C_AMBER)
+
+    # =========================================================
+    # TAB 4 — CUORE SOTTO SFORZO
+    # =========================================================
+    with t4:
+        mlx_section("Il tuo cuore: previsto vs reale")
+        mlx_insight("Il sistema calcola quanti battiti al minuto dovresti avere in una corsa con quel passo, quel clima e quella distanza. Se il cuore va <strong>molto più veloce del previsto</strong>, può essere un segnale di stanchezza nascosta. <span class='mlx-note'>(Nome tecnico: Regressione Lineare)</span>")
 
         reg_bundle = get_bundle_regressione(df_base)
-        df_base['FC_Predetta'] = reg_bundle['fc_predetta']
-        df_base['Residuo'] = reg_bundle['residui']
-        r2 = reg_bundle['r2']
-        mae = reg_bundle['mae']
+        df_base['FC_Predetta'] = reg_bundle["fc_predetta"]
+        df_base['Residuo'] = reg_bundle["residui"]
+        mae = reg_bundle["mae"]
+        giorni_alti = int((df_base['Residuo'] > 2 * mae).sum())
 
-        col_a, col_b = st.columns(2)
-
-        with col_a:
-            st.markdown("#### FC reale vs FC attesa")
-            fig_lr = px.scatter(
-                df_base,
-                x='FC Media',
-                y='FC_Predetta',
-                color='RPE',
-                color_continuous_scale=[[0, CYAN], [1, ORANGE]],
-                labels={
-                    'FC Media': 'FC reale (bpm)',
-                    'FC_Predetta': 'FC stimata (bpm)',
-                    'RPE': 'Sforzo percepito'
-                },
-                title='FC reale vs FC prevista'
-            )
-            min_fc = df_base['FC Media'].min()
-            max_fc = df_base['FC Media'].max()
-            fig_lr.add_shape(
-                type='line',
-                x0=min_fc, y0=min_fc,
-                x1=max_fc, y1=max_fc,
-                line=dict(color=GREEN, dash='dash', width=2),
-            )
-            fig_lr.update_layout(
-                height=330,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color=TXT_SEC)
-            )
+        c1, c2 = st.columns(2)
+        with c1:
+            fig_lr = px.scatter(df_base, x='FC Media', y='FC_Predetta', color='RPE',
+                                color_continuous_scale=[[0, C_CYAN], [1, C_ORANGE]],
+                                labels={'FC_Predetta': 'Battiti previsti', 'FC Media': 'Battiti reali', 'RPE': 'Fatica percepita'})
+            fig_lr.update_traces(hovertemplate="Reali: %{x} bpm<br>Previsti: %{y:.0f} bpm<extra></extra>")
+            fig_lr.add_shape(type="line", x0=df_base['FC Media'].min(), y0=df_base['FC Media'].min(),
+                             x1=df_base['FC Media'].max(), y1=df_base['FC Media'].max(), line=dict(color=C_GREEN, dash="dash"))
+            fig_lr.update_layout(height=320, title="Battiti reali contro battiti previsti")
             st.plotly_chart(style_fig(fig_lr), use_container_width=True)
-
-            st.info(f"**R² = {r2*100:.0f}%** — il modello spiega circa il {r2*100:.0f}% della variazione della FC. Se un punto è lontano dalla linea verde, vuol dire che quel giorno il corpo ha lavorato oltre il solito per quella specifica seduta.")
-
-        with col_b:
-            st.markdown("#### Scostamenti: quando la FC è fuori norma")
-            fig_resid = px.scatter(
-                df_base,
-                x='Giorno',
-                y='Residuo',
-                color='Residuo',
-                color_continuous_scale=[[0, GREEN], [0.5, '#8792A3'], [1, ORANGE]],
-                labels={'Residuo': 'Scostamento (bpm)'}
-            )
-            fig_resid.add_hline(y=0, line_dash='dash', line_color='white')
-            fig_resid.update_layout(
-                height=330,
-                title='Andamento degli scostamenti',
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color=TXT_SEC)
-            )
+            mlx_insight("<strong>Come leggere:</strong> i punti sulla linea verde sono corse in cui il cuore ha fatto esattamente ciò che ci si aspettava. Più un punto è lontano, più la corsa è stata 'strana'.")
+        with c2:
+            fig_resid = px.scatter(df_base, x='Giorno', y='Residuo', color='Residuo',
+                                   color_continuous_scale=[[0, C_GREEN], [0.5, TXT_TER], [1, C_ORANGE]],
+                                   labels={'Residuo': 'Battiti in più/meno'})
+            fig_resid.add_hline(y=0, line_color="#E8ECF2", line_width=1)
+            fig_resid.update_traces(hovertemplate="%{x}<br>%{y:+.1f} battiti rispetto al previsto<extra></extra>")
+            fig_resid.update_layout(height=320, title="Giorno per giorno: cuore più o meno stanco del previsto", coloraxis_showscale=False)
             st.plotly_chart(style_fig(fig_resid), use_container_width=True)
+            mlx_insight(f"Il sistema sbaglia in media di circa <strong>{mae:.0f} battiti al minuto</strong>. Punti sopra lo zero (arancioni) = cuore più affaticato del previsto. "
+                        f"Giorni con scarto molto alto: <strong>{giorni_alti}</strong>.", C_AMBER)
 
-            giorni_fuori = int((df_base['Residuo'] > 5).sum())
-            st.warning(f"**Giorni fuori norma:** {giorni_fuori}.\n\nErrore medio del modello: ±{mae:.1f} bpm. Questi sono i giorni in cui il corpo ha mostrato un segnale di stress aggiuntivo o di adattamento più difficile del previsto.")
-
-    with tab3:
-        st.subheader("I tuoi allenamenti si raggruppano in pattern ricorrenti")
-        st.markdown(
-            """
-            <div class='mini-note'>
-                Il clustering aiuta a capire se l'allenamento è molto diverso da quello che fai di solito. Non classifica in modo “giusto o sbagliato”,
-                ma identifica gruppi naturali di seduta: leggere, misurate e intense. Questo aiuta l'atleta a riconoscere il proprio profilo di lavoro e
-                all'allenatore a valutare se il programma è troppo sbilanciato.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    # =========================================================
+    # TAB 5 — TIPI DI ALLENAMENTO
+    # =========================================================
+    with t5:
+        mlx_section("I tuoi tipi di allenamento")
+        mlx_insight("Il sistema ha raggruppato da solo le tue uscite in famiglie simili. Serve a capire se alterni davvero giorni facili e giorni duri, o se corri sempre alla stessa intensità 'media'. <span class='mlx-note'>(Nome tecnico: Clustering K-Means)</span>")
 
         cluster_bundle = get_bundle_cluster(df_base)
-        X_clust_raw = df_base[['Distanza (km)', 'FC Media']]
-        X_clust = cluster_bundle['scaler'].transform(X_clust_raw)
-        df_base['Cluster_ID'] = cluster_bundle['cluster_id']
-        df_base['Cluster_Name'] = df_base['Cluster_ID'].apply(
-            lambda x: ['Giorni leggeri', 'Giorni medi', 'Giorni intensi'][x]
-        )
-        sil = cluster_bundle['silhouette']
+        df_base['Cluster_ID'] = cluster_bundle["cluster_id"]
 
-        col_a, col_b = st.columns(2)
+        prof = df_base.groupby('Cluster_ID').agg(
+            n=('Distanza (km)', 'size'), km=('Distanza (km)', 'mean'), fc=('FC Media', 'mean'),
+            rpe=('RPE', 'mean'), sonno=('Ore Sonno', 'mean'), rischio=('Rischio Infortunio', 'mean')
+        ).sort_values('km')
+        nomi_base = ["Uscite brevi e leggere", "Uscite medie", "Uscite lunghe e impegnative"]
+        nomi_cl = {cid: (nomi_base[i] if len(prof) == 3 else f"Gruppo {i+1}") for i, cid in enumerate(prof.index)}
+        df_base['Tipo'] = df_base['Cluster_ID'].map(nomi_cl)
 
-        with col_a:
-            st.markdown("#### Perché tre gruppi?")
-            inertias = []
-            for k in range(2, 7):
-                km_test = KMeans(n_clusters=k, random_state=42, n_init=10).fit(X_clust)
-                inertias.append(km_test.inertia_)
+        fig_km = px.scatter(df_base, x='Distanza (km)', y='FC Media', color='Tipo', size='RPE',
+                            color_discrete_sequence=[C_GREEN, C_AMBER, C_ORANGE],
+                            category_orders={'Tipo': [nomi_cl[c] for c in prof.index]},
+                            labels={'FC Media': 'Battiti medi', 'Tipo': ''})
+        fig_km.update_traces(hovertemplate="%{x} km · %{y} bpm<extra></extra>")
+        fig_km.update_layout(height=340, title="Le tue uscite, divise per famiglia (pallino grande = fatica alta)")
+        st.plotly_chart(style_fig(fig_km), use_container_width=True)
 
-            fig_elbow = go.Figure()
-            fig_elbow.add_trace(
-                go.Scatter(
-                    x=list(range(2, 7)),
-                    y=inertias,
-                    mode='lines+markers',
-                    line=dict(color=CYAN, width=3),
-                    marker=dict(size=9),
-                )
-            )
-            fig_elbow.add_vline(x=3, line_dash='dash', line_color=ORANGE, annotation_text='Scelta ottima')
-            fig_elbow.update_layout(
-                height=310,
-                title='Metodo del gomito',
-                xaxis_title='Numero di gruppi',
-                yaxis_title='Compattezza del gruppo',
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color=TXT_SEC)
-            )
-            st.plotly_chart(style_fig(fig_elbow), use_container_width=True)
+        cols = st.columns(len(prof))
+        for col, (cid, r) in zip(cols, prof.iterrows()):
+            colore = C_GREEN if r['rischio'] < 0.25 else C_AMBER if r['rischio'] < 0.5 else C_ORANGE
+            col.markdown(f"""
+            <div class='mlx-box' style='--bc:{colore}; text-align:left;'>
+                <div style='color:#fff; font-weight:700; font-family:Inter,sans-serif; margin-bottom:8px;'>{nomi_cl[cid]}</div>
+                <div class='t'>{int(r['n'])} uscite · in media <strong style='color:#fff;'>{r['km']:.1f} km</strong><br>
+                Cuore: {r['fc']:.0f} bpm · Fatica: {r['rpe']:.1f}/10<br>
+                Sonno: {r['sonno']:.1f} h<br>
+                <strong style='color:{colore};'>Giorni a rischio: {r['rischio']*100:.0f}%</strong></div>
+            </div>""", unsafe_allow_html=True)
+        mlx_insight("<strong>Come usarlo:</strong> guarda la percentuale di rischio di ogni famiglia. Se le uscite 'medie' hanno quasi sempre fatica alta, stai correndo troppo forte nei giorni che dovrebbero essere facili.")
 
-        with col_b:
-            st.markdown("#### La distribuzione dei tuoi allenamenti")
-            fig_cluster = px.scatter(
-                df_base,
-                x='Distanza (km)',
-                y='FC Media',
-                color='Cluster_Name',
-                color_discrete_map={
-                    'Giorni leggeri': GREEN,
-                    'Giorni medi': AMBER,
-                    'Giorni intensi': ORANGE,
-                },
-                size='RPE',
-                title='Segmentazione degli allenamenti'
-            )
-            fig_cluster.update_layout(
-                height=310,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color=TXT_SEC)
-            )
-            st.plotly_chart(style_fig(fig_cluster), use_container_width=True)
-
-        st.markdown('---')
-        st.markdown("#### Profilo medio di ogni gruppo")
-        cluster_profile = df_base.groupby('Cluster_Name')[[
-            'Distanza (km)', 'FC Media', 'RPE', 'Ore Sonno', 'Stress Lavoro'
-        ]].mean().reset_index()
-
-        fig_profile = go.Figure()
-        for _, row in cluster_profile.iterrows():
-            color = {'Giorni leggeri': GREEN, 'Giorni medi': AMBER, 'Giorni intensi': ORANGE}[row['Cluster_Name']]
-            fig_profile.add_trace(go.Scatterpolar(
-                r=[row['Distanza (km)'] / 5, row['FC Media'] / 30, row['RPE'], row['Ore Sonno'], row['Stress Lavoro'] / 2],
-                theta=['Distanza', 'FC', 'RPE', 'Sonno', 'Stress'],
-                fill='toself',
-                name=row['Cluster_Name'],
-                line=dict(color=color, width=2),
-                fillcolor=color + '33'
-            ))
-
-        fig_profile.update_layout(
-            height=380,
-            title='Radar del profilo di allenamento',
-            polar=dict(radialaxis=dict(visible=True, range=[0, 8])),
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(color=TXT_SEC)
-        )
-        st.plotly_chart(style_fig(fig_profile), use_container_width=True)
-
-        if sil > 0.6:
-            st.success(f"**Silhouette score: {sil:.2f}** — i gruppi sono ben separati e il profilo del tuo allenamento è molto leggibile.")
-        else:
-            st.info(f"**Silhouette score: {sil:.2f}** — i gruppi esistono ma ci sono ancora sovrapposizioni tra tipi di seduta.")
-
-    with tab4:
-        st.subheader("Il carico cronico: quando la fatica si accumula")
-        st.markdown(
-            """
-            <div class='mini-note'>
-                Un singolo allenamento può sembrare sostenibile, ma il vero rischio arriva quando il carico semplice e quello complessivo sembrano crescere insieme a lungo termine.
-                Il carico cronico è il modo in cui RUN AI legge l'accumulo di fatica nel tempo, prima che diventi sovrallenamento.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    # =========================================================
+    # TAB 6 — FATICA ACCUMULATA
+    # =========================================================
+    with t6:
+        mlx_section("Fatica accumulata nel tempo")
+        mlx_insight("Non conta solo il singolo allenamento: la stanchezza si somma giorno dopo giorno. Questo grafico mostra la fatica media degli ultimi 7 giorni, per accorgerti in anticipo di un periodo troppo carico.", C_ORANGE)
 
         df_stress = df_base[['Giorno', 'SMA']].sort_values('Giorno').copy()
-        df_stress['SMA_Rolling'] = df_stress['SMA'].rolling(7, min_periods=1).mean()
+        df_stress['Media7'] = df_stress['SMA'].rolling(7, min_periods=1).mean()
+        sopra = int((df_stress['Media7'] > 15).sum())
 
-        col_a, col_b = st.columns(2)
+        fig_sp = px.area(df_stress, x='Giorno', y='Media7', color_discrete_sequence=[C_ORANGE], labels={'Media7': 'Fatica accumulata'})
+        fig_sp.update_traces(hovertemplate="%{x}<br>Fatica accumulata: %{y:.1f}<extra></extra>")
+        fig_sp.add_hline(y=15, line_dash="dash", line_color=C_AMBER, annotation_text="Sopra questa linea: troppo carico")
+        fig_sp.update_layout(height=340, title="Fatica accumulata (media degli ultimi 7 giorni)")
+        st.plotly_chart(style_fig(fig_sp), use_container_width=True)
+        mlx_insight(f"<strong>In numeri:</strong> sei stato sopra la linea per <strong>{sopra} giorni su {len(df_stress)}</strong> ({sopra/len(df_stress)*100:.0f}% del periodo). Più a lungo resti lassù, più serve inserire giorni di scarico.", C_AMBER)
 
-        with col_a:
-            st.markdown("#### Media mobile del carico negli ultimi 7 giorni")
-            fig_stress = px.area(
-                df_stress,
-                x='Giorno',
-                y='SMA_Rolling',
-                color_discrete_sequence=[ORANGE],
-                labels={'SMA_Rolling': 'Carico settimanale medio'}
-            )
-            fig_stress.add_hline(y=15, line_dash='dash', line_color=AMBER, annotation_text='Soglia critica')
-            fig_stress.update_layout(
-                height=330,
-                title='Carico cronico',
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color=TXT_SEC)
-            )
-            st.plotly_chart(style_fig(fig_stress), use_container_width=True)
-
-        with col_b:
-            st.markdown("#### Distribuzione del carico giornaliero")
-            fig_hist = px.histogram(
-                df_stress,
-                x='SMA',
-                nbins=15,
-                color_discrete_sequence=[CYAN],
-                labels={'SMA': 'Carico giornaliero'}
-            )
-            fig_hist.add_vline(x=15, line_dash='dash', line_color=ORANGE, annotation_text='Soglia critica')
-            fig_hist.update_layout(
-                height=330,
-                title='Istogramma del carico',
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color=TXT_SEC)
-            )
-            st.plotly_chart(style_fig(fig_hist), use_container_width=True)
-
-        giorni_sopra = int((df_stress['SMA_Rolling'] > 15).sum())
-        pct_sopra = (giorni_sopra / len(df_stress)) * 100
-        st.warning(f"**Hai superato la soglia critica per {giorni_sopra} giorni** ({pct_sopra:.0f}% del periodo).\n\nPer un atleta, questo significa che il carico si sta accumulando; per un allenatore, è un segnale chiaro da monitorare con calma e da correggere prima che ci siano problemi di performance o infortunio.")
-
-    with tab5:
-        st.subheader("Simulatore: cosa succederebbe se oggi facessi una seduta così?")
-        st.markdown(
-            """
-            <div class='mini-note'>
-                Questo piano è utile per allenatore e atleta perché mostra in tempo reale come cambiano i rischi quando mutano i fattori più importanti:
-                distanza, recupero, stress e percezione del carico. È lo strumento perfetto per valutare prima di partire in allenamento.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    # =========================================================
+    # TAB 7 — E SE DOMANI...?
+    # =========================================================
+    with t7:
+        mlx_section("E se domani...? Prova uno scenario")
+        mlx_insight("Muovi i cursori e guarda subito quanto sarebbe rischioso correre in quelle condizioni.")
 
         base = st.session_state.risultati_analisi if st.session_state.analisi_fatta else {
-            'distanza_oggi': 10.0,
-            'ore_sonno': 7.5,
-            'stress_lavoro': 5,
-            'rpe_previsto': 6
-        }
+            'distanza_oggi': 10.0, 'ore_sonno': 7.5, 'stress_lavoro': 5, 'rpe_previsto': 6}
 
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            sim_dist = st.slider('Distanza (km)', 0.0, 42.0, float(base.get('distanza_oggi', 10.0)), step=0.5, key='sim_dist')
-        with col2:
-            sim_sonno = st.slider('Ore di sonno', 2.0, 12.0, float(base.get('ore_sonno', 7.5)), step=0.5, key='sim_sonno')
-        with col3:
-            sim_stress = st.slider('Stress lavorativo', 1, 10, int(base.get('stress_lavoro', 5)), key='sim_stress')
-        with col4:
-            sim_rpe = st.slider('RPE', 1, 10, int(base.get('rpe_previsto', 6)), key='sim_rpe')
+        s1, s2 = st.columns(2)
+        with s1:
+            sim_dist = st.slider("Quanti km vuoi correre?", 0.0, 42.0, float(base.get('distanza_oggi', 10.0)), key="sim_dist")
+            sim_sonno = st.slider("Quante ore hai dormito?", 2.0, 12.0, float(base.get('ore_sonno', 7.5)), key="sim_sonno")
+        with s2:
+            sim_stress = st.slider("Stress da lavoro/vita (1 = zero, 10 = altissimo)", 1, 10, int(base.get('stress_lavoro', 5)), key="sim_stress")
+            sim_rpe = st.slider("Quanto ti sembrerà dura la corsa? (1 = facile, 10 = massimo)", 1, 10, int(base.get('rpe_previsto', 6)), key="sim_rpe")
 
-        stima_sim = stima_rischio_oggi(class_bundle, sim_dist, sim_sonno, sim_stress, sim_rpe)
-        sim_prob = stima_sim['probabilita_rf']
-        sim_fc = stima_sim['fc_media_stimata']
+        stima = stima_rischio_oggi(class_bundle, sim_dist, sim_sonno, sim_stress, sim_rpe)
+        sim_fc = stima["fc_media_stimata"]
+        p = stima["probabilita_rf"]
+        p_log = stima["probabilita_log"]
+        col = colore_rischio(p)
 
-        if sim_prob >= 60:
-            color = ORANGE
-            label = 'Rischio elevato'
-            advice = f'Questo scenario è troppo intenso rispetto allo stato di recupero: con {sim_prob:.0f}% di rischio, la seduta andrebbe ridotta o spostata in un giorno più favorevole.'
-        elif sim_prob >= 35:
-            color = AMBER
-            label = 'Rischio moderato'
-            advice = f'Il rischio non è alto, ma c'è un segnale di compressione del recupero. Un allenamento leggermente più corto o un giorno più riposato sarebbe più prudente.'
+        if p >= 60:
+            msg = f"{dot(C_ORANGE)}<strong>RISCHIO ALTO ({p:.0f}%)</strong> — Con questi valori {sim_dist:.0f} km sono troppi. Meglio scendere a circa <strong>{sim_dist*0.4:.0f} km</strong> o riposare."
+        elif p >= 25:
+            msg = f"{dot(C_AMBER)}<strong>ATTENZIONE ({p:.0f}%)</strong> — C'è un po' di sovraccarico. Prova a ridurre da {sim_dist:.0f} a circa <strong>{sim_dist*0.7:.0f} km</strong>."
         else:
-            color = GREEN
-            label = 'Rischio basso'
-            advice = f'Questo scenario è sostenibile. La seduta entra nella fascia di rischio basso e può essere considerata compatibile con il tuo profilo attuale.'
+            msg = f"{dot(C_GREEN)}<strong>RISCHIO BASSO ({p:.0f}%)</strong> — Le condizioni reggono bene {sim_dist:.0f} km. Puoi procedere."
+        st.markdown(f"<div class='info-box' style='border-left-color:{col};'>{msg}</div>", unsafe_allow_html=True)
+        st.caption(f"Un secondo sistema, indipendente, stima {p_log:.0f}% per lo stesso scenario: se i due numeri sono vicini, il giudizio è più solido. "
+                   f"Per i battiti si usa una stima basata sulla fatica che hai impostato (circa {sim_fc:.0f} bpm).")
 
-        st.markdown(
-            f"""
-            <div style='background: linear-gradient(135deg, {color}22 0%, {color}11 100%);
-                        border: 2px solid {color}; border-radius: 12px; padding: 20px; margin: 18px 0;'>
-                <h3 style='margin:0 0 8px 0; color:{color};'>{label}</h3>
-                <p style='margin:0; color:#B8C2D0; line-height:1.6;'>{advice}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        col_a, col_b = st.columns(2)
-
-        with col_a:
-            fig_gauge = go.Figure(
-                go.Indicator(
-                    mode='gauge+number',
-                    value=sim_prob,
-                    title={'text': 'Probabilità di rischio', 'font': {'color': TXT_SEC}},
-                    gauge={
-                        'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': 'white'},
-                        'bar': {'color': color},
-                        'steps': [
-                            {'range': [0, 30], 'color': GREEN + '22'},
-                            {'range': [30, 60], 'color': AMBER + '22'},
-                            {'range': [60, 100], 'color': ORANGE + '22'}
-                        ]
-                    }
-                )
-            )
-            fig_gauge.update_layout(height=320, paper_bgcolor='rgba(0,0,0,0)', font=dict(color=TXT_SEC))
-            st.plotly_chart(style_fig(fig_gauge), use_container_width=True)
-
-        with col_b:
-            sonno_range = np.linspace(4, 10, 15)
-            probs_range = [
-                rf_model.predict_proba(scaler.transform(np.array([[sim_dist, s, sim_stress, sim_fc, sim_rpe]])))[0][1] * 100
-                for s in sonno_range
-            ]
-            fig_sens = px.line(
-                x=sonno_range,
-                y=probs_range,
-                labels={'x': 'Ore di sonno', 'y': 'Rischio %'},
-                title='Sensibilità: rischio vs sonno'
-            )
-            fig_sens.add_vline(x=sim_sonno, line_dash='dash', line_color=AMBER)
-            fig_sens.update_traces(line_color=CYAN, line_width=3)
-            fig_sens.update_layout(
-                height=320,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color=TXT_SEC)
-            )
-            st.plotly_chart(style_fig(fig_sens), use_container_width=True)
-
-    with tab6:
-        st.subheader("Random Forest vs Logistic Regression")
-        st.markdown(
-            """
-            <div class='mini-note'>
-                I due modelli hanno uno scopo diverso. La Random Forest è più adatta a catturare relazioni complesse e a dare un allarme forte quando un profilo di allenamento è molto vicino a una situazione critica.
-                La Logistic Regression è più semplice da leggere e aiuta a capire quali fattori stanno davvero determinando il rischio.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        y_pred_log_bin = (y_proba_log >= 0.5).astype(int)
-
-        acc_log = (y_pred_log_bin == y_train_class).mean() * 100
-        prec_log = precision_score(y_train_class, y_pred_log_bin, zero_division=0) * 100
-        rec_log = recall_score(y_train_class, y_pred_log_bin, zero_division=0) * 100
-        f1_log = f1_score(y_train_class, y_pred_log_bin, zero_division=0) * 100
-
-        f1_rf_final = f1_score(y_train_class, y_pred_rf, zero_division=0) * 100
-        auc_rf_final = auc(*roc_curve(y_train_class, y_proba_rf)[:2])
-        auc_log_final = auc(*roc_curve(y_train_class, y_proba_log)[:2])
-
-        metriche_labels = ['Accuratezza', 'Precisione', 'Sensibilità', 'F1-Score', 'AUC']
-        rf_values = [acc_rf, prec_rf, rec_rf, f1_rf_final, auc_rf_final * 100]
-        log_values = [acc_log, prec_log, rec_log, f1_log, auc_log_final * 100]
-
-        score_rf = float(np.mean(rf_values))
-        score_log = float(np.mean(log_values))
-        vincitore = 'Random Forest' if score_rf >= score_log else 'Logistic Regression'
-
+        # Piano migliore: massimo di km restando in zona verde
+        d_fine = np.arange(0, 42.01, 0.5)
+        Xd = np.column_stack([d_fine, np.full_like(d_fine, sim_sonno), np.full_like(d_fine, sim_stress),
+                              np.full_like(d_fine, sim_fc), np.full_like(d_fine, sim_rpe)])
+        p_fine = rischio_rf(Xd)
+        primo_sopra = np.where(p_fine >= 25)[0]
+        if len(primo_sopra) == 0:
+            km_sicuri, frase = 42.0, "Con queste condizioni puoi coprire qualsiasi distanza restando in zona verde."
+        elif primo_sopra[0] == 0:
+            km_sicuri, frase = 0.0, "Con queste condizioni, anche una corsa brevissima è già in zona di attenzione. Oggi meglio riposo o recupero attivo."
+        else:
+            km_sicuri = float(d_fine[primo_sopra[0] - 1])
+            frase = f"Oltre questa distanza il rischio supera il 25%. Tu hai scelto {sim_dist:.0f} km."
         st.markdown(f"""
-        <div style='background: linear-gradient(135deg, #0E1420 0%, #0F1D30 100%);
-                    border: 1px solid #202B3D; border-radius: 14px; padding: 18px; margin: 12px 0 22px 0;'>
-            <h3 style='margin:0 0 8px 0; color:#00E5FF;'>{vincitore} vince sul tuo storico</h3>
-            <p style='margin:0; color:#B8C2D0;'>
-                Punteggio medio: <strong>{max(score_rf, score_log):.1f}/100</strong>
-            </p>
+        <div class='mlx-bigsafe'>
+            <div class='mlx-eyebrow'>Il tuo piano migliore per oggi</div>
+            <div class='big'>{km_sicuri:.1f} km</div>
+            <div style='font-family:Inter,sans-serif; color:{TXT_SEC}; font-size:.95rem; margin-top:4px;'>{frase}</div>
         </div>
         """, unsafe_allow_html=True)
 
-        col_a, col_b = st.columns(2)
+        g1, g2 = st.columns(2)
+        with g1:
+            fig_g = go.Figure(go.Indicator(
+                mode="gauge+number", value=p,
+                title={'text': "Rischio di infortunio", 'font': {'color': TXT_TER}},
+                gauge={'axis': {'range': [0, 100]}, 'bar': {'color': col}, 'bgcolor': "#111827", 'borderwidth': 0,
+                       'steps': [{'range': [0, 25], 'color': 'rgba(0,245,160,0.12)'},
+                                 {'range': [25, 60], 'color': 'rgba(255,176,32,0.12)'},
+                                 {'range': [60, 100], 'color': 'rgba(255,106,61,0.14)'}]},
+                number={'suffix': '%', 'font': {'size': 40, 'color': '#fff'}}))
+            fig_g.update_layout(height=300)
+            st.plotly_chart(style_fig(fig_g), use_container_width=True)
+        with g2:
+            sr = np.linspace(4, 10, 25)
+            Xs = np.column_stack([np.full_like(sr, sim_dist), sr, np.full_like(sr, sim_stress), np.full_like(sr, sim_fc), np.full_like(sr, sim_rpe)])
+            fig_s = px.line(x=sr, y=rischio_rf(Xs), labels={'x': 'Ore di sonno', 'y': 'Rischio %'}, title="Se dormi di più (o di meno)")
+            fig_s.update_traces(line_color=C_CYAN, line_width=3, hovertemplate="%{x:.1f} ore: rischio %{y:.0f}%<extra></extra>")
+            fig_s.add_vline(x=sim_sonno, line_dash="dash", line_color=C_ORANGE)
+            fig_s.update_layout(height=300)
+            st.plotly_chart(style_fig(fig_s), use_container_width=True)
 
-        with col_a:
-            fig_radar = go.Figure()
-            fig_radar.add_trace(go.Scatterpolar(
-                r=rf_values + [rf_values[0]],
-                theta=metriche_labels + [metriche_labels[0]],
-                fill='toself',
-                name='Random Forest',
-                line=dict(color=CYAN, width=2),
-                fillcolor='rgba(0,229,255,0.15)'
-            ))
-            fig_radar.add_trace(go.Scatterpolar(
-                r=log_values + [log_values[0]],
-                theta=metriche_labels + [metriche_labels[0]],
-                fill='toself',
-                name='Logistic Regression',
-                line=dict(color=AMBER, width=2),
-                fillcolor='rgba(255,176,32,0.15)'
-            ))
-            fig_radar.update_layout(
-                height=360,
-                title='Confronto completo',
-                polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color=TXT_SEC)
-            )
-            st.plotly_chart(style_fig(fig_radar), use_container_width=True)
+        mlx_section("La mappa del rischio: sonno contro km")
+        mlx_insight("Ogni punto della mappa è una combinazione di ore di sonno (in orizzontale) e km (in verticale). Il rombo bianco è lo scenario che hai scelto: <strong>cerca di restare nelle zone verdi</strong>.", C_CYAN)
+        s_ax = np.linspace(4, 10, 25)
+        d_ax = np.linspace(0, 42, 25)
+        S, D = np.meshgrid(s_ax, d_ax)
+        Xm = np.column_stack([D.ravel(), S.ravel(), np.full(S.size, sim_stress, dtype=float),
+                              np.full(S.size, sim_fc, dtype=float), np.full(S.size, sim_rpe, dtype=float)])
+        Z = rischio_rf(Xm).reshape(S.shape)
+        fig_map = go.Figure(go.Heatmap(
+            x=s_ax, y=d_ax, z=Z, colorscale=RISK_SCALE, zmin=0, zmax=100, colorbar=dict(title="Rischio %"),
+            hovertemplate="Sonno: %{x:.1f} h<br>Km: %{y:.0f}<br>Rischio: %{z:.0f}%<extra></extra>"))
+        fig_map.add_trace(go.Scatter(
+            x=[sim_sonno], y=[sim_dist], mode='markers', name="Il tuo scenario",
+            marker=dict(symbol='diamond', size=16, color='#FFFFFF', line=dict(color=BG_DARK, width=2)),
+            hovertemplate="Il tuo scenario<extra></extra>"))
+        fig_map.update_layout(height=420, title="Mappa del rischio (stress e fatica come da cursori)",
+                              xaxis_title="Ore di sonno", yaxis_title="Km corsi", showlegend=False)
+        st.plotly_chart(style_fig(fig_map), use_container_width=True)
 
-        with col_b:
-            comp_data = pd.DataFrame({
-                'Metrica': metriche_labels * 2,
-                'Valore': rf_values + log_values,
-                'Modello': ['Random Forest'] * 5 + ['Logistic Regression'] * 5
-            })
-            fig_comp = px.bar(
-                comp_data,
-                x='Metrica',
-                y='Valore',
-                color='Modello',
-                barmode='group',
-                color_discrete_map={'Random Forest': CYAN, 'Logistic Regression': AMBER}
-            )
-            fig_comp.update_layout(
-                height=360,
-                title='Metriche fianco a fianco',
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color=TXT_SEC)
-            )
-            st.plotly_chart(style_fig(fig_comp), use_container_width=True)
+    # =========================================================
+    # TAB 8 — QUALE SISTEMA SCEGLIERE
+    # =========================================================
+    with t8:
+        mlx_section("Due sistemi a confronto")
+        mlx_insight("Abbiamo due 'consulenti' che guardano gli stessi dati: la <strong>giuria di esperti</strong> (Random Forest), più precisa, e la <strong>bilancia dei fattori</strong> (Regressione Logistica), più facile da spiegare. Ecco come si sono comportati sui tuoi allenamenti.", C_AMBER)
 
-        st.markdown('---')
-        col_rf, col_log = st.columns(2)
+        acc_log = (y_pred_log == y_real).mean() * 100
+        prec_log = precision_score(y_real, y_pred_log, zero_division=0) * 100
+        rec_log = recall_score(y_real, y_pred_log, zero_division=0) * 100
 
-        with col_rf:
-            st.markdown(
-                """
-                ### Random Forest
-                **Punti forti:**
-                - cattura relazioni complesse
-                - molto utile per l'allarme di rischio
-                - spesso più preciso sul tuo storico
+        etichette = ["Giorni giudicati bene", "Allarmi giusti", "Rischi scoperti"]
+        v_rf = [acc_rf, prec_rf, rec_rf]
+        v_log = [acc_log, prec_log, rec_log]
+        s_rf, s_log = float(np.mean(v_rf)), float(np.mean(v_log))
+        vince = "La giuria di esperti" if s_rf >= s_log else "La bilancia dei fattori"
+        colv = C_CYAN if s_rf >= s_log else C_AMBER
+        margine = abs(s_rf - s_log)
+        nota = "di poco: i due si equivalgono quasi" if margine < 5 else "in modo netto"
 
-                **Limiti:**
-                - meno trasparente
-                - non spiega sempre in modo semplice il perché del giudizio
-                """
-            )
+        st.markdown(f"""
+        <div class='mlx-hero'>
+            <p class='mlx-eyebrow'>Risultato</p>
+            <h2 class='mlx-hero-title'>{vince} se la cava meglio ({nota})</h2>
+            <p class='mlx-hero-msg' style='margin:0;'>Voto medio: <strong style='color:{colv};'>{max(s_rf, s_log)/10:.1f}/10</strong>
+            contro {min(s_rf, s_log)/10:.1f}/10 dell'altro.</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-        with col_log:
-            st.markdown(
-                """
-                ### Logistic Regression
-                **Punti forti:**
-                - più semplice da interpretare
-                - mostra quali fattori pesano di più
-                - utile per capire dove va il problema
+        comp = pd.DataFrame({
+            'Cosa misuriamo': etichette * 2,
+            'Voto (su 10)': [v / 10 for v in v_rf + v_log],
+            'Sistema': ['Giuria di esperti'] * 3 + ['Bilancia dei fattori'] * 3})
+        fig_c = px.bar(comp, x='Cosa misuriamo', y='Voto (su 10)', color='Sistema', barmode='group',
+                       color_discrete_map={'Giuria di esperti': C_CYAN, 'Bilancia dei fattori': C_AMBER})
+        fig_c.update_traces(hovertemplate="%{x}: %{y:.1f}/10<extra></extra>")
+        fig_c.update_layout(height=340, title="Voti dei due sistemi (più alto = meglio)", legend=dict(orientation="h", y=-0.25),
+                            yaxis=dict(range=[0, 10]))
+        st.plotly_chart(style_fig(fig_c), use_container_width=True)
 
-                **Limiti:**
-                - meno efficace su pattern molto complessi
-                - meno ricca di sfumature rispetto al modello più avanzato
-                """
-            )
+        k1, k2 = st.columns(2)
+        k1.markdown(f"""
+        <div class='mlx-box' style='--bc:{C_CYAN}; text-align:left;'>
+            <div style='color:{C_CYAN}; font-weight:700; font-size:1.1rem; margin-bottom:8px;'>Giuria di esperti</div>
+            <div class='t'><strong style='color:#fff;'>Pro:</strong> coglie le combinazioni (es. poco sonno <em>e</em> molto stress insieme).<br>
+            <strong style='color:#fff;'>Contro:</strong> difficile dire perché ha deciso così in un singolo giorno.<br>
+            <strong style='color:#fff;'>Usala per:</strong> l'allarme più affidabile.</div>
+        </div>""", unsafe_allow_html=True)
+        k2.markdown(f"""
+        <div class='mlx-box' style='--bc:{C_AMBER}; text-align:left;'>
+            <div style='color:{C_AMBER}; font-weight:700; font-size:1.1rem; margin-bottom:8px;'>Bilancia dei fattori</div>
+            <div class='t'><strong style='color:#fff;'>Pro:</strong> dice chiaramente quanto pesa ogni fattore.<br>
+            <strong style='color:#fff;'>Contro:</strong> più semplice, può perdersi le combinazioni.<br>
+            <strong style='color:#fff;'>Usala per:</strong> capire <em>perché</em> il rischio sale.</div>
+        </div>""", unsafe_allow_html=True)
 
-        st.success("**Regola pratica:** usa Random Forest come allarme principale e Logistic Regression per capire quale fattore sta spingendo il rischio verso l'alto. Insieme hanno un ruolo chiaro: previsione e spiegazione.")
+        mlx_insight("<strong>Il consiglio pratico:</strong> non sceglierne uno. La giuria ti avvisa, la bilancia ti spiega cosa cambiare (sonno, stress o km). Entrambi, insieme ai calcoli sul cuore e sui tipi di allenamento, alimentano il verdetto del \"Consiglio Finale\".", C_GREEN)
 
 except Exception as e:
-    st.error(f"Errore nel caricamento dei modelli ML: {str(e)}")
-    st.caption("Controlla i dati del tuo storico e riprova. Se il problema persiste, riavvia la sessione o contatta il supporto.")
+    st.error(f"Errore caricamento modelli ML: {str(e)}")
