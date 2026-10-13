@@ -178,7 +178,7 @@ try:
 
     t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs([
         "Il tuo andamento", "Cosa ti mette a rischio", "Le tue regole personali", "Il tuo cuore sotto sforzo",
-        "I tuoi tipi di allenamento", "Fatica accumulata", "E se domani...?", "Quale sistema scegliere"
+        "I tuoi tipi di allenamento", "Fatica accumulata", "E se domani...?", "Il consiglio per oggi"
     ])
 
     # =========================================================
@@ -540,62 +540,141 @@ try:
         st.plotly_chart(style_fig(fig_map), use_container_width=True)
 
     # =========================================================
-    # TAB 8 — QUALE SISTEMA SCEGLIERE
+    # TAB 8 — IL CONSIGLIO PER OGGI
     # =========================================================
     with t8:
-        mlx_section("Due sistemi a confronto")
-        mlx_insight("Abbiamo due 'consulenti' che guardano gli stessi dati: la <strong>giuria di esperti</strong> (Random Forest), più precisa, e la <strong>bilancia dei fattori</strong> (Regressione Logistica), più facile da spiegare. Ecco come si sono comportati sui tuoi allenamenti.", C_AMBER)
+        mlx_section("Il consiglio per oggi")
+        mlx_insight(
+            f"Qui mettiamo insieme tutto quello che hanno scoperto i modelli. Lo scenario è quello della scheda \"E se domani...?\": "
+            f"<strong>{sim_dist:.0f} km</strong>, <strong>{sim_sonno:.1f} ore di sonno</strong>, stress <strong>{sim_stress}/10</strong>, "
+            f"fatica prevista <strong>{sim_rpe}/10</strong>. Cambia i cursori in quella scheda e il consiglio si aggiorna.", C_CYAN)
 
-        acc_log = (y_pred_log == y_real).mean() * 100
-        prec_log = precision_score(y_real, y_pred_log, zero_division=0) * 100
-        rec_log = recall_score(y_real, y_pred_log, zero_division=0) * 100
+        # ---------- I 5 segnali ----------
+        nomi_stato = {C_GREEN: "Ok", C_AMBER: "Attenzione", C_ORANGE: "Alto"}
 
-        etichette = ["Giorni giudicati bene", "Allarmi giusti", "Rischi scoperti"]
-        v_rf = [acc_rf, prec_rf, rec_rf]
-        v_log = [acc_log, prec_log, rec_log]
-        s_rf, s_log = float(np.mean(v_rf)), float(np.mean(v_log))
-        vince = "La giuria di esperti" if s_rf >= s_log else "La bilancia dei fattori"
-        colv = C_CYAN if s_rf >= s_log else C_AMBER
-        margine = abs(s_rf - s_log)
-        nota = "di poco: i due si equivalgono quasi" if margine < 5 else "in modo netto"
+        # Cuore: scarto medio delle ultime 3 uscite rispetto al previsto
+        res_rec = float(df_base.sort_values('Giorno')['Residuo'].tail(3).mean())
+        if res_rec > 2 * mae:
+            c_cuore, v_cuore = C_ORANGE, 85
+        elif res_rec > mae:
+            c_cuore, v_cuore = C_AMBER, 45
+        else:
+            c_cuore, v_cuore = C_GREEN, 10
 
-        st.markdown(f"""
-        <div class='mlx-hero'>
-            <p class='mlx-eyebrow'>Risultato</p>
-            <h2 class='mlx-hero-title'>{vince} se la cava meglio ({nota})</h2>
-            <p class='mlx-hero-msg' style='margin:0;'>Voto medio: <strong style='color:{colv};'>{max(s_rf, s_log)/10:.1f}/10</strong>
-            contro {min(s_rf, s_log)/10:.1f}/10 dell'altro.</p>
-        </div>
-        """, unsafe_allow_html=True)
+        # Tipo di uscita: a quale famiglia appartiene lo scenario di oggi
+        cid_oggi = int(cluster_bundle["km_model"].predict(
+            cluster_bundle["scaler"].transform(pd.DataFrame([[sim_dist, sim_fc]], columns=['Distanza (km)', 'FC Media'])))[0])
+        r_cl = float(prof.loc[cid_oggi, 'rischio']) * 100
+        nome_cl = nomi_cl[cid_oggi]
+        c_cl = C_GREEN if r_cl < 25 else C_AMBER if r_cl < 50 else C_ORANGE
 
-        comp = pd.DataFrame({
-            'Cosa misuriamo': etichette * 2,
-            'Voto (su 10)': [v / 10 for v in v_rf + v_log],
-            'Sistema': ['Giuria di esperti'] * 3 + ['Bilancia dei fattori'] * 3})
-        fig_c = px.bar(comp, x='Cosa misuriamo', y='Voto (su 10)', color='Sistema', barmode='group',
-                       color_discrete_map={'Giuria di esperti': C_CYAN, 'Bilancia dei fattori': C_AMBER})
-        fig_c.update_traces(hovertemplate="%{x}: %{y:.1f}/10<extra></extra>")
-        fig_c.update_layout(height=340, title="Voti dei due sistemi (più alto = meglio)", legend=dict(orientation="h", y=-0.25),
-                            yaxis=dict(range=[0, 10]))
-        st.plotly_chart(style_fig(fig_c), use_container_width=True)
+        # Fatica accumulata (media ultimi 7 giorni)
+        m7 = float(df_stress['Media7'].iloc[-1])
+        if m7 > 15:
+            c_fat, v_fat = C_ORANGE, 85
+        elif m7 >= 12:
+            c_fat, v_fat = C_AMBER, 45
+        else:
+            c_fat, v_fat = C_GREEN, 10
 
-        k1, k2 = st.columns(2)
-        k1.markdown(f"""
-        <div class='mlx-box' style='--bc:{C_CYAN}; text-align:left;'>
-            <div style='color:{C_CYAN}; font-weight:700; font-size:1.1rem; margin-bottom:8px;'>Giuria di esperti</div>
-            <div class='t'><strong style='color:#fff;'>Pro:</strong> coglie le combinazioni (es. poco sonno <em>e</em> molto stress insieme).<br>
-            <strong style='color:#fff;'>Contro:</strong> difficile dire perché ha deciso così in un singolo giorno.<br>
-            <strong style='color:#fff;'>Usala per:</strong> l'allarme più affidabile.</div>
-        </div>""", unsafe_allow_html=True)
-        k2.markdown(f"""
-        <div class='mlx-box' style='--bc:{C_AMBER}; text-align:left;'>
-            <div style='color:{C_AMBER}; font-weight:700; font-size:1.1rem; margin-bottom:8px;'>Bilancia dei fattori</div>
-            <div class='t'><strong style='color:#fff;'>Pro:</strong> dice chiaramente quanto pesa ogni fattore.<br>
-            <strong style='color:#fff;'>Contro:</strong> più semplice, può perdersi le combinazioni.<br>
-            <strong style='color:#fff;'>Usala per:</strong> capire <em>perché</em> il rischio sale.</div>
-        </div>""", unsafe_allow_html=True)
+        c_rf, c_lg = colore_rischio(p), colore_rischio(p_log)
 
-        mlx_insight("<strong>Il consiglio pratico:</strong> non sceglierne uno. La giuria ti avvisa, la bilancia ti spiega cosa cambiare (sonno, stress o km). Entrambi, insieme ai calcoli sul cuore e sui tipi di allenamento, alimentano il verdetto del \"Consiglio Finale\".", C_GREEN)
+        segnali = [
+            ("Giuria di esperti", c_rf, f"Rischio stimato {p:.0f}%", "pesa 40%"),
+            ("Bilancia dei fattori", c_lg, f"Rischio stimato {p_log:.0f}%", "pesa 20%"),
+            ("Tipo di uscita", c_cl, f"{nome_cl}: in passato il {r_cl:.0f}% di queste uscite era a rischio", "pesa 15%"),
+            ("Il tuo cuore", c_cuore, f"{res_rec:+.0f} battiti rispetto al previsto nelle ultime 3 uscite", "pesa 15%"),
+            ("Fatica accumulata", c_fat, f"{m7:.1f} negli ultimi 7 giorni (soglia 15)", "pesa 10%"),
+        ]
+
+        score = 0.40 * p + 0.20 * p_log + 0.15 * r_cl + 0.15 * v_cuore + 0.10 * v_fat
+        col_v = colore_rischio(score)
+
+        if score >= 60:
+            titolo = "Meglio rallentare oggi"
+            sotto = "I segnali dicono che il corpo è sotto pressione. Oggi il miglior allenamento è recuperare."
+            piano = [("Distanza", f"Riposo, oppure al massimo {sim_dist*0.4:.0f} km"),
+                     ("Intensità", "Solo corsa molto facile o camminata, niente ripetute né salite"),
+                     ("Recupero", "Dormi di più, riduci lo stress e rivaluta domani")]
+        elif score >= 25:
+            titolo = "Allenati, ma con prudenza"
+            sotto = "C'è un po' di carico in più del solito. Si può correre, riducendo volume e intensità."
+            piano = [("Distanza", f"Circa {sim_dist*0.7:.0f} km invece di {sim_dist:.0f}"),
+                     ("Intensità", "Ritmo facile: fatica percepita non oltre 6 su 10"),
+                     ("Recupero", "Cura il sonno stanotte e controlla come stai domani")]
+        else:
+            titolo = "Via libera: oggi puoi allenarti"
+            sotto = "I segnali sono tutti nella norma. Puoi seguire il programma previsto."
+            piano = [("Distanza", f"{sim_dist:.0f} km come previsto"),
+                     ("Intensità", "Puoi anche inserire una parte di qualità, se è in programma"),
+                     ("Recupero", "Mantieni la tua routine di sonno e alimentazione")]
+
+        h1, h2 = st.columns([1.5, 1])
+        with h1:
+            st.markdown(f"""
+            <div class='mlx-hero' style='border-color:{col_v}88; box-shadow:0 0 28px {col_v}33; margin-bottom:0;'>
+                <p class='mlx-eyebrow'>Il verdetto di oggi</p>
+                <h2 class='mlx-hero-title' style='font-size:2rem; color:{col_v};'>{titolo}</h2>
+                <p class='mlx-hero-msg' style='margin-bottom:12px;'>{sotto}</p>
+                <p class='mlx-note'>Puoi correre restando in zona verde fino a circa {km_sicuri:.0f} km con queste condizioni.</p>
+            </div>""", unsafe_allow_html=True)
+        with h2:
+            fig_v = go.Figure(go.Indicator(
+                mode="gauge+number", value=score,
+                title={'text': "Rischio complessivo", 'font': {'color': TXT_TER}},
+                gauge={'axis': {'range': [0, 100]}, 'bar': {'color': col_v}, 'bgcolor': "#111827", 'borderwidth': 0,
+                       'steps': [{'range': [0, 25], 'color': 'rgba(0,245,160,0.12)'},
+                                 {'range': [25, 60], 'color': 'rgba(255,176,32,0.12)'},
+                                 {'range': [60, 100], 'color': 'rgba(255,106,61,0.14)'}]},
+                number={'suffix': '/100', 'font': {'size': 36, 'color': '#fff'}}))
+            fig_v.update_layout(height=250)
+            st.plotly_chart(style_fig(fig_v), use_container_width=True)
+
+        mlx_section("Cosa dicono i cinque segnali")
+        for cc, (tit, colr, tx, peso) in zip(st.columns(5), segnali):
+            cc.markdown(f"""
+            <div class='mlx-box' style='--bc:{colr}; text-align:left; min-height:190px;'>
+                <div style='font-family:JetBrains Mono,monospace; font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; color:{TXT_TER};'>{tit}</div>
+                <div style='font-family:JetBrains Mono,monospace; font-size:1.35rem; font-weight:700; color:{colr}; margin:8px 0;'>{nomi_stato[colr]}</div>
+                <div class='t'>{tx}</div>
+                <div class='mlx-note'>{peso} sul verdetto</div>
+            </div>""", unsafe_allow_html=True)
+
+        mlx_section("Il piano per oggi")
+        for cc, (tit, tx) in zip(st.columns(3), piano):
+            cc.markdown(f"<div class='mlx-rule' style='--bc:{col_v}; text-align:left;'><div class='k'>{tit}</div><div class='d' style='margin-top:8px; font-size:1rem; color:#fff;'>{tx}</div></div>", unsafe_allow_html=True)
+
+        # ---------- Consigli su misura ----------
+        sleep_lim = (s_vals[sopra_s.max()] + 0.25) if (len(sopra_s) and sopra_s.max() < len(s_vals) - 1) else None
+        tetto_km = d_vals[sopra_d.min()] if len(sopra_d) else None
+        stress_lim = st_vals[sopra_st.min()] if len(sopra_st) else None
+
+        consigli = []
+        if sleep_lim is not None and sim_sonno < sleep_lim:
+            consigli.append(("Sonno", f"Hai dormito {sim_sonno:.1f} ore, sotto la tua soglia di {sleep_lim:.1f}. Se puoi, sposta l'allenamento o accorcialo.", C_CYAN))
+        if tetto_km is not None and sim_dist > tetto_km:
+            consigli.append(("Distanza", f"{sim_dist:.0f} km superano il tuo tetto di {tetto_km:.0f} km. Meglio spezzare il volume su due giorni.", C_AMBER))
+        if stress_lim is not None and sim_stress >= stress_lim:
+            consigli.append(("Stress", f"Il tuo stress ({sim_stress}/10) è nella fascia in cui, per te, il rischio sale. Una corsa facile può aiutarti a scaricare.", C_ORANGE))
+        if v_cuore >= 45:
+            consigli.append(("Cuore", "Negli ultimi allenamenti il cuore lavora più del previsto: è un segnale di stanchezza nascosta. Tieni il ritmo basso.", C_ORANGE))
+        if v_fat >= 45:
+            consigli.append(("Fatica accumulata", "La fatica degli ultimi 7 giorni è alta. Inserisci presto un giorno di scarico o una settimana più leggera.", C_AMBER))
+        consigli.append(("Fattore chiave", f"Per te il fattore che spinge di più il rischio è <strong style='color:#fff;'>{peggiore}</strong>. Tienilo d'occhio nei prossimi giorni.", C_GREEN))
+
+        mlx_section("Consigli su misura per te")
+        for i in range(0, len(consigli), 3):
+            for cc, (tit, tx, colr) in zip(st.columns(3), consigli[i:i + 3]):
+                cc.markdown(f"<div class='mlx-rule' style='--bc:{colr}; text-align:left; margin-bottom:14px;'><div class='k'>{tit}</div><div class='d' style='margin-top:8px;'>{tx}</div></div>", unsafe_allow_html=True)
+
+        with st.expander("Come abbiamo calcolato il verdetto"):
+            st.markdown(
+                "Il verdetto è una media dei cinque segnali, ognuno con il suo peso: la giuria di esperti conta di più (40%), poi la bilancia dei fattori (20%), "
+                "il tipo di uscita (15%), il cuore (15%) e la fatica accumulata (10%). Sotto 25 su 100 è verde, da 25 a 60 è giallo, sopra 60 è rosso. "
+                "Le soglie sono le stesse usate in tutta la pagina.")
+
+        mlx_insight("<strong>Ricorda:</strong> questo consiglio nasce dai tuoi dati ed è un supporto alla decisione. Non sostituisce il parere del tuo allenatore o di un medico, soprattutto se senti dolore o qualcosa che non va.", C_GREEN)
 
 except Exception as e:
     st.error(f"Errore caricamento modelli ML: {str(e)}")
+    
