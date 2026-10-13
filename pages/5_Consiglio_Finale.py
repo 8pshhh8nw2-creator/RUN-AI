@@ -11,7 +11,6 @@ from utils.components import header_block
 from utils.data import genera_dati
 from utils.kpi_engine import calcola_kpi_giornalieri
 from utils.ml_engine import (
-    PESI_RISCHIO,
     analisi_completa_oggi,
     get_bundle_classificazione,
     get_bundle_cluster,
@@ -25,7 +24,6 @@ st.set_page_config(page_title="Consiglio Finale", layout="wide")
 carica_css()
 
 
-# --- utilità di sicurezza ---
 def safe_float(value, default=0.0):
     try:
         if value is None or (isinstance(value, float) and np.isnan(value)):
@@ -41,12 +39,17 @@ def safe_text(value, default="n/d"):
     return str(value)
 
 
+def _plain(value):
+    if value is None:
+        return ""
+    return _re.sub(r'<[^>]+>', '', str(value)).replace('&nbsp;', ' ').strip()
+
+
 def md(text):
     clean = "\n".join(line.strip() for line in text.split("\n"))
     st.markdown(clean, unsafe_allow_html=True)
 
 
-# --- stato iniziale ---
 if 'dati' not in st.session_state or st.session_state.dati is None:
     st.session_state.dati = genera_dati()
     st.session_state.dati_simulati = True
@@ -80,19 +83,15 @@ else:
     r = st.session_state.risultati_analisi
     df_base = st.session_state.dati.copy()
 
-    # validazione base del dataset
-    numeric_cols = ['Ore Sonno', 'Stress Lavoro', 'RPE', 'Distanza', 'FC Media', 'Temperatura', 'Vento', 'Velocità']
-    for col in numeric_cols:
+    for col in ['Ore Sonno', 'Stress Lavoro', 'RPE', 'Distanza', 'FC Media', 'Temperatura', 'Vento', 'Velocità']:
         if col in df_base.columns:
             df_base[col] = pd.to_numeric(df_base[col], errors='coerce')
 
     date_col = next((c for c in df_base.columns if c.lower() in ['data', 'date', 'giorno', 'time']), None)
 
-    # note esplicite: dati reali o dimostrativi
     if st.session_state.get('dati_simulati', False):
         st.info("I dati attualmente mostrati sono dimostrativi: usa dataset reali per decisioni operative.")
 
-    # bundle ML
     try:
         class_bundle = get_bundle_classificazione(df_base)
         cluster_bundle = get_bundle_cluster(df_base)
@@ -103,7 +102,6 @@ else:
         cluster_bundle = {}
         reg_bundle = {}
 
-    # i singoli modelli cercano un dataset coerente e non si deve assumere che i valori siano sempre validi
     try:
         analisi_ml = analisi_completa_oggi(
             df_base,
@@ -124,29 +122,30 @@ else:
             'fattore_principale_rf': 'dati insufficienti',
         }
 
-    # soglie centrali unificate per verdetto, distanza e voti dei singoli segnali
     SOGLIA_BASSA = 40
     SOGLIA_MEDIA = 70
 
-    # euristica trasparente; non è una validazione clinica ma un insieme di regole euristiche
     ore_sonno = safe_float(r.get('ore_sonno', 7.5))
     stress_lavoro = safe_float(r.get('stress_lavoro', 5.0))
     rpe_previsto = safe_float(r.get('rpe_previsto', 5.0))
 
-    risk_score_euristico = min(100.0,
-        (40 if ore_sonno < 6 else 25 if ore_sonno < 6.5 else 10) +
-        (35 if stress_lavoro >= 8 else 20 if stress_lavoro >= 6 else 5) +
-        (30 if rpe_previsto >= 8 else 15 if rpe_previsto >= 6 else 5) +
-        (20 if ore_sonno < 6.5 and stress_lavoro >= 7 and rpe_previsto >= 7 else 0)
+    risk_score_euristico = min(
+        100.0,
+        (40 if ore_sonno < 6 else 25 if ore_sonno < 6.5 else 10)
+        + (35 if stress_lavoro >= 8 else 20 if stress_lavoro >= 6 else 5)
+        + (30 if rpe_previsto >= 8 else 15 if rpe_previsto >= 6 else 5)
+        + (20 if ore_sonno < 6.5 and stress_lavoro >= 7 and rpe_previsto >= 7 else 0),
     )
 
-    # il punteggio combinato è un indice 0-100, non una probabilità di infortunio validata
     componenti = analisi_ml.get('componenti', {})
-    risk_index = float(punteggio_rischio_combinato(componenti, risk_score_euristico)) if componenti else float(risk_score_euristico)
-    rischio_ml = float(componenti.get('random_forest', 0.0)) if componenti else risk_score_euristico
+    if componenti:
+        risk_index = float(punteggio_rischio_combinato(componenti, risk_score_euristico))
+    else:
+        risk_index = float(risk_score_euristico)
+
+    rischio_ml = float(componenti.get('random_forest', 0.0)) if componenti else float(risk_score_euristico)
     fattore_ml = safe_text(analisi_ml.get('fattore_principale_rf', 'n/d'))
 
-    # recovery score: non penalizza simmetricamente sopra e sotto 7.5h; è solo un indice parziale
     if ore_sonno >= 7.5:
         recovery_score = 100.0
     else:
@@ -187,7 +186,7 @@ else:
     hero_messages = {
         'Consigliato': "Il corpo appare sufficientemente recuperato: puoi seguire la seduta prevista con attenzione alle sensazioni.",
         'Recupero attivo': "Valuta di ridurre intensità e volume; la prudenza oggi dà più valore al recupero.",
-        'Riposo consigliato': "Il quadro suggerisce di evitare sforzi intensi oggi: preferribile un recupero attivo e una seduta leggera.",
+        'Riposo consigliato': "Il quadro suggerisce di evitare sforzi intensi oggi: preferibile un recupero attivo e una seduta leggera.",
     }
     hero_msg = hero_messages.get(tit, "") + f" Fattore rilevante in questo scenario: <strong>{_html.escape(fattore_ml)}</strong>."
 
@@ -203,7 +202,6 @@ else:
         dates_artificial = True
     df_adv = df_adv.sort_values('Data_Chart').dropna(subset=['Data_Chart']).reset_index(drop=True)
 
-    # --- CSS ---
     PANEL_BG = '#0D1117'
     PANEL_BD = '#1E2633'
     PANEL_BD_H = '#2A3546'
@@ -259,7 +257,7 @@ else:
     .zone-card .zone-card-top {{ height: 4px; width: 100%; background: var(--zc); }}
     .zone-card .zone-card-body {{ padding: 20px; }}
     .zone-card .zone-card-head {{ display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }}
-    .zone-card .zone-badge {{ width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--zc); color: var(--zc); background: color-mix(in srgb, var(--zc) 14%, transparent); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-weight: 700; }}
+    .zone-card .zone-badge {{ width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--zc); color: var(--zc); background: rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-weight: 700; }}
     .zone-card .zone-eyebrow {{ font-family: 'JetBrains Mono', monospace; font-size: .68rem; line-height: 1; letter-spacing: .1em; text-transform: uppercase; color: {TXT_TERTIARY}; font-weight: 700; }}
     .zone-card .zone-title {{ font-family: 'Oswald', sans-serif; font-size: 1.05rem; letter-spacing: .02em; text-transform: uppercase; color: {TXT_PRIMARY}; }}
     .zone-card .zone-desc {{ color: {TXT_SECONDARY}; font-size: .88rem; line-height: 1.6; margin: 0; }}
@@ -349,20 +347,23 @@ else:
         """
 
     def embed_svg(svg_code, height=220, extra_padding=6):
-        st.components.v1.html(f"""
-        <html>
-        <head>
-        <style>
-            html, body {{ margin:0; padding:0; background:transparent; height:100%; overflow:visible; }}
-            .svg-wrap {{ display:flex; align-items:center; justify-content:center; width:100%; height:100%; background:transparent; padding:{extra_padding}px; box-sizing:border-box; overflow:visible; }}
-            .svg-wrap svg {{ max-width:100%; max-height:100%; width:auto; height:auto; overflow:visible; }}
-        </style>
-        </head>
-        <body><div class="svg-wrap">{svg_code}</div></body>
-        </html>
-        """, height=height + 16, scrolling=False)
+        st.components.v1.html(
+            f"""
+            <html>
+            <head>
+            <style>
+                html, body {{ margin:0; padding:0; background:transparent; height:100%; overflow:visible; }}
+                .svg-wrap {{ display:flex; align-items:center; justify-content:center; width:100%; height:100%; background:transparent; padding:{extra_padding}px; box-sizing:border-box; overflow:visible; }}
+                .svg-wrap svg {{ max-width:100%; max-height:100%; width:auto; height:auto; overflow:visible; }}
+            </style>
+            </head>
+            <body><div class="svg-wrap">{svg_code}</div></body>
+            </html>
+            """,
+            height=height + 16,
+            scrolling=False,
+        )
 
-    # hero
     gauge = gauge_svg(risk_index, col, size=220, label='INDICE', show_pct=True)
     telem = telemetry_svg(risk_index)
 
@@ -396,7 +397,6 @@ else:
         md("<p class='mini-caption'>Più la barra è a destra, più il rischio di andare oltre i limiti aumenta. L'indice è un punteggio sintetico, non una probabilità clinica certificata.</p>")
         embed_svg(telem, 180, 10)
 
-    # kpi numerici chiave
     section_head("Numeri chiave", "I 6 indicatori di oggi", "Ogni riga mostra il numero e il suo significato pratico del giorno.")
     md(f"""
     <div class='panel split-sheet'>
@@ -440,7 +440,6 @@ else:
     </div>
     """)
 
-    # coach
     section_head("Coach personalizzato", "Il tuo protocollo passo dopo passo", "Cosa fare prima, durante e dopo la corsa in base ai segnali di oggi.")
 
     if liv == 'basso':
@@ -492,10 +491,10 @@ else:
             'blocchi': [
                 ('Rientro alla calma', [
                     'Cammina almeno 3-5 minuti per riportare il battito a valori più bassi.',
-                    'Entro 45 minuti, priorizza carboidrati + un po\' di proteine.',
+                    "Entro 45 minuti, priorizza carboidrati + un po' di proteine.",
                 ]),
                 ('Cura muscolare', [
-                    'Stretching passivo 45-60 s per polpacci, quadricipiti e flessori dell\'anca.',
+                    "Stretching passivo 45-60 s per polpacci, quadricipiti e flessori dell'anca.",
                     'Foam rolling lento, senza forzare punti molto dolorosi.',
                 ]),
             ],
@@ -505,7 +504,7 @@ else:
             'blocchi': [
                 ('Raffreddamento e recupero', [
                     recovery,
-                    'Migliora la regolarità del sonno: evita schermi nell\'ultima ora prima di dormire.',
+                    "Migliora la regolarità del sonno: evita schermi nell'ultima ora prima di dormire.",
                 ]),
                 ('Obiettivo notte', [
                     f'Obiettivo: raggiungere un sonno regolare e non fare di oggi un giorno di deficit accumulato.',
@@ -525,7 +524,6 @@ else:
                 blocks += f"<div class='coach-block' style='--block-color: {content['colore']};'><div class='label'>{_html.escape(label)}</div><ul>{bullets}</ul></div>"
             md(f"<div class='panel' style='padding: 20px;'>{blocks}</div>")
 
-    # trend storici sintetici
     section_head("Trend storici", "Come cambiano le tue abitudini", "L'ultimo andamento di sonno, stress e fatica aiuta a leggere il quadro di oggi.")
     df_plot = df_adv.tail(90).copy()
 
@@ -557,7 +555,6 @@ else:
         fig.update_yaxes(gridcolor=PANEL_BD, zerolinecolor=PANEL_BD, linecolor=PANEL_BD)
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
-    # export semplice ma coerente con la dashboard
     section_head("Export", "Porta il report dal tuo coach", "Scarica l'analisi in testo semplice e un file HTML parsabile.")
     coach_txt = ''
     for tab_key, content in coach_content.items():
@@ -587,7 +584,6 @@ PROTOCOLLO COACH COMPLETO{coach_txt}
         html_report = f"""<html><body><h1>{_html.escape(tit)}</h1><p>{_html.escape(hero_msg)}</p><p>Indice 0-100: {risk_index:.0f}</p></body></html>"""
         st.download_button('Scarica HTML', data=html_report, file_name='runai_report.html', mime='text/html', use_container_width=True)
 
-    # note finali importanti
     if dates_artificial:
         st.warning("Le date dei grafici sono state generate artificialmente perché manca una colonna temporale reale; i trend vanno interpretati con cautela.")
 
@@ -599,10 +595,3 @@ PROTOCOLLO COACH COMPLETO{coach_txt}
       </div>
     </div>
     """)
-
-
-def _plain(value):
-    return _re.sub(r'<[^>]+>', '', value).replace('&nbsp;', ' ').strip()
-
-message = "Ho applicato la revisione principale nel file: ho unificato le soglie, reso l’indice esplicitamente 0–100 e non probabilistico, corretto il messaggio di rallentamento, migliorato Recovery Score, aggiunto avvisi su dati dimostrativi e date artificiali, e reso lo stile più robusto contro CSS/HTML problematici."
-print(message)
