@@ -1,4 +1,6 @@
 import base64
+import html
+import re
 import streamlit as st
 import plotly.io as pio
 
@@ -17,9 +19,50 @@ def style_fig(fig, height=None):
     return fig
 
 
+# Registro: data-URI dell'SVG -> parametri della fotografia da mostrare sopra.
+# Motivo: un SVG caricato come <img src="data:..."> NON può scaricare immagini
+# esterne (il browser lo blocca per sicurezza), quindi le foto di Unsplash
+# dentro l'SVG non comparivano mai. Le foto ora sono livelli HTML veri.
+_PHOTO_BY_URI = {}
+
+
 def get_svg_url(svg_string):
     b64 = base64.b64encode(svg_string.encode('utf-8')).decode('utf-8')
-    return f"data:image/svg+xml;base64,{b64}"
+    uri = f"data:image/svg+xml;base64,{b64}"
+    m = re.search(r"<!--photo:([^>]*?)-->", svg_string)
+    if m:
+        _PHOTO_BY_URI[uri] = m.group(1).split("|")
+    return uri
+
+
+def _hero_media_html(image_url, image_tag):
+    tag = f'<div class="tag">{image_tag or ""}</div>'
+    p = _PHOTO_BY_URI.get(image_url)
+    if not p or len(p) < 7:
+        return f'<div class="hero-media"><img src="{image_url}" />{tag}</div>'
+
+    url = html.escape(p[0], quote=True)
+    cx, cy, rx, ry = (float(v) for v in p[1:5])
+    tint, tint_op = p[5], p[6]
+    # coordinate dell'SVG (viewBox 1200x500) convertite in percentuali
+    left, top = (cx - rx) / 12, (cy - ry) / 5
+    w, h = 2 * rx / 12, 2 * ry / 5
+    mask = "radial-gradient(ellipse closest-side at center, #000 70%, rgba(0,0,0,0) 100%)"
+
+    # Nessuna riga vuota: una riga vuota farebbe uscire Markdown dal blocco HTML.
+    return (
+        '<div class="hero-media">'
+        '<div style="position:relative; width:100%; aspect-ratio:1200/500;">'
+        f'<img src="{image_url}" style="position:absolute; inset:0; width:100%; height:100%;" />'
+        f'<div style="position:absolute; left:{left:.2f}%; top:{top:.2f}%; width:{w:.2f}%; height:{h:.2f}%; '
+        f'border-radius:50%; background-image:url(\'{url}\'), radial-gradient(circle, #12386B 0%, #0A1E3D 100%); '
+        f'background-size:cover; background-position:center; -webkit-mask-image:{mask}; mask-image:{mask}; pointer-events:none;">'
+        f'<div style="position:absolute; inset:0; border-radius:50%; background:{tint}; opacity:{tint_op};"></div>'
+        '</div>'
+        '</div>'
+        f'{tag}'
+        '</div>'
+    )
 
 
 def header_block(kicker, title, subtitle, image_url=None, image_tag=None):
@@ -35,12 +78,7 @@ def header_block(kicker, title, subtitle, image_url=None, image_tag=None):
             </div>
             """, unsafe_allow_html=True)
         with col_img:
-            st.markdown(f"""
-            <div class="hero-media">
-                <img src="{image_url}" />
-                <div class="tag">{image_tag or ''}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(_hero_media_html(image_url, image_tag), unsafe_allow_html=True)
     else:
         st.markdown(f"""
         <div class="app-header">
@@ -52,13 +90,11 @@ def header_block(kicker, title, subtitle, image_url=None, image_tag=None):
 
 
 # =========================================================
-# LIBRERIA CONDIVISA — fotografie professionali reali (Unsplash,
-# licenza libera per uso commerciale) al posto del corridore low-poly.
-# Ogni foto è ritagliata in una "medaglia" organica (ellisse con bordo
-# sfumato via mask/feather), senza contorni netti né riquadri
-# rettangolari, integrata con il glow blu della palette del portfolio.
-# La stessa funzione _photo_orb è condivisa da tutte le scene cosi'
-# che lo stile resti coerente in tutta la dashboard.
+# LIBRERIA CONDIVISA — fotografie reali (Unsplash) in una "medaglia"
+# ellittica con bordo sfumato. La fotografia vera NON sta più nell'SVG:
+# _photo_orb disegna solo alone e anello, e lascia nel file un
+# commento <!--photo:...--> con i parametri; header_block li legge e
+# mette la foto come livello HTML sopra l'SVG.
 # =========================================================
 
 RUNNER_GLOW_DEFS = """
@@ -83,27 +119,13 @@ IMG_CV = "https://images.unsplash.com/photo-1758506971649-7063f5518cf3?fm=jpg&q=
 
 
 def _photo_orb(url, id_suffix, cx, cy, rx, ry, tint="#0A1E3D", tint_opacity=0.22):
-    """Foto reale ritagliata in una medaglia organica (ellisse) con bordo
-    sfumato (mask a feather) e alone di luce coerente con la palette blu
-    del portfolio. Nessun contorno netto, nessun riquadro rettangolare."""
+    """Alone di luce + anello sottile della medaglia. La foto vera viene
+    aggiunta da header_block come livello HTML (vedi commento qui sotto)."""
     return f"""
-    <defs>
-        <clipPath id="clip{id_suffix}"><ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}"/></clipPath>
-        <radialGradient id="feather{id_suffix}" cx="50%" cy="50%" r="50%">
-            <stop offset="72%" stop-color="#fff" stop-opacity="1"/>
-            <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
-        </radialGradient>
-        <mask id="mask{id_suffix}">
-            <ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="url(#feather{id_suffix})"/>
-        </mask>
-    </defs>
     <ellipse cx="{cx}" cy="{cy}" rx="{rx + 55}" ry="{ry + 55}" fill="url(#runnerGlow)"/>
-    <g mask="url(#mask{id_suffix})">
-        <image href="{url}" x="{cx - rx}" y="{cy - ry}" width="{rx * 2}" height="{ry * 2}"
-               preserveAspectRatio="xMidYMid slice" clip-path="url(#clip{id_suffix})"/>
-        <ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="{tint}" opacity="{tint_opacity}"/>
-    </g>
+    <ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="#0A1E3D" opacity="0.5"/>
     <ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="none" stroke="#2F8FE0" stroke-opacity="0.35" stroke-width="1.5"/>
+    <!--photo:{url}|{cx}|{cy}|{rx}|{ry}|{tint}|{tint_opacity}-->
     """
 
 
@@ -134,9 +156,7 @@ SVG_HOME = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 </g>
 </svg>"""
 
-# ANALISI STATO DI FORMA — la rete di sensori appoggiata direttamente
-# sulla fotografia del runner, con le metriche che ne escono, come
-# una vera lettura biometrica live.
+# ANALISI STATO DI FORMA
 SVG_ANALISI = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 <defs>{RUNNER_GLOW_DEFS}</defs>
 {_photo_orb(IMG_ANALISI, "Analisi", cx=460, cy=250, rx=300, ry=240)}
@@ -157,8 +177,7 @@ SVG_ANALISI = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500"
 </g>
 </svg>"""
 
-# STATISTICHE — la fotografia dello schermo dati accanto a uno
-# sparkline di sessioni, con la rete che collega la foto ai numeri.
+# STATISTICHE
 SVG_STATS = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 <defs>{RUNNER_GLOW_DEFS}
     <linearGradient id="statBarGrad" x1="0" y1="1" x2="0" y2="0">
@@ -182,9 +201,7 @@ SVG_STATS = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 </g>
 </svg>"""
 
-# KPI DASHBOARD — la fotografia del wearable collegata via rete a uno
-# smartwatch stilizzato, con la lettura percentuale del KPI in
-# evidenza, come nel portfolio.
+# KPI DASHBOARD
 SVG_KPI = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 <defs>{RUNNER_GLOW_DEFS}</defs>
 {_photo_orb(IMG_KPI, "Kpi", cx=440, cy=250, rx=290, ry=230)}
@@ -205,9 +222,7 @@ SVG_KPI = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 <text x="940" y="255" font-family="'JetBrains Mono', monospace" font-size="42" font-weight="700" fill="#7EC8FF">82.4%</text>
 </svg>"""
 
-# ML / PREVISIONE — dalla fotografia del runner parte un grafo a tre
-# livelli che confluisce in una proiezione futura con banda di
-# incertezza.
+# ML / PREVISIONE
 SVG_ML = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 <defs>{RUNNER_GLOW_DEFS}
     <linearGradient id="mlForecastG" x1="0" y1="0" x2="1" y2="0">
@@ -234,9 +249,7 @@ SVG_ML = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 <g font-family="Inter, sans-serif" font-size="18" fill="#E8F6FF" opacity="0.9"><text x="990" y="380">Rischio overload: previsto in calo</text></g>
 </svg>"""
 
-# PIANO ALLENAMENTO — la fotografia del trail runner in montagna,
-# stessa palette blu del resto della serie, fino alla bandiera del
-# picco.
+# PIANO ALLENAMENTO
 SVG_PLAN = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 <defs>{RUNNER_GLOW_DEFS}</defs>
 <g fill="#0A1E3D" opacity="0.9">
@@ -260,9 +273,7 @@ SVG_PLAN = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 {_photo_orb(IMG_PLAN, "Plan", cx=290, cy=250, rx=240, ry=210)}
 </svg>"""
 
-# COMPUTER VISION — la fotografia del runner in movimento con un
-# overlay duotone blu e i readout biomeccanici, come una lettura di
-# motion-tracking live.
+# COMPUTER VISION
 SVG_CV = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
 <defs>{RUNNER_GLOW_DEFS}</defs>
 {_photo_orb(IMG_CV, "Cv", cx=460, cy=250, rx=300, ry=240, tint="#0B2A55", tint_opacity=0.35)}
