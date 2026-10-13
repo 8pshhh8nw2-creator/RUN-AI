@@ -609,40 +609,56 @@ try:
                      ("Intensità", "Puoi anche inserire una parte di qualità, se è in programma"),
                      ("Recupero", "Mantieni la tua routine di sonno e alimentazione")]
 
-        h1, h2 = st.columns([1.5, 1])
-        with h1:
-            st.markdown(f"""
-            <div class='mlx-hero' style='border-color:{col_v}88; box-shadow:0 0 28px {col_v}33; margin-bottom:0;'>
+        deg = max(2, score * 3.6)
+        st.markdown(f"""
+        <style>
+        .cns-hero {{ display:flex; gap:36px; align-items:center; flex-wrap:wrap; background: linear-gradient(135deg, {BG_DARK2} 0%, #101A2E 100%); border:1px solid {col_v}66; border-radius:20px; padding:32px 36px; margin-bottom:8px; box-shadow:0 0 34px {col_v}22; animation: mlxReveal .6s ease-out; }}
+        .cns-ring {{ width:176px; height:176px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; background: conic-gradient({col_v} 0deg {deg:.0f}deg, {BD} {deg:.0f}deg 360deg); }}
+        .cns-ring-in {{ width:140px; height:140px; border-radius:50%; background:{BG_DARK2}; display:flex; flex-direction:column; align-items:center; justify-content:center; }}
+        .cns-ring-in .n {{ font-family:'JetBrains Mono',monospace; font-size:2.8rem; font-weight:700; color:{col_v}; line-height:1; }}
+        .cns-ring-in .s {{ font-family:'Inter',sans-serif; font-size:.74rem; color:{TXT_TER}; margin-top:6px; text-transform:uppercase; letter-spacing:.08em; }}
+        .cns-main {{ flex:1; min-width:300px; }}
+        .cns-title {{ font-family:'Inter',sans-serif; font-weight:700; font-size:2rem; color:{col_v}; margin:0 0 8px 0; line-height:1.2; }}
+        .cns-sub {{ font-family:'Inter',sans-serif; color:{TXT_SEC}; font-size:1rem; line-height:1.6; margin:0; }}
+        .cns-track {{ position:relative; height:12px; border-radius:8px; margin:26px 0 8px 0; background: linear-gradient(90deg, {C_GREEN} 0%, {C_GREEN} 25%, {C_AMBER} 25%, {C_AMBER} 60%, {C_ORANGE} 60%, {C_ORANGE} 100%); }}
+        .cns-marker {{ position:absolute; top:-7px; left:calc({score:.0f}% - 2px); width:4px; height:26px; background:#fff; border-radius:2px; box-shadow:0 0 10px rgba(255,255,255,0.7); }}
+        .cns-scale {{ display:flex; font-family:'Inter',sans-serif; font-size:.74rem; color:{TXT_TER}; }}
+        .cns-scale span:nth-child(1) {{ width:25%; }} .cns-scale span:nth-child(2) {{ width:35%; }} .cns-scale span:nth-child(3) {{ width:40%; text-align:right; }}
+        .cns-km {{ font-family:'Inter',sans-serif; font-size:.88rem; color:{TXT_SEC}; margin-top:16px; }}
+        .cns-km strong {{ color:{C_GREEN}; font-family:'JetBrains Mono',monospace; }}
+        .cns-row {{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; padding:14px 18px; margin-bottom:10px; background:rgba(255,255,255,0.03); border:1px solid {BD}; border-left:4px solid var(--rc); border-radius:10px; }}
+        .cns-t {{ width:190px; font-family:'Inter',sans-serif; font-weight:700; color:#fff; }}
+        .cns-x {{ flex:1; min-width:200px; font-family:'Inter',sans-serif; color:{TXT_SEC}; font-size:.92rem; }}
+        .cns-chip {{ min-width:98px; text-align:center; padding:4px 12px; border-radius:20px; font-family:'JetBrains Mono',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }}
+        .cns-w {{ width:92px; text-align:right; font-family:'JetBrains Mono',monospace; font-size:.74rem; color:{TXT_TER}; }}
+        .cns-plan {{ background:rgba(255,255,255,0.03); border:1px solid {BD}; border-top:3px solid var(--rc); border-radius:12px; padding:18px 20px; animation: mlxReveal .6s ease-out both; }}
+        .cns-plan .k {{ font-family:'JetBrains Mono',monospace; font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; color:{TXT_TER}; }}
+        .cns-plan .v {{ font-family:'Inter',sans-serif; font-size:1.02rem; color:#fff; line-height:1.5; margin-top:8px; }}
+        </style>
+        <div class='cns-hero'>
+            <div class='cns-ring'><div class='cns-ring-in'><div class='n'>{score:.0f}</div><div class='s'>su 100</div></div></div>
+            <div class='cns-main'>
                 <p class='mlx-eyebrow'>Il verdetto di oggi</p>
-                <h2 class='mlx-hero-title' style='font-size:2rem; color:{col_v};'>{titolo}</h2>
-                <p class='mlx-hero-msg' style='margin-bottom:12px;'>{sotto}</p>
-                <p class='mlx-note'>Puoi correre restando in zona verde fino a circa {km_sicuri:.0f} km con queste condizioni.</p>
-            </div>""", unsafe_allow_html=True)
-        with h2:
-            fig_v = go.Figure(go.Indicator(
-                mode="gauge+number", value=score,
-                title={'text': "Rischio complessivo", 'font': {'color': TXT_TER}},
-                gauge={'axis': {'range': [0, 100]}, 'bar': {'color': col_v}, 'bgcolor': "#111827", 'borderwidth': 0,
-                       'steps': [{'range': [0, 25], 'color': 'rgba(0,245,160,0.12)'},
-                                 {'range': [25, 60], 'color': 'rgba(255,176,32,0.12)'},
-                                 {'range': [60, 100], 'color': 'rgba(255,106,61,0.14)'}]},
-                number={'suffix': '/100', 'font': {'size': 36, 'color': '#fff'}}))
-            fig_v.update_layout(height=250)
-            st.plotly_chart(style_fig(fig_v), use_container_width=True)
+                <h2 class='cns-title'>{titolo}</h2>
+                <p class='cns-sub'>{sotto}</p>
+                <div class='cns-track'><div class='cns-marker'></div></div>
+                <div class='cns-scale'><span>Sicuro</span><span>Attenzione</span><span>Pericolo</span></div>
+                <div class='cns-km'>Con queste condizioni puoi restare in zona verde fino a circa <strong>{km_sicuri:.0f} km</strong>.</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         mlx_section("Cosa dicono i cinque segnali")
-        for cc, (tit, colr, tx, peso) in zip(st.columns(5), segnali):
-            cc.markdown(f"""
-            <div class='mlx-box' style='--bc:{colr}; text-align:left; min-height:190px;'>
-                <div style='font-family:JetBrains Mono,monospace; font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; color:{TXT_TER};'>{tit}</div>
-                <div style='font-family:JetBrains Mono,monospace; font-size:1.35rem; font-weight:700; color:{colr}; margin:8px 0;'>{nomi_stato[colr]}</div>
-                <div class='t'>{tx}</div>
-                <div class='mlx-note'>{peso} sul verdetto</div>
-            </div>""", unsafe_allow_html=True)
+        righe = ""
+        for tit, colr, tx, peso in segnali:
+            righe += (f"<div class='cns-row' style='--rc:{colr};'><div class='cns-t'>{tit}</div><div class='cns-x'>{tx}</div>"
+                      f"<div class='cns-chip' style='background:{colr}22; color:{colr}; border:1px solid {colr}55;'>{nomi_stato[colr]}</div>"
+                      f"<div class='cns-w'>{peso}</div></div>")
+        st.markdown(righe, unsafe_allow_html=True)
 
         mlx_section("Il piano per oggi")
         for cc, (tit, tx) in zip(st.columns(3), piano):
-            cc.markdown(f"<div class='mlx-rule' style='--bc:{col_v}; text-align:left;'><div class='k'>{tit}</div><div class='d' style='margin-top:8px; font-size:1rem; color:#fff;'>{tx}</div></div>", unsafe_allow_html=True)
+            cc.markdown(f"<div class='cns-plan' style='--rc:{col_v};'><div class='k'>{tit}</div><div class='v'>{tx}</div></div>", unsafe_allow_html=True)
 
         # ---------- Consigli su misura ----------
         sleep_lim = (s_vals[sopra_s.max()] + 0.25) if (len(sopra_s) and sopra_s.max() < len(s_vals) - 1) else None
@@ -665,7 +681,7 @@ try:
         mlx_section("Consigli su misura per te")
         for i in range(0, len(consigli), 3):
             for cc, (tit, tx, colr) in zip(st.columns(3), consigli[i:i + 3]):
-                cc.markdown(f"<div class='mlx-rule' style='--bc:{colr}; text-align:left; margin-bottom:14px;'><div class='k'>{tit}</div><div class='d' style='margin-top:8px;'>{tx}</div></div>", unsafe_allow_html=True)
+                cc.markdown(f"<div class='cns-plan' style='--rc:{colr}; margin-bottom:14px;'><div class='k'>{tit}</div><div class='v' style='font-size:.93rem; color:{TXT_SEC};'>{tx}</div></div>", unsafe_allow_html=True)
 
         with st.expander("Come abbiamo calcolato il verdetto"):
             st.markdown(
@@ -677,4 +693,3 @@ try:
 
 except Exception as e:
     st.error(f"Errore caricamento modelli ML: {str(e)}")
-    
