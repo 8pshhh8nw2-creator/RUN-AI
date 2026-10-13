@@ -32,6 +32,24 @@ from utils.kpi_engine import (
 )
 
 st.set_page_config(page_title="Centro KPI & Masterclass Intelligence", layout="wide")
+
+def stile(fig):
+    """Applica style_fig mantenendo il titolo originale del grafico.
+
+    Se il grafico non ha titolo, imposta title_text="" cosi' Plotly non
+    mostra la scritta "undefined".
+    """
+    titolo = ""
+    try:
+        if fig.layout.title and fig.layout.title.text:
+            titolo = fig.layout.title.text
+    except Exception:
+        titolo = ""
+    fig = style_fig(fig)
+    fig.update_layout(title_text=titolo)
+    return fig
+
+
 carica_css()
 
 # ==================================================================
@@ -255,7 +273,7 @@ with col_head_gauge:
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)"
     )
-    st.plotly_chart(style_fig(fig_gauge), use_container_width=True)
+    st.plotly_chart(stile(fig_gauge), use_container_width=True)
 
 st.markdown("---")
 
@@ -311,25 +329,25 @@ with tab_sma:
         with row1_c1:
             fig_sma_1 = go.Figure(go.Scatter(x=giorni_asse, y=kpi_storico['SMA'].tail(14), mode='lines+markers', line=dict(color='#00E5FF', width=2.5)))
             fig_sma_1.update_layout(title="1. Andamento nel tempo", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_sma_1), use_container_width=True)
+            st.plotly_chart(stile(fig_sma_1), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> se vedi un picco improvviso, di solito vuol dire poco riposo unito a un giorno di lavoro pesante.</div>", unsafe_allow_html=True)
 
         with row1_c2:
             fig_sma_2 = go.Figure(go.Histogram(x=kpi_storico['SMA'], marker_color='#00E5FF', opacity=0.8, nbinsx=20))
             fig_sma_2.update_layout(title="2. Quanto spesso ti capita questo valore", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_sma_2), use_container_width=True)
+            st.plotly_chart(stile(fig_sma_2), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> ti mostra se il valore di oggi è nella norma per te, o è un'eccezione.</div>", unsafe_allow_html=True)
 
         with row2_c1:
             fig_sma_3 = go.Figure(go.Box(y=kpi_storico['SMA'], marker_color='#00E5FF', boxmean=True))
             fig_sma_3.update_layout(title="3. Dove ti collochi di solito", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_sma_3), use_container_width=True)
+            st.plotly_chart(stile(fig_sma_3), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> evidenzia le sessioni fuori dal tuo range abituale di stress e recupero.</div>", unsafe_allow_html=True)
 
         with row2_c2:
             fig_sma_4 = go.Figure(go.Scatter(y=kpi_storico['SMA'].rolling(3).mean(), mode='lines', line=dict(color='#FFB020', width=2)))
             fig_sma_4.update_layout(title="4. Tendenza delle ultime 3 sessioni", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_sma_4), use_container_width=True)
+            st.plotly_chart(stile(fig_sma_4), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> mostra se la fatica mentale si sta accumulando piano piano nelle ultime uscite.</div>", unsafe_allow_html=True)
     else:
         st.info("Servono ancora più sessioni per generare questi grafici di confronto.")
@@ -381,25 +399,25 @@ with tab_islr:
         with row1_c1:
             fig_islr_1 = go.Figure(go.Scatter(x=giorni_asse, y=kpi_storico['ISLR'].tail(14), mode='lines+markers', line=dict(color='#FF6A3D', width=2.5)))
             fig_islr_1.update_layout(title="1. Andamento nel tempo", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_islr_1), use_container_width=True)
+            st.plotly_chart(stile(fig_islr_1), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> evidenzia i giorni in cui il lavoro ha pesato di più sulla corsa.</div>", unsafe_allow_html=True)
 
         with row1_c2:
             fig_islr_2 = go.Figure(go.Box(y=kpi_storico['ISLR'], marker_color='#FF6A3D', boxmean=True))
             fig_islr_2.update_layout(title="2. Quanto varia questo valore", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_islr_2), use_container_width=True)
+            st.plotly_chart(stile(fig_islr_2), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> utile per individuare le sessioni corse sotto forte stress da lavoro.</div>", unsafe_allow_html=True)
 
         with row2_c1:
             fig_islr_3 = go.Figure(go.Histogram(x=kpi_storico['ISLR'], marker_color='#FF6A3D', opacity=0.8, nbinsx=20))
             fig_islr_3.update_layout(title="3. Quanto spesso ti capita questo valore", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_islr_3), use_container_width=True)
+            st.plotly_chart(stile(fig_islr_3), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> mostra dove si concentrano i tuoi valori rispetto alla soglia di attenzione.</div>", unsafe_allow_html=True)
 
         with row2_c2:
             fig_islr_4 = go.Figure(go.Scatter(y=kpi_storico['ISLR'].rolling(3).mean(), mode='lines', line=dict(color='#00E5FF', width=2)))
             fig_islr_4.update_layout(title="4. Tendenza delle ultime 3 sessioni", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_islr_4), use_container_width=True)
+            st.plotly_chart(stile(fig_islr_4), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> valuta se il carico di lavoro extra-sportivo sta persistendo nel breve periodo.</div>", unsafe_allow_html=True)
     else:
         st.info("Servono ancora più sessioni per generare questi grafici di confronto.")
@@ -454,25 +472,25 @@ with tab_iitr:
         with row1_c1:
             fig_iitr_1 = go.Figure(go.Scatter(x=giorni_asse, y=kpi_storico['IITR'].tail(14), mode='lines+markers', line=dict(color='#FFB020', width=2.5)))
             fig_iitr_1.update_layout(title="1. Andamento nel tempo", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_iitr_1), use_container_width=True)
+            st.plotly_chart(stile(fig_iitr_1), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> evidenzia quanto sono state impegnative le condizioni meteo nelle tue sessioni.</div>", unsafe_allow_html=True)
 
         with row1_c2:
             fig_iitr_2 = go.Figure(go.Scatter(y=kpi_storico['IITR'], fill='tozeroy', marker_color='#FFB020', opacity=0.3))
             fig_iitr_2.update_layout(title="2. Accumulo nel tempo", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_iitr_2), use_container_width=True)
+            st.plotly_chart(stile(fig_iitr_2), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> mostra come si è accumulato lo stress da caldo e vento nel tempo.</div>", unsafe_allow_html=True)
 
         with row2_c1:
             fig_iitr_3 = go.Figure(go.Histogram(x=kpi_storico['IITR'], marker_color='#FFB020', opacity=0.8, nbinsx=20))
             fig_iitr_3.update_layout(title="3. Quanto spesso ti capita questo valore", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_iitr_3), use_container_width=True)
+            st.plotly_chart(stile(fig_iitr_3), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> aiuta a individuare le sessioni corse nelle condizioni climatiche più difficili.</div>", unsafe_allow_html=True)
 
         with row2_c2:
             fig_iitr_4 = go.Figure(go.Box(y=kpi_storico['IITR'], marker_color='#FFB020', boxmean=True))
             fig_iitr_4.update_layout(title="4. Dove ti collochi di solito", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_iitr_4), use_container_width=True)
+            st.plotly_chart(stile(fig_iitr_4), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> valuta quanto variano le condizioni climatiche affrontate nel periodo considerato.</div>", unsafe_allow_html=True)
     else:
         st.info("Servono ancora più sessioni per generare questi grafici di confronto.")
@@ -526,25 +544,25 @@ with tab_idet:
         with row1_c1:
             fig_idet_1 = go.Figure(go.Scatter(x=giorni_asse, y=kpi_storico['IDET'].tail(14), mode='lines+markers', line=dict(color='#00F5A0', width=2.5)))
             fig_idet_1.update_layout(title="1. Andamento nel tempo", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_idet_1), use_container_width=True)
+            st.plotly_chart(stile(fig_idet_1), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> evidenzia i giorni in cui il caldo ha fatto lavorare di più il tuo cuore.</div>", unsafe_allow_html=True)
 
         with row1_c2:
             fig_idet_2 = go.Figure(go.Violin(y=kpi_storico['IDET'], marker_color='#00F5A0', box_visible=True, meanline_visible=True))
             fig_idet_2.update_layout(title="2. Distribuzione dei tuoi valori", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_idet_2), use_container_width=True)
+            st.plotly_chart(stile(fig_idet_2), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> mostra dove si concentra di solito il costo cardiaco legato al caldo.</div>", unsafe_allow_html=True)
 
         with row2_c1:
             fig_idet_3 = go.Figure(go.Histogram(x=kpi_storico['IDET'], marker_color='#00F5A0', opacity=0.8, nbinsx=20))
             fig_idet_3.update_layout(title="3. Quanto spesso ti capita questo valore", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_idet_3), use_container_width=True)
+            st.plotly_chart(stile(fig_idet_3), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> aiuta a valutare quanto sei stabile nella gestione del caldo nel lungo periodo.</div>", unsafe_allow_html=True)
 
         with row2_c2:
             fig_idet_4 = go.Figure(go.Scatter(y=kpi_storico['IDET'].rolling(3).mean(), mode='lines', line=dict(color='#FF6A3D', width=2)))
             fig_idet_4.update_layout(title="4. Tendenza delle ultime 3 sessioni", height=160, margin=dict(l=10, r=10, t=30, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(style_fig(fig_idet_4), use_container_width=True)
+            st.plotly_chart(stile(fig_idet_4), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> mostra se ti stai adattando progressivamente alle condizioni di caldo.</div>", unsafe_allow_html=True)
     else:
         st.info("Servono ancora più sessioni per generare questi grafici di confronto.")
@@ -573,7 +591,7 @@ with tab_ml:
     c_m1, c_m2 = st.columns(2, gap="large")
     with c_m1:
         st.markdown("#### Quali fattori contano di più nel calcolo del rischio")
-        st.plotly_chart(feature_importance_chart(style_fig), use_container_width=True)
+        st.plotly_chart(feature_importance_chart(stile), use_container_width=True)
         st.markdown("<div class='tech-box'><strong>Cosa dicono i dati:</strong> l'<strong>ISLR</strong> (stress da lavoro) e la qualità del sonno sono i fattori che pesano di più nel prevedere il rischio di sovraccarico.</div>", unsafe_allow_html=True)
 
     with c_m2:
@@ -590,7 +608,7 @@ with tab_ml:
                 height=350, xaxis_title="Contributo al rischio complessivo (0-100)",
                 margin=dict(l=20, r=20, t=20, b=20), plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)"
             )
-            st.plotly_chart(style_fig(fig_breakdown), use_container_width=True)
+            st.plotly_chart(stile(fig_breakdown), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Perché è utile:</strong> vedi subito quale dei 4 indicatori sta pesando di più sul tuo rischio di oggi, invece di ricevere solo un numero senza spiegazione.</div>", unsafe_allow_html=True)
         else:
             st.info("Dettaglio non disponibile per questa sessione.")
@@ -637,7 +655,7 @@ with tab_ml:
             height=360, margin=dict(l=50, r=50, t=30, b=30),
             paper_bgcolor='rgba(0,0,0,0)'
         )
-        st.plotly_chart(style_fig(fig_radar), use_container_width=True)
+        st.plotly_chart(stile(fig_radar), use_container_width=True)
         st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> ogni punta è il percentile di oggi rispetto al tuo storico su quell'indicatore. Più ti allontani dal centro, più quel valore è alto rispetto al tuo normale — non rispetto ad altre persone.</div>", unsafe_allow_html=True)
 
     with col_corr:
@@ -653,7 +671,7 @@ with tab_ml:
                 height=360, margin=dict(l=20, r=20, t=30, b=20),
                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
             )
-            st.plotly_chart(style_fig(fig_corr), use_container_width=True)
+            st.plotly_chart(stile(fig_corr), use_container_width=True)
             st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> quando due indicatori si muovono spesso insieme (colore acceso), un peggioramento nell'uno tende ad accompagnarsi all'altro.</div>", unsafe_allow_html=True)
         else:
             st.info("Servono più sessioni storiche per calcolare le correlazioni tra indicatori.")
@@ -704,7 +722,7 @@ with tab_ml:
             yaxis_title="Indice combinato (0-100)", yaxis_range=[0, 100],
             legend=dict(orientation="h", y=1.15)
         )
-        st.plotly_chart(style_fig(fig_proj), use_container_width=True)
+        st.plotly_chart(stile(fig_proj), use_container_width=True)
         st.markdown("<div class='tech-box'><strong>Come leggerlo:</strong> la linea tratteggiata è una stima basata sull'andamento recente, non una previsione certa: se continui con lo stesso ritmo di sonno, lavoro e allenamento, è lì che potresti dirigerti nei prossimi giorni.</div>", unsafe_allow_html=True)
     else:
         st.info("Servono più sessioni storiche per calcolare una proiezione affidabile.")
@@ -851,7 +869,7 @@ with tab_ml:
             height=240, margin=dict(l=10, r=10, t=20, b=10),
             paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(style_fig(fig_gauge_sim), use_container_width=True,
+        st.plotly_chart(stile(fig_gauge_sim), use_container_width=True,
                         key="gauge_rischio_simulato")
 
     with sim_res2:
@@ -899,7 +917,7 @@ with tab_ml:
             xaxis=dict(range=[0, 100], gridcolor="rgba(255,255,255,0.08)"),
             legend=dict(orientation="h", y=1.18),
         )
-        st.plotly_chart(style_fig(fig_fattori), use_container_width=True,
+        st.plotly_chart(stile(fig_fattori), use_container_width=True,
                         key="fattori_rischio_simulato")
 
         # Confronto rischio attuale vs simulato
@@ -925,7 +943,7 @@ with tab_ml:
                        gridcolor="rgba(255,255,255,0.08)", zeroline=False),
             xaxis=dict(tickfont=dict(color="#D1D5DB", size=12)),
         )
-        st.plotly_chart(style_fig(fig_confronto_sim), use_container_width=True,
+        st.plotly_chart(stile(fig_confronto_sim), use_container_width=True,
                         key="confronto_rischio_simulato")
 
     if errore_engine:
