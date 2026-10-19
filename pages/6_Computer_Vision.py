@@ -1,4 +1,17 @@
 import streamlit as st
+import ast, pathlib
+
+_radice = pathlib.Path(__file__).resolve().parent
+for _p in sorted(_radice.rglob("*.py")):
+    if any(x in _p.parts for x in ("venv", ".venv", "site-packages", "__pycache__")):
+        continue
+    try:
+        ast.parse(_p.read_bytes().decode("utf-8"), str(_p))
+    except SyntaxError as _e:
+        st.error(f"Errore di sintassi in {_p.relative_to(_radice)}, riga {_e.lineno}: {_e.msg}")
+        st.code(_e.text or "")
+    except UnicodeDecodeError as _e:
+        st.error(f"Codifica non valida in {_p.relative_to(_radice)}: {_e}")
 import tempfile
 import cv2
 import mediapipe as mp
