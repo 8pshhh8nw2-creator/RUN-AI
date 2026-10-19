@@ -801,25 +801,25 @@ else:
     md("<div style='height:24px;'></div>")
 
     componenti_oggi = {
-        "Euristica clinica": risk_score_euristico,
+        "Intuizione clinica": risk_score_euristico,
         "Random Forest": analisi_ml["componenti"]["random_forest"],
         "Logistic Regression": analisi_ml["componenti"]["logistic"],
         "Profilo storico (Cluster)": analisi_ml["componenti"]["cluster"],
         "Trend fisiologico (FC)": analisi_ml["componenti"]["trend_fisiologico"],
     }
     pesi_map = {
-        "Euristica clinica": PESI_RISCHIO["euristica"],
+        "Intuizione clinica": PESI_RISCHIO["euristica"],
         "Random Forest": PESI_RISCHIO["random_forest"],
         "Logistic Regression": PESI_RISCHIO["logistic"],
         "Profilo storico (Cluster)": PESI_RISCHIO["cluster"],
         "Trend fisiologico (FC)": PESI_RISCHIO["trend_fisiologico"],
     }
     colori_comp = {
-        "Euristica clinica": TXT_TERTIARY, "Random Forest": C_RPE, "Logistic Regression": C_SONNO,
+        "Intuizione clinica": TXT_TERTIARY, "Random Forest": C_RPE, "Logistic Regression": C_SONNO,
         "Profilo storico (Cluster)": C_VIOLA, "Trend fisiologico (FC)": C_AMBRA,
     }
     sigle_comp = {
-        "Euristica clinica": "EU", "Random Forest": "RF", "Logistic Regression": "LR",
+        "Intuizione clinica": "EU", "Random Forest": "RF", "Logistic Regression": "LR",
         "Profilo storico (Cluster)": "KM", "Trend fisiologico (FC)": "LM",
     }
 
