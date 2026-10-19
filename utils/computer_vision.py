@@ -525,24 +525,33 @@ def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None):
     }
 
 
-def analizza_running_video(video_path, altezza_cm=175, model_complexity=1):
+def analizza_running_video(
+    video_path,
+    altezza_cm=175,
+    model_complexity=1,
+):
     """
-    Analizza un video di corsa (profilo laterale) e restituisce il dizionario di metriche.
-    Se con il modello richiesto l'analisi fallisce, ritenta una volta con il modello più
-    preciso (complexity=2): se fallisce di nuovo, solleva l'errore del secondo tentativo.
+    Analizza il video con il modello legacy 1.
+    Non tenta automaticamente il modello heavy.
     """
-    tentativi = [model_complexity] + ([2] if model_complexity < 2 else [])
-    ultimo = None
-    for mc in tentativi:
-        punti, fps, avvisi = estrai_landmarks(video_path, model_complexity=mc)
-        try:
-            ris = analizza_serie(punti, fps, altezza_cm, avvisi_iniziali=avvisi)
-            if mc != model_complexity:
-                ris["avvisi"].append("Analisi riuscita solo con il modello MediaPipe più preciso (complexity=2).")
-            return ris
-        except ValueError as e:
-            ultimo = e
-    raise ultimo
+    if model_complexity != 1:
+        raise ValueError(
+            "In questo deployment usa model_complexity=1. "
+            "Il modello heavy richiede una configurazione "
+            "specifica dei file e dei permessi."
+        )
+
+    punti, fps, avvisi = estrai_landmarks(
+        video_path,
+        model_complexity=1,
+    )
+
+    return analizza_serie(
+        punti,
+        fps,
+        altezza_cm,
+        avvisi_iniziali=avvisi,
+    )
 
 
 def diagnostica_video(video_path, altezza_cm=175, model_complexity=1):
