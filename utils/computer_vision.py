@@ -60,7 +60,10 @@ VIS_MIN = 0.5            # visibilità minima MediaPipe per usare un landmark
 MAX_GAP_S = 0.2          # buchi di tracking più lunghi rendono inaffidabile il passo
 FILTRO_S = 0.10          # ampiezza finestra Savitzky-Golay (secondi)
 DIST_MIN_PASSO_S = 0.40  # distanza minima tra due passi dello stesso piede
-TOL_SUOLO = 0.03         # tolleranza "piede a terra" (frazione lunghezza arto)
+TOL_SUOLO = 0.03         # tolleranza minima "piede a terra" (frazione lunghezza arto)
+FRAZ_AMPIEZZA_IC = 0.15  # tolleranza IC come frazione dell'escursione verticale del piede nel passo
+FRAZ_AMPIEZZA_TO = 0.35  # tolleranza TO come frazione dell'escursione verticale del piede nel passo
+PRE_IC_S, POST_IC_S = 0.08, 0.25   # finestra di ricerca dell'IC attorno al massimo avanzamento
 CONTATTO_MIN_S, CONTATTO_MAX_S = 0.10, 0.45
 STRIDE_MIN_S, STRIDE_MAX_S = 0.45, 1.60
 FSA_TALLONE, FSA_AVAMPIEDE = 8.0, -1.6
@@ -281,17 +284,21 @@ def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None):
             "lateralmente, con la camera ferma."
         )
 
-        tol = TOL_SUOLO * lung_arto_px
-    pre, post = int(round(0.08 * fps)), int(round(0.25 * fps))   # pre più ampio
+    # --- contatto iniziale (IC) e stacco (TO) per ogni passo ---
+    # Le tolleranze sono relative all'escursione verticale del piede nel singolo
+    # passo: robuste a rumore dei landmark del piede, deriva del suolo
+    # nell'immagine e camera non perfettamente orizzontale.
+    tol = TOL_SUOLO * lung_arto_px
+    pre, post = int(round(PRE_IC_S * fps)), int(round(POST_IC_S * fps))
     ic, to = [], []
     for k, f in enumerate(fm):
         fine = fm[k + 1] if k + 1 < len(fm) else min(n - 1, f + int(round(1.0 * fps)))
         seg = y_piede[f:fine + 1]
-        suolo = np.percentile(seg, 90)                 # meno sensibile agli spike
+        suolo = np.percentile(seg, 90)                  # meno sensibile agli spike
         alto = np.percentile(seg, 5)
-        ampiezza = max(suolo - alto, tol)              # escursione verticale del piede
-        tol_ic = max(tol, 0.15 * ampiezza)             # tolleranze relative al passo
-        tol_to = max(2 * tol, 0.35 * ampiezza)
+        ampiezza = max(suolo - alto, tol)               # escursione verticale del piede
+        tol_ic = max(tol, FRAZ_AMPIEZZA_IC * ampiezza)
+        tol_to = max(2 * tol, FRAZ_AMPIEZZA_TO * ampiezza)
         a, b = max(0, f - pre), min(fine, f + post)
         c = np.where(y_piede[a:b + 1] >= suolo - tol_ic)[0]
         ic_k = a + int(c[0]) if len(c) else None
@@ -424,7 +431,8 @@ def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None):
         "angoli_fase": [round(180.0 - s["media"], 1) for s in flex_fasi],
         "note_metodologiche": [
             "IC/TO da cinematica: IC = primo frame con il punto più basso del piede vicino al suolo "
-            "dopo il massimo avanzamento della caviglia rispetto all'anca; TO = risalita del piede.",
+            "dopo il massimo avanzamento della caviglia rispetto all'anca; TO = risalita del piede. "
+            "Le tolleranze sono relative all'escursione verticale del piede in ogni passo.",
             "Overstride = distanza orizzontale caviglia-anca all'IC (positiva = piede davanti).",
             "Flessione ginocchio = 180° - angolo anca-ginocchio-caviglia (0° = gamba estesa).",
             "FSA: > 8° tallone, da -1,6° a 8° mesopiede, < -1,6° avampiede (Altman & Davis 2012).",
