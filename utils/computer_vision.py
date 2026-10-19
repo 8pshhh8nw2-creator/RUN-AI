@@ -1,59 +1,41 @@
 """
 utils/computer_vision.py
 ------------------------
-Analisi cinematica 2D della corsa (ripresa laterale) per RUNAI.
+Analisi cinematica 2D della corsa, ripresa laterale, per RUNAI.
 
-Il modulo estrae lo scheletro con MediaPipe Pose e misura, PASSO PER PASSO,
-parametri cinematici con definizioni esplicite. I risultati sono riportati
-come media ± deviazione standard sul numero di passi validi.
+Estrazione dello scheletro con MediaPipe Pose legacy e analisi dei cicli
+di un singolo piede.
 
-COSA FA
-    - contatto iniziale (IC) e stacco (TO) di ogni passo, da cinematica
-    - overstride (distanza orizzontale caviglia-anca all'IC, con segno)
-    - angolo della tibia rispetto alla verticale all'IC (indipendente dalla scala)
-    - flessione del ginocchio: IC, massimo in appoggio, TO, massimo in oscillazione
-    - foot strike angle (FSA) all'IC e classificazione dell'appoggio
-    - cadenza, tempo di contatto, inclinazione del busto, oscillazione verticale
-
-COSA NON FA (volutamente)
-    Non produce probabilità di infortunio, punteggi di rischio per distretto
-    o percentuali di "carico articolare". Nessuno di questi valori è ricavabile
-    da un video 2D senza un modello validato su dati clinici: sarebbero numeri
-    inventati. Per il rischio usa i carichi di allenamento (TRIMP, sRPE Load).
-
-RIFERIMENTI (da verificare sulle fonti originali prima di citarli)
-    - Winter, Biomechanics and Motor Control of Human Movement (proporzioni
-      dei segmenti: coscia 0,245 H, gamba 0,246 H)
-    - Altman & Davis 2012, Gait & Posture (soglie foot strike angle:
-      > 8° tallone; da -1,6° a 8° mesopiede; < -1,6° avampiede)
-    - Fellin et al. 2010, J Sci Med Sport (individuazione cinematica di IC/TO)
-    - Lieberman et al. 2015, J Exp Biol (posizione del piede all'atterraggio
-      e forza frenante)
-    - Heiderscheit et al. 2011, Med Sci Sports Exerc (frequenza di passo e
-      carichi articolari)
+MODIFICHE DI QUESTA VERSIONE
+    - Nessun fallback automatico al modello heavy (complexity=2).
+    - Soglia minima di risalita per TO ridotta da 2 * tol a tol.
+    - Diagnostica per ogni ciclo: IC, TO, soglia richiesta e risalita disponibile.
+    - Controllo di coordinate finite sia per x sia per y.
+    - Selezione del lato basata sulla qualità dei landmark core.
+    - Frame rappresentativo scelto tra i veri contatti rilevati.
+    - Rilascio del video anche in caso di errore.
 
 LIMITI
-    Analisi 2D: gli angoli sono proiezioni sul piano immagine e sono corretti
-    solo se la camera è perpendicolare alla direzione di corsa, ferma e
-    orizzontale. La scala in cm dipende dall'altezza dichiarata e dalle
-    proporzioni medie dei segmenti: è indicativa (circa ±10%). La risoluzione
-    temporale è 1/fps: a 30 fps l'IC ha un'incertezza di circa ±33 ms.
-    I parametri di rilevamento sono costanti in cima al file e vanno validati
-    su un campione di video confrontandoli con misure manuali (es. Kinovea).
+    IC e TO sono stime ottenute da soglie cinematiche, non misure dirette
+    del contatto al terreno. La modifica della soglia TO va verificata
+    confrontando gli eventi rilevati con i frame del video.
 
-NOTE SULLA VERSIONE ROBUSTA (cosa è cambiato rispetto alla precedente)
-    1. Validità del tracking PER LANDMARK: prima un frame era scartato se UN SOLO
-       punto (es. punta del piede) aveva visibilità < soglia, e l'interpolazione
-       usava la maschera comune a tutti i punti. Ora ogni punto ha la sua maschera.
-    2. Soglie di visibilità più realistiche (tallone/punta hanno visibilità
-       strutturalmente bassa in MediaPipe) e buchi tollerati più lunghi.
-    3. I passi sono ancorati al picco verticale del piede (un solo picco per ciclo,
-       robusto e indipendente dal verso di corsa), con distanza minima ricavata
-       dall'autocorrelazione: niente più cicli "saltati" (4 s) o dimezzati.
-    4. IC e TO sono cercati dentro ogni ciclo, con finestra massima del contatto.
-    5. Il verso di corsa si ricava DOPO, da IC/TO: in appoggio la caviglia va
-       all'indietro rispetto all'anca. Non dipende da orientamento del piede né
-       dalla camera.
+    Gli angoli sono proiezioni sul piano immagine.
+    La scala in cm deriva dall'altezza dichiarata e da proporzioni
+    antropometriche medie: non è una calibrazione metrica del video.
+
+    Il modulo non stima rischio di infortunio o carichi articolari.
+
+CONVENZIONI
+    Le coordinate immagine hanno y crescente verso il basso.
+    "stride" indica un ciclo completo dello stesso piede.
+    Le chiavi "passi_validi" e "passi_scartati" sono mantenute per
+    compatibilità con la pagina esistente, ma contano cicli di un piede.
+
+RIFERIMENTI DA VERIFICARE PRIMA DELL'USO SCIENTIFICO
+    - Proporzioni antropometriche coscia/gamba.
+    - Soglie di classificazione del foot strike angle.
+    - Definizioni e accuratezza degli eventi cinematici IC/TO.
 """
 
 import math
@@ -61,28 +43,51 @@ from collections import Counter
 
 import numpy as np
 
+
 # ----------------------------------------------------------------------------
-# Costanti (da validare)
+# Costanti
 # ----------------------------------------------------------------------------
+
 LATI = ("sx", "dx")
-PARTI = ("spalla", "anca", "ginocchio", "caviglia", "tallone", "punta")
-CORE = ("anca", "ginocchio", "caviglia", "tallone", "punta")   # servono per i passi
+PARTI = (
+    "spalla",
+    "anca",
+    "ginocchio",
+    "caviglia",
+    "tallone",
+    "punta",
+)
+CORE = ("anca", "ginocchio", "caviglia", "tallone", "punta")
 
-FRAZ_COSCIA = 0.245      # lunghezza coscia / altezza (Winter)
-FRAZ_GAMBA = 0.246       # lunghezza gamba (ginocchio-caviglia) / altezza (Winter)
+FRAZ_COSCIA = 0.245
+FRAZ_GAMBA = 0.246
 
-VIS_MIN = 0.3            # visibilità minima MediaPipe per usare un landmark (0.5 era troppo severa)
-MIN_FRAZ_VALIDA = 0.4    # frazione minima di frame validi per ogni landmark core
-MAX_GAP_S = 0.4          # buchi di tracking più lunghi rendono inaffidabile il passo
-FILTRO_S = 0.10          # ampiezza finestra Savitzky-Golay (secondi)
-DIST_MIN_PASSO_S = 0.40  # distanza minima tra due passi dello stesso piede (ripiego)
-TOL_SUOLO = 0.03         # tolleranza minima "piede a terra" (frazione lunghezza arto)
-FRAZ_AMPIEZZA_IC = 0.20  # tolleranza IC come frazione dell'escursione verticale del piede nel passo
-FRAZ_AMPIEZZA_TO = 0.35  # tolleranza TO come frazione dell'escursione verticale del piede nel passo
-SOGLIA_VERSO = 0.05      # |spostamento caviglia-anca tra IC e TO| minimo (frazione lunghezza arto)
-CONTATTO_MIN_S, CONTATTO_MAX_S = 0.10, 0.60   # 0.60 s copre anche il jogging lento
-STRIDE_MIN_S, STRIDE_MAX_S = 0.45, 1.60
-FSA_TALLONE, FSA_AVAMPIEDE = 8.0, -1.6
+VIS_MIN = 0.30
+MIN_FRAZ_VALIDA = 0.40
+MAX_GAP_S = 0.40
+FILTRO_S = 0.10
+
+DIST_MIN_PASSO_S = 0.40
+TOL_SUOLO = 0.03
+FRAZ_AMPIEZZA_IC = 0.20
+FRAZ_AMPIEZZA_TO = 0.35
+
+# Prima era equivalente a 2.0: ora la risalita minima è tol, non 2 * tol.
+# Modifica sperimentale da verificare sui frame del video.
+MOLTIPLICATORE_TOL_TO = 1.0
+
+SOGLIA_VERSO = 0.05
+
+CONTATTO_MIN_S = 0.10
+CONTATTO_MAX_S = 0.60
+STRIDE_MIN_S = 0.45
+STRIDE_MAX_S = 1.60
+
+FSA_TALLONE = 8.0
+FSA_AVAMPIEDE = -1.6
+
+# Stampa la diagnostica nei log del processo Streamlit.
+DEBUG_EVENTI = True
 
 ETICHETTE_APPOGGIO = {
     "tallone": "Appoggio di Tallone (Rearfoot Strike)",
@@ -92,453 +97,1173 @@ ETICHETTE_APPOGGIO = {
 
 
 # ----------------------------------------------------------------------------
-# Utilità numeriche (solo numpy)
+# Utilità numeriche
 # ----------------------------------------------------------------------------
+
 def _savgol(y, finestra, ordine=3):
-    """Filtro di Savitzky-Golay (smoothing), bordi replicati."""
-    finestra = int(finestra)
+    """Filtro Savitzky-Golay implementato con NumPy."""
+    y = np.asarray(y, dtype=float)
+
+    finestra = max(int(finestra), ordine + 2)
     if finestra % 2 == 0:
         finestra += 1
-    finestra = max(finestra, ordine + 2 + ((ordine + 2) % 2 == 0))
+
     if len(y) < finestra:
-        return np.asarray(y, float)
+        return y.copy()
+
     m = finestra // 2
-    x = np.arange(-m, m + 1)
+    x = np.arange(-m, m + 1, dtype=float)
     a = np.vander(x, ordine + 1, increasing=True)
     coef = np.linalg.pinv(a)[0]
-    ypad = np.pad(np.asarray(y, float), m, mode="edge")
+
+    ypad = np.pad(y, m, mode="edge")
     return np.convolve(ypad, coef[::-1], mode="valid")
 
 
 def _massimi(y, dist_min, soglia):
-    """Massimi locali sopra soglia, a distanza minima (si tengono i più alti)."""
-    cand = [i for i in range(1, len(y) - 1)
-            if y[i] >= y[i - 1] and y[i] > y[i + 1] and y[i] >= soglia]
+    """Massimi locali sopra soglia, mantenendo prima quelli più alti."""
+    cand = [
+        i
+        for i in range(1, len(y) - 1)
+        if (
+            y[i] >= y[i - 1]
+            and y[i] > y[i + 1]
+            and y[i] >= soglia
+        )
+    ]
+
     cand.sort(key=lambda i: y[i], reverse=True)
     accettati = []
+
     for i in cand:
         if all(abs(i - j) >= dist_min for j in accettati):
             accettati.append(i)
+
     return sorted(accettati)
 
 
 def _buchi_lunghi(ok, max_gap):
-    """Frame inaffidabili: buchi di tracking più lunghi di max_gap + code prima/dopo i dati."""
+    """Segnala buchi lunghi e code esterne ai dati validi."""
+    ok = np.asarray(ok, dtype=bool)
     n = len(ok)
-    flag = np.zeros(n, bool)
+    flag = np.zeros(n, dtype=bool)
+
+    validi = np.flatnonzero(ok)
+    if len(validi) == 0:
+        return np.ones(n, dtype=bool)
+
     i = 0
     while i < n:
         if ok[i]:
             i += 1
             continue
+
         j = i
         while j < n and not ok[j]:
             j += 1
-        if (j - i) > max_gap:
+
+        if j - i > max_gap:
             flag[i:j] = True
+
         i = j
-    prima = int(np.argmax(ok))
-    ultima = n - 1 - int(np.argmax(ok[::-1]))
-    flag[:prima] = True
-    flag[ultima + 1:] = True
+
+    flag[:validi[0]] = True
+    flag[validi[-1] + 1:] = True
     return flag
 
 
 def _periodo_autocorr(y, fps):
-    """Periodo del ciclo (s) dall'autocorrelazione del segnale; None se non c'è periodicità."""
-    s = np.asarray(y, float)
+    """Stima del periodo del ciclo dall'autocorrelazione."""
+    s = np.asarray(y, dtype=float)
     s = s - np.mean(s)
     n = len(s)
-    lo = int(round(STRIDE_MIN_S * fps))
+
+    lo = max(1, int(round(STRIDE_MIN_S * fps)))
     hi = min(int(round(STRIDE_MAX_S * fps)), n // 2)
+
     if hi <= lo + 1:
         return None
+
     ac = np.correlate(s, s, mode="full")[n - 1:]
-    if ac[0] <= 0:
+
+    if ac[0] <= 0 or not np.isfinite(ac[0]):
         return None
+
     ac = ac / ac[0]
     k = lo + int(np.argmax(ac[lo:hi + 1]))
+
     return k / fps if ac[k] > 0.1 else None
 
 
 def _angolo_incluso(ax, ay, bx, by, cx, cy):
-    """Angolo (gradi) al vertice b tra b->a e b->c, vettorializzato."""
+    """Angolo in gradi al vertice b tra b->a e b->c."""
     v1x, v1y = ax - bx, ay - by
     v2x, v2y = cx - bx, cy - by
+
     den = np.hypot(v1x, v1y) * np.hypot(v2x, v2y)
     den = np.where(den == 0, np.nan, den)
-    cosang = np.clip((v1x * v2x + v1y * v2y) / den, -1.0, 1.0)
+
+    cosang = np.clip(
+        (v1x * v2x + v1y * v2y) / den,
+        -1.0,
+        1.0,
+    )
     return np.degrees(np.arccos(cosang))
 
 
 def _stat(valori, cifre=1):
-    v = np.asarray(valori, float)
-    v = v[~np.isnan(v)]
+    v = np.asarray(valori, dtype=float)
+    v = v[np.isfinite(v)]
+
     if len(v) == 0:
         return {"media": None, "sd": None, "n": 0}
+
     return {
         "media": round(float(v.mean()), cifre),
-        "sd": round(float(v.std(ddof=1)), cifre) if len(v) > 1 else 0.0,
+        "sd": (
+            round(float(v.std(ddof=1)), cifre)
+            if len(v) > 1
+            else 0.0
+        ),
         "n": int(len(v)),
     }
 
 
+def _maschera_valida(d):
+    d = np.asarray(d, dtype=float)
+    return (
+        np.isfinite(d[:, :2]).all(axis=1)
+        & np.isfinite(d[:, 2])
+        & (d[:, 2] >= VIS_MIN)
+    )
+
+
+def _riepilogo_to(debug_eventi, massimo=5):
+    mancanti = [
+        r for r in debug_eventi
+        if r["ic_frame"] is not None and r["to_frame"] is None
+    ]
+
+    parti = []
+    for r in mancanti[:massimo]:
+        disponibile = r["risalita_disponibile_px"]
+        disponibile_txt = (
+            f"{disponibile:.1f}"
+            if disponibile is not None
+            else "non disponibile"
+        )
+
+        parti.append(
+            f"ciclo {r['ciclo']}: richiesta "
+            f"{r['risalita_richiesta_px']:.1f} px, "
+            f"disponibile {disponibile_txt} px"
+        )
+
+    return "; ".join(parti)
+
+
 # ----------------------------------------------------------------------------
-# Estrazione dei landmark dal video (unica parte che richiede cv2/mediapipe)
+# Estrazione dei landmark
 # ----------------------------------------------------------------------------
+
 def estrai_landmarks(video_path, model_complexity=1):
     """
-    Legge il video e restituisce:
-        punti[(parte, lato)] -> array (N, 3) con x, y (pixel) e visibilità;
-        i frame senza scheletro restano NaN, così l'indice = numero di frame.
+    Restituisce:
+        punti[(parte, lato)] -> array (N, 3): x, y, visibilità
+        fps
+        avvisi
     """
     import cv2
     import mediapipe as mp
 
+    if model_complexity not in (0, 1, 2):
+        raise ValueError("model_complexity deve essere 0, 1 oppure 2.")
+
+    if not hasattr(mp, "solutions"):
+        raise RuntimeError(
+            "La versione installata di MediaPipe non espone mp.solutions. "
+            "Questo modulo usa l'API Pose legacy: occorre un ambiente "
+            "compatibile oppure una migrazione a MediaPipe Tasks."
+        )
+
     mp_pose = mp.solutions.pose
     lm = mp_pose.PoseLandmark
+
     mappa = {
-        ("spalla", "sx"): lm.LEFT_SHOULDER, ("spalla", "dx"): lm.RIGHT_SHOULDER,
-        ("anca", "sx"): lm.LEFT_HIP, ("anca", "dx"): lm.RIGHT_HIP,
-        ("ginocchio", "sx"): lm.LEFT_KNEE, ("ginocchio", "dx"): lm.RIGHT_KNEE,
-        ("caviglia", "sx"): lm.LEFT_ANKLE, ("caviglia", "dx"): lm.RIGHT_ANKLE,
-        ("tallone", "sx"): lm.LEFT_HEEL, ("tallone", "dx"): lm.RIGHT_HEEL,
-        ("punta", "sx"): lm.LEFT_FOOT_INDEX, ("punta", "dx"): lm.RIGHT_FOOT_INDEX,
+        ("spalla", "sx"): lm.LEFT_SHOULDER,
+        ("spalla", "dx"): lm.RIGHT_SHOULDER,
+        ("anca", "sx"): lm.LEFT_HIP,
+        ("anca", "dx"): lm.RIGHT_HIP,
+        ("ginocchio", "sx"): lm.LEFT_KNEE,
+        ("ginocchio", "dx"): lm.RIGHT_KNEE,
+        ("caviglia", "sx"): lm.LEFT_ANKLE,
+        ("caviglia", "dx"): lm.RIGHT_ANKLE,
+        ("tallone", "sx"): lm.LEFT_HEEL,
+        ("tallone", "dx"): lm.RIGHT_HEEL,
+        ("punta", "sx"): lm.LEFT_FOOT_INDEX,
+        ("punta", "dx"): lm.RIGHT_FOOT_INDEX,
     }
-    chiavi = list(mappa.keys())
+    chiavi = list(mappa)
 
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        raise ValueError("Impossibile aprire il file video. Verifica il formato (MP4/MOV/AVI).")
-
-    fps = cap.get(cv2.CAP_PROP_FPS)
+    cap = cv2.VideoCapture(str(video_path))
     avvisi = []
-    if not fps or fps <= 1:
-        fps = 30.0
-        avvisi.append("FPS non presenti nel file: assunti 30. Cadenza e tempi di contatto potrebbero essere errati.")
+    righe = []
+    timestamp = []
 
-    righe, timestamp = [], []
-    with mp_pose.Pose(
-        static_image_mode=False,
-        model_complexity=model_complexity,
-        smooth_landmarks=True,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5,
-    ) as pose:
-        while True:
-            ok, frame = cap.read()
-            if not ok:
-                break
-            timestamp.append(cap.get(cv2.CAP_PROP_POS_MSEC))
-            h, w = frame.shape[:2]
-            ris = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            riga = np.full((len(chiavi), 3), np.nan)
-            if ris.pose_landmarks is not None:
-                pts = ris.pose_landmarks.landmark
-                for k, chiave in enumerate(chiavi):
-                    p = pts[mappa[chiave]]
-                    riga[k] = (p.x * w, p.y * h, p.visibility)
-            righe.append(riga)
-    cap.release()
+    try:
+        if not cap.isOpened():
+            raise ValueError(
+                "Impossibile aprire il file video. "
+                "Verifica il percorso e il formato."
+            )
+
+        fps = float(cap.get(cv2.CAP_PROP_FPS))
+        if not np.isfinite(fps) or fps <= 1:
+            fps = 30.0
+            avvisi.append(
+                "FPS non presenti o non validi: assunti 30. "
+                "Cadenza e tempi di contatto potrebbero essere errati."
+            )
+
+        with mp_pose.Pose(
+            static_image_mode=False,
+            model_complexity=model_complexity,
+            smooth_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5,
+        ) as pose:
+            while True:
+                letto, frame = cap.read()
+                if not letto:
+                    break
+
+                timestamp.append(cap.get(cv2.CAP_PROP_POS_MSEC))
+                h, w = frame.shape[:2]
+
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                ris = pose.process(rgb)
+
+                riga = np.full((len(chiavi), 3), np.nan)
+
+                if ris.pose_landmarks is not None:
+                    landmarks = ris.pose_landmarks.landmark
+
+                    for k, chiave in enumerate(chiavi):
+                        p = landmarks[mappa[chiave]]
+                        riga[k] = (
+                            p.x * w,
+                            p.y * h,
+                            p.visibility,
+                        )
+
+                righe.append(riga)
+
+    finally:
+        cap.release()
 
     if len(righe) < 10:
         raise ValueError("Video troppo corto o non leggibile.")
 
-    dati = np.stack(righe)  # (N, 12, 3)
-    punti = {chiave: dati[:, k, :] for k, chiave in enumerate(chiavi)}
+    dati = np.stack(righe)
+    punti = {
+        chiave: dati[:, k, :]
+        for k, chiave in enumerate(chiavi)
+    }
 
-    ts = np.asarray(timestamp, float)
-    if np.all(np.diff(ts) > 0):
+    ts = np.asarray(timestamp, dtype=float)
+
+    if np.isfinite(ts).all() and np.all(np.diff(ts) > 0):
         fps_ts = 1000.0 * (len(ts) - 1) / (ts[-1] - ts[0])
+
         if abs(fps_ts - fps) / fps > 0.05:
             avvisi.append(
-                f"FPS dichiarati ({fps:.1f}) e FPS dai timestamp ({fps_ts:.1f}) differiscono: "
-                "video a frame rate variabile? Verifica i tempi (cadenza, contatto)."
+                f"FPS dichiarati ({fps:.1f}) e FPS dai timestamp "
+                f"({fps_ts:.1f}) differiscono. Possibile frame rate "
+                "variabile: verifica cadenza e tempi di contatto."
             )
-    return punti, float(fps), avvisi
+
+    return punti, fps, avvisi
 
 
 # ----------------------------------------------------------------------------
-# Analisi (pura: lavora su array, testabile senza video)
+# Analisi delle serie
 # ----------------------------------------------------------------------------
-def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None):
+
+def analizza_serie(
+    punti,
+    fps,
+    altezza_cm=175.0,
+    avvisi_iniziali=None,
+    debug=DEBUG_EVENTI,
+):
     avvisi = list(avvisi_iniziali or [])
 
-    # --- lato più visibile ---
-    def vis_media(lato):
-        return float(np.mean([np.nan_to_num(punti[(p, lato)][:, 2], nan=0.0) for p in PARTI]))
+    fps = float(fps)
+    altezza_cm = float(altezza_cm)
 
-    lato = "sx" if vis_media("sx") >= vis_media("dx") else "dx"
-    P = {p: punti[(p, lato)] for p in PARTI}
-    n = P["anca"].shape[0]
+    if not np.isfinite(fps) or fps <= 0:
+        raise ValueError("Gli FPS devono essere finiti e maggiori di zero.")
 
-    # --- validità PER LANDMARK (non più un unico AND su tutti i punti) ---
-    ok = {p: ~np.isnan(P[p][:, 0]) & (np.nan_to_num(P[p][:, 2], nan=0.0) >= VIS_MIN) for p in PARTI}
-    frazioni = {p: float(ok[p].mean()) for p in PARTI}
-    peggiore = min(CORE, key=lambda p: frazioni[p])
-    if frazioni[peggiore] < MIN_FRAZ_VALIDA or any(ok[p].sum() < 2 for p in PARTI):
-        dett = ", ".join(f"{p} {frazioni[p] * 100:.0f}%" for p in PARTI)
-        raise ValueError(
-            f"Il corridore è tracciato in modo insufficiente (frame validi per punto: {dett}). "
-            "Usa un video ripreso lateralmente, con il corridore intero, ben illuminato e "
-            "abbastanza grande nell'inquadratura (almeno metà altezza del frame)."
+    if not np.isfinite(altezza_cm) or altezza_cm <= 0:
+        raise ValueError("L'altezza deve essere finita e maggiore di zero.")
+
+    # --- Verifica struttura dati ---
+    lunghezze = set()
+
+    for lato_candidato in LATI:
+        for parte in PARTI:
+            chiave = (parte, lato_candidato)
+
+            if chiave not in punti:
+                raise ValueError(f"Landmark mancante: {chiave}.")
+
+            d = np.asarray(punti[chiave], dtype=float)
+
+            if d.ndim != 2 or d.shape[1] != 3:
+                raise ValueError(
+                    f"Il landmark {chiave} deve avere forma (N, 3)."
+                )
+
+            lunghezze.add(d.shape[0])
+
+    if len(lunghezze) != 1:
+        raise ValueError("Le serie dei landmark hanno lunghezze diverse.")
+
+    n = next(iter(lunghezze))
+    if n < 10:
+        raise ValueError("Serie troppo corta per l'analisi.")
+
+    # --- Lato con migliore copertura dei landmark core ---
+    def qualita_lato(lato_candidato):
+        frazioni_lato = [
+            float(
+                _maschera_valida(
+                    punti[(parte, lato_candidato)]
+                ).mean()
+            )
+            for parte in CORE
+        ]
+
+        return min(frazioni_lato), float(np.mean(frazioni_lato))
+
+    lato = max(LATI, key=qualita_lato)
+
+    P = {
+        parte: np.asarray(punti[(parte, lato)], dtype=float)
+        for parte in PARTI
+    }
+
+    # --- Validità per landmark ---
+    ok = {
+        parte: _maschera_valida(P[parte])
+        for parte in PARTI
+    }
+
+    frazioni = {
+        parte: float(ok[parte].mean())
+        for parte in PARTI
+    }
+
+    peggiore = min(CORE, key=lambda parte: frazioni[parte])
+
+    if (
+        frazioni[peggiore] < MIN_FRAZ_VALIDA
+        or any(ok[parte].sum() < 2 for parte in PARTI)
+    ):
+        dett = ", ".join(
+            f"{parte} {frazioni[parte] * 100:.0f}%"
+            for parte in PARTI
         )
-    fraz_core = float(np.mean([frazioni[p] for p in CORE]))
-    if fraz_core < 0.8:
-        dett = ", ".join(f"{p} {frazioni[p] * 100:.0f}%" for p in PARTI)
-        avvisi.append(f"Tracking valido solo nel {fraz_core * 100:.0f}% dei frame ({dett}): "
-                      "risultati meno affidabili.")
 
-    # --- interpolazione buchi (per punto) e filtro ---
-    max_gap = int(round(MAX_GAP_S * fps))
+        raise ValueError(
+            "Tracking insufficiente sul lato selezionato "
+            f"({lato}). Frame validi per punto: {dett}. "
+            "Controlla anche eventuali tratti senza persona "
+            "all'inizio o alla fine del video."
+        )
+
+    fraz_core = float(
+        np.mean([frazioni[parte] for parte in CORE])
+    )
+
+    if fraz_core < 0.8:
+        dett = ", ".join(
+            f"{parte} {frazioni[parte] * 100:.0f}%"
+            for parte in PARTI
+        )
+        avvisi.append(
+            f"Copertura media dei landmark core: "
+            f"{fraz_core * 100:.0f}% ({dett}). "
+            "La copertura non misura l'accuratezza delle coordinate."
+        )
+
+    # --- Interpolazione e filtro ---
+    max_gap = max(1, int(round(MAX_GAP_S * fps)))
     idx = np.arange(n)
     finestra = max(5, int(round(FILTRO_S * fps)))
+
     S = {}
-    inaff = np.zeros(n, bool)
-    for p in PARTI:
+    inaff = np.zeros(n, dtype=bool)
+
+    for parte in PARTI:
         for c, nome in ((0, "x"), (1, "y")):
-            S[(p, nome)] = _savgol(np.interp(idx, idx[ok[p]], P[p][ok[p], c]), finestra)
-        if p in CORE:
-            inaff |= _buchi_lunghi(ok[p], max_gap)
-    valido_core = np.ones(n, bool)
-    for p in CORE:
-        valido_core &= ok[p]
+            interpolata = np.interp(
+                idx,
+                idx[ok[parte]],
+                P[parte][ok[parte], c],
+            )
+            S[(parte, nome)] = _savgol(interpolata, finestra)
 
-    # --- scala pixel -> cm da lunghezza coscia + gamba ---
-    coscia = np.hypot(S[("anca", "x")] - S[("ginocchio", "x")], S[("anca", "y")] - S[("ginocchio", "y")])
-    gamba = np.hypot(S[("ginocchio", "x")] - S[("caviglia", "x")], S[("ginocchio", "y")] - S[("caviglia", "y")])
+        if parte in CORE:
+            inaff |= _buchi_lunghi(ok[parte], max_gap)
+
+    # --- Scala pixel -> cm ---
+    coscia = np.hypot(
+        S[("anca", "x")] - S[("ginocchio", "x")],
+        S[("anca", "y")] - S[("ginocchio", "y")],
+    )
+
+    gamba = np.hypot(
+        S[("ginocchio", "x")] - S[("caviglia", "x")],
+        S[("ginocchio", "y")] - S[("caviglia", "y")],
+    )
+
     m3 = ok["anca"] & ok["ginocchio"] & ok["caviglia"]
+
     if m3.sum() < 3:
-        m3 = np.ones(n, bool)
-    lung_arto_px = float(np.median((coscia + gamba)[m3]))
-    scala = (FRAZ_COSCIA + FRAZ_GAMBA) * altezza_cm / lung_arto_px  # cm per pixel
-
-    y_piede = np.maximum(S[("tallone", "y")], S[("punta", "y")])          # punto più basso del piede
-
-    # --- ancoraggio dei passi: picco VERTICALE del piede (uno per ciclo, indipendente dal verso) ---
-    periodo = _periodo_autocorr(y_piede, fps)
-    dist_min = int(round((0.6 * periodo if periodo else DIST_MIN_PASSO_S) * fps))
-    dist_min = max(dist_min, int(round(0.3 * fps)))
-    s_alto = -y_piede                                  # alto = piede sollevato
-    pk = _massimi(s_alto, dist_min, float(np.median(s_alto)))
-    if len(pk) < 3:
         raise ValueError(
-            "Passi rilevati insufficienti. Servono almeno 5-10 secondi di corsa ripresa "
-            "lateralmente, con la camera ferma."
+            "Troppi pochi frame con anca, ginocchio e caviglia "
+            "simultaneamente validi per stimare la scala."
         )
 
-    # --- contatto iniziale (IC) e stacco (TO) dentro ogni ciclo [pk[k], pk[k+1]] ---
-    # Tolleranze relative all'escursione verticale del piede nel singolo ciclo.
+    lung_arto_px = float(np.median((coscia + gamba)[m3]))
+
+    if not np.isfinite(lung_arto_px) or lung_arto_px <= 0:
+        raise ValueError("Impossibile stimare la lunghezza dell'arto.")
+
+    scala = (
+        (FRAZ_COSCIA + FRAZ_GAMBA)
+        * altezza_cm
+        / lung_arto_px
+    )
+
+    # --- Punto più basso del piede ---
+    y_piede = np.maximum(
+        S[("tallone", "y")],
+        S[("punta", "y")],
+    )
+
+    # --- Picchi di sollevamento del piede ---
+    periodo = _periodo_autocorr(y_piede, fps)
+
+    distanza_s = (
+        0.6 * periodo
+        if periodo is not None
+        else DIST_MIN_PASSO_S
+    )
+
+    dist_min = max(
+        1,
+        int(round(distanza_s * fps)),
+        int(round(0.3 * fps)),
+    )
+
+    s_alto = -y_piede
+    pk = _massimi(
+        s_alto,
+        dist_min,
+        float(np.median(s_alto)),
+    )
+
+    if len(pk) < 3:
+        raise ValueError(
+            f"Picchi del piede insufficienti: {len(pk)}. "
+            "Non è possibile delimitare abbastanza cicli. "
+            "Controlla tracking e andamento verticale del piede."
+        )
+
+    # --- IC e TO tra picchi consecutivi ---
     tol = TOL_SUOLO * lung_arto_px
-    ic, to = [], []
+    ic = []
+    to = []
+    debug_eventi = []
     n_ic_mancanti = 0
+
     for k in range(len(pk) - 1):
         a, b = pk[k], pk[k + 1]
         seg = y_piede[a:b + 1]
-        suolo = np.percentile(seg, 90)
-        alto = np.percentile(seg, 5)
-        ampiezza = max(suolo - alto, tol)
-        tol_ic = max(tol, FRAZ_AMPIEZZA_IC * ampiezza)
-        tol_to = max(2 * tol, FRAZ_AMPIEZZA_TO * ampiezza)
-        c = np.where(seg >= suolo - tol_ic)[0]
+
+        suolo = float(np.percentile(seg, 90))
+        alto = float(np.percentile(seg, 5))
+        escursione_px = max(0.0, suolo - alto)
+        ampiezza = max(escursione_px, tol)
+
+        tol_ic = max(
+            tol,
+            FRAZ_AMPIEZZA_IC * ampiezza,
+        )
+
+        # Modifica rispetto alla versione precedente:
+        # minimo = tol invece di 2 * tol.
+        tol_to = max(
+            MOLTIPLICATORE_TOL_TO * tol,
+            FRAZ_AMPIEZZA_TO * ampiezza,
+        )
+
+        riga_debug = {
+            "ciclo": int(k + 1),
+            "inizio_frame": int(a),
+            "fine_frame": int(b),
+            "durata_picco_picco_s": round((b - a) / fps, 3),
+            "ic_frame": None,
+            "to_frame": None,
+            "suolo_stimato_y_px": round(suolo, 2),
+            "escursione_px": round(escursione_px, 2),
+            "ampiezza_usata_px": round(float(ampiezza), 2),
+            "risalita_richiesta_px": round(float(tol_to), 2),
+            "risalita_disponibile_px": None,
+            "inizio_ricerca_to_frame": None,
+        }
+
+        c = np.flatnonzero(seg >= suolo - tol_ic)
+
         if len(c) == 0:
             ic.append(None)
             to.append(None)
             n_ic_mancanti += 1
+            debug_eventi.append(riga_debug)
             continue
+
         ic_k = a + int(c[0])
-        a2 = ic_k + int(round(CONTATTO_MIN_S * fps))
-        b2 = b                       # fino a fine ciclo; la plausibilità si controlla dopo
+
+        minimo_contatto_frame = max(
+            1,
+            int(math.ceil(CONTATTO_MIN_S * fps)),
+        )
+
+        a2 = ic_k + minimo_contatto_frame
+        b2 = b
         to_k = None
+
+        riga_debug["ic_frame"] = int(ic_k)
+        riga_debug["inizio_ricerca_to_frame"] = int(a2)
+
         if a2 <= b2:
-            c2 = np.where(y_piede[a2:b2 + 1] < suolo - tol_to)[0]
+            finestra_to = y_piede[a2:b2 + 1]
+
+            riga_debug["risalita_disponibile_px"] = round(
+                float(suolo - np.min(finestra_to)),
+                2,
+            )
+
+            c2 = np.flatnonzero(
+                finestra_to < suolo - tol_to
+            )
+
             if len(c2):
                 to_k = a2 + int(c2[0])
+                riga_debug["to_frame"] = int(to_k)
+
         ic.append(ic_k)
         to.append(to_k)
+        debug_eventi.append(riga_debug)
 
-    # --- verso di corsa: in appoggio la caviglia va all'INDIETRO rispetto all'anca ---
-    dir_piede = 1.0 if np.median((P["punta"][:, 0] - P["tallone"][:, 0])[ok["punta"] & ok["tallone"]]
-                                 if (ok["punta"] & ok["tallone"]).any() else [1.0]) >= 0 else -1.0
+    if debug:
+        print(
+            "DEBUG ANALISI:",
+            {
+                "lato": lato,
+                "fps": round(fps, 2),
+                "lunghezza_arto_px": round(lung_arto_px, 2),
+                "tol_suolo_px": round(tol, 2),
+                "periodo_autocorr_s": (
+                    round(periodo, 3)
+                    if periodo is not None
+                    else None
+                ),
+                "picchi_rilevati": len(pk),
+                "distanza_minima_picchi_frame": dist_min,
+            },
+        )
+
+        for riga in debug_eventi:
+            if riga["ic_frame"] is None:
+                print("DEBUG IC MANCANTE:", riga)
+            elif riga["to_frame"] is None:
+                print("DEBUG TOE-OFF MANCANTE:", riga)
+            else:
+                print("DEBUG EVENTI OK:", riga)
+
+    # --- Direzione di corsa ---
+    entrambi_validi = ok["punta"] & ok["tallone"]
+
+    if entrambi_validi.any():
+        orientamento = float(
+            np.median(
+                (
+                    P["punta"][:, 0]
+                    - P["tallone"][:, 0]
+                )[entrambi_validi]
+            )
+        )
+        dir_piede = 1.0 if orientamento >= 0 else -1.0
+    else:
+        dir_piede = 1.0
+        avvisi.append(
+            "Orientamento tallone-punta non disponibile: "
+            "il valore di ripiego è verso destra."
+        )
+
     dxr = S[("caviglia", "x")] - S[("anca", "x")]
-    diffs = [dxr[i] - dxr[t] for i, t in zip(ic, to) if i is not None and t is not None]
+
+    diffs = [
+        float(dxr[i] - dxr[t])
+        for i, t in zip(ic, to)
+        if i is not None and t is not None
+    ]
+
     d_dir = float(np.median(diffs)) if diffs else 0.0
+
     if abs(d_dir) >= SOGLIA_VERSO * lung_arto_px:
         direzione = 1.0 if d_dir > 0 else -1.0
+
         if direzione != dir_piede:
-            avvisi.append("Il verso di corsa ricavato dal movimento non coincide con l'orientamento del piede "
-                          "(tallone/punta): uso il movimento. Controlla che la ripresa sia laterale.")
+            avvisi.append(
+                "Il verso ricavato dal movimento non coincide "
+                "con l'orientamento tallone-punta. "
+                "È stato usato il movimento."
+            )
     else:
         direzione = dir_piede
-        avvisi.append("Verso di corsa stimato solo dall'orientamento del piede: il movimento tra contatto e "
-                      "stacco non è abbastanza chiaro (video corto o ripresa non laterale).")
+        avvisi.append(
+            "Verso di corsa stimato dall'orientamento del piede: "
+            "spostamento caviglia-anca IC→TO insufficiente "
+            "per una stima dal movimento."
+        )
 
-    # --- serie derivate ---
-    xrel = direzione * dxr                                                # + = piede davanti all'anca
-    incluso = _angolo_incluso(S[("anca", "x")], S[("anca", "y")], S[("ginocchio", "x")],
-                              S[("ginocchio", "y")], S[("caviglia", "x")], S[("caviglia", "y")])
-    flex = 180.0 - incluso                                                # flessione del ginocchio
-    tibia = np.degrees(np.arctan2(direzione * (S[("caviglia", "x")] - S[("ginocchio", "x")]),
-                                  S[("caviglia", "y")] - S[("ginocchio", "y")]))  # + = piede davanti al ginocchio
-    busto = np.degrees(np.arctan2(direzione * (S[("spalla", "x")] - S[("anca", "x")]),
-                                  S[("anca", "y")] - S[("spalla", "y")]))          # + = inclinato in avanti
-    fsa = np.degrees(np.arctan2(S[("tallone", "y")] - S[("punta", "y")],
-                                direzione * (S[("punta", "x")] - S[("tallone", "x")])))  # + = punta sopra il tallone
+    # --- Serie derivate ---
+    xrel = direzione * dxr
 
-    # --- metriche per passo ---
-    m = {k: [] for k in ("stride", "contatto", "over_cm", "over_pct", "tibia", "flex_ic",
-                         "flex_stance", "flex_to", "flex_swing", "fsa", "busto", "vo")}
-    ic_validi, scartati = [], 0
+    incluso = _angolo_incluso(
+        S[("anca", "x")],
+        S[("anca", "y")],
+        S[("ginocchio", "x")],
+        S[("ginocchio", "y")],
+        S[("caviglia", "x")],
+        S[("caviglia", "y")],
+    )
+    flex = 180.0 - incluso
+
+    tibia = np.degrees(
+        np.arctan2(
+            direzione * (
+                S[("caviglia", "x")]
+                - S[("ginocchio", "x")]
+            ),
+            S[("caviglia", "y")]
+            - S[("ginocchio", "y")],
+        )
+    )
+
+    busto = np.degrees(
+        np.arctan2(
+            direzione * (
+                S[("spalla", "x")]
+                - S[("anca", "x")]
+            ),
+            S[("anca", "y")]
+            - S[("spalla", "y")],
+        )
+    )
+
+    fsa = np.degrees(
+        np.arctan2(
+            S[("tallone", "y")]
+            - S[("punta", "y")],
+            direzione * (
+                S[("punta", "x")]
+                - S[("tallone", "x")]
+            ),
+        )
+    )
+
+    # --- Metriche per ciclo ---
+    chiavi_metriche = (
+        "stride",
+        "contatto",
+        "over_cm",
+        "over_pct",
+        "tibia",
+        "flex_ic",
+        "flex_stance",
+        "flex_to",
+        "flex_swing",
+        "fsa",
+        "busto",
+        "vo",
+    )
+    m = {chiave: [] for chiave in chiavi_metriche}
+
+    ic_validi = []
+    to_validi = []
+    scartati = 0
     motivi = Counter()
-    dbg_stride, dbg_cont = [], []
-    n_cicli = len(ic) - 1
+    dbg_stride = []
+    dbg_cont = []
+    debug_validazione = []
+
+    n_cicli = max(0, len(ic) - 1)
+
     for k in range(n_cicli):
-        i0, i1, t0 = ic[k], ic[k + 1], to[k]
+        i0 = ic[k]
+        i1 = ic[k + 1]
+        t0 = to[k]
+
+        dettaglio = {
+            "ciclo": int(k + 1),
+            "ic_frame": int(i0) if i0 is not None else None,
+            "ic_successivo_frame": (
+                int(i1) if i1 is not None else None
+            ),
+            "to_frame": int(t0) if t0 is not None else None,
+            "stride_s": None,
+            "contatto_s": None,
+            "valido": False,
+            "motivo_scarto": None,
+        }
+
+        motivo = None
+
         if i0 is None or i1 is None:
+            motivo = "contatto iniziale non trovato"
+
+        elif t0 is None:
+            motivo = (
+                "stacco (toe-off) non trovato: "
+                "soglia di risalita non attraversata"
+            )
+
+        elif not (i0 < t0 < i1):
+            motivo = "sequenza contatto/stacco incoerente"
+
+        else:
+            t_stride = (i1 - i0) / fps
+            t_cont = (t0 - i0) / fps
+
+            dbg_stride.append(t_stride)
+            dbg_cont.append(t_cont)
+
+            dettaglio["stride_s"] = round(t_stride, 3)
+            dettaglio["contatto_s"] = round(t_cont, 3)
+
+            if inaff[i0:i1 + 1].any():
+                motivo = "tracking interrotto per troppo tempo"
+
+            elif not (
+                STRIDE_MIN_S <= t_stride <= STRIDE_MAX_S
+            ):
+                motivo = (
+                    "durata del ciclo fuori range "
+                    f"({STRIDE_MIN_S}-{STRIDE_MAX_S} s)"
+                )
+
+            elif not (
+                CONTATTO_MIN_S <= t_cont <= CONTATTO_MAX_S
+            ):
+                motivo = (
+                    "tempo di contatto fuori range "
+                    f"({CONTATTO_MIN_S}-{CONTATTO_MAX_S} s)"
+                )
+
+        if motivo is not None:
             scartati += 1
-            motivi["contatto iniziale non trovato"] += 1
+            motivi[motivo] += 1
+            dettaglio["motivo_scarto"] = motivo
+            debug_validazione.append(dettaglio)
             continue
-        if t0 is None:
-            scartati += 1
-            motivi["stacco (toe-off) non trovato: il piede non risale abbastanza"] += 1
-            continue
-        if not (i0 < t0 < i1):
-            scartati += 1
-            motivi["sequenza contatto/stacco incoerente"] += 1
-            continue
-        t_stride, t_cont = (i1 - i0) / fps, (t0 - i0) / fps
-        dbg_stride.append(t_stride)
-        dbg_cont.append(t_cont)
-        if inaff[i0:i1 + 1].any():
-            scartati += 1
-            motivi["tracking interrotto per troppo tempo"] += 1
-            continue
-        if not (STRIDE_MIN_S <= t_stride <= STRIDE_MAX_S):
-            scartati += 1
-            motivi[f"durata del ciclo fuori range ({STRIDE_MIN_S}-{STRIDE_MAX_S} s)"] += 1
-            continue
-        if not (CONTATTO_MIN_S <= t_cont <= CONTATTO_MAX_S):
-            scartati += 1
-            motivi[f"tempo di contatto fuori range ({CONTATTO_MIN_S}-{CONTATTO_MAX_S} s)"] += 1
-            continue
+
+        dettaglio["valido"] = True
+        debug_validazione.append(dettaglio)
+
         ic_validi.append(i0)
+        to_validi.append(t0)
+
         m["stride"].append(t_stride)
         m["contatto"].append(t_cont * 1000.0)
         m["over_cm"].append(xrel[i0] * scala)
-        m["over_pct"].append(xrel[i0] / lung_arto_px * 100.0)
+        m["over_pct"].append(
+            xrel[i0] / lung_arto_px * 100.0
+        )
         m["tibia"].append(tibia[i0])
         m["flex_ic"].append(flex[i0])
-        m["flex_stance"].append(np.nanmax(flex[i0:t0 + 1]))
+        m["flex_stance"].append(
+            np.nanmax(flex[i0:t0 + 1])
+        )
         m["flex_to"].append(flex[t0])
-        m["flex_swing"].append(np.nanmax(flex[t0:i1 + 1]))
+        m["flex_swing"].append(
+            np.nanmax(flex[t0:i1 + 1])
+        )
         m["fsa"].append(fsa[i0])
-        m["busto"].append(np.mean(busto[i0:i1 + 1]))
+        m["busto"].append(
+            np.mean(busto[i0:i1 + 1])
+        )
+
         y_hip = S[("anca", "y")][i0:i1 + 1]
-        trend = np.linspace(y_hip[0], y_hip[-1], len(y_hip))   # toglie pendenza suolo / deriva camera
-        m["vo"].append((np.max(y_hip - trend) - np.min(y_hip - trend)) * scala)
+        trend = np.linspace(
+            y_hip[0],
+            y_hip[-1],
+            len(y_hip),
+        )
+        y_detrend = y_hip - trend
+
+        m["vo"].append(
+            (np.max(y_detrend) - np.min(y_detrend))
+            * scala
+        )
 
     n_validi = len(ic_validi)
+
+    if debug:
+        print(
+            "DEBUG VALIDAZIONE:",
+            {
+                "cicli_candidati": n_cicli,
+                "cicli_validi": n_validi,
+                "cicli_scartati": scartati,
+                "motivi": dict(motivi),
+            },
+        )
+
+        for riga in debug_validazione:
+            if not riga["valido"]:
+                print("DEBUG CICLO SCARTATO:", riga)
+
+    # --- Errore diagnostico ---
     if n_validi < 3:
-        dettaglio = "; ".join(f"{v}× {k}" for k, v in motivi.items()) or "nessun dettaglio"
+        dettaglio = "; ".join(
+            f"{conteggio}× {motivo}"
+            for motivo, conteggio in motivi.items()
+        ) or "nessun dettaglio"
+
         misure = ""
         if dbg_stride:
-            misure = (f" Valori misurati: ciclo {min(dbg_stride):.2f}-{max(dbg_stride):.2f} s, "
-                      f"contatto {min(dbg_cont):.2f}-{max(dbg_cont):.2f} s a {fps:.0f} fps.")
-        vis_txt = ", ".join(f"{p} {frazioni[p] * 100:.0f}%" for p in PARTI)
-        diag = (f" Diagnostica: verso {'destra' if direzione > 0 else 'sinistra'} "
-                f"(spostamento caviglia-anca IC→TO {d_dir:.1f} px, piede verso "
-                f"{'destra' if dir_piede > 0 else 'sinistra'}), "
-                f"ciclo mediano {np.median(np.diff(pk)) / fps:.2f} s, "
-                f"cicli {n_cicli}, IC mancanti {n_ic_mancanti}, lato {lato}, "
-                f"frame validi per punto: {vis_txt}.")
-        raise ValueError(
-            f"Solo {n_validi} passi validi su {n_cicli}. Motivi di scarto: {dettaglio}.{misure}{diag} "
-            "Migliora la ripresa (laterale, camera ferma e perpendicolare, corridore intero)."
-        )
-    if n_validi < 8:
-        avvisi.append(f"Solo {n_validi} passi validi: le stime sono poco stabili (consigliati almeno 10, "
-                      f"cioè circa 10-12 secondi di corsa).")
-    if fps < 60:
-        avvisi.append(f"A {fps:.0f} fps la risoluzione temporale è di {1000 / fps:.0f} ms: "
-                      "IC e stacco sono poco precisi. Meglio 120-240 fps (slow motion).")
-    avvisi.append("Analisi 2D: valida se la camera è perpendicolare alla corsa. "
-                  "Scala in cm indicativa (circa ±10%).")
+            misure = (
+                f" Valori misurati: ciclo "
+                f"{min(dbg_stride):.2f}-"
+                f"{max(dbg_stride):.2f} s, "
+                f"contatto {min(dbg_cont):.2f}-"
+                f"{max(dbg_cont):.2f} s "
+                f"a {fps:.0f} fps."
+            )
 
-    # --- classificazione appoggio (moda sui passi) ---
-    classi = ["tallone" if v > FSA_TALLONE else "avampiede" if v < FSA_AVAMPIEDE else "mesopiede"
-              for v in m["fsa"]]
+        vis_txt = ", ".join(
+            f"{parte} {frazioni[parte] * 100:.0f}%"
+            for parte in PARTI
+        )
+
+        verso_txt = (
+            "destra" if direzione > 0 else "sinistra"
+        )
+        piede_txt = (
+            "destra" if dir_piede > 0 else "sinistra"
+        )
+
+        diag = (
+            f" Diagnostica: verso {verso_txt}, "
+            f"spostamento caviglia-anca IC→TO "
+            f"{d_dir:.1f} px, "
+            f"piede verso {piede_txt}, "
+            f"ciclo mediano picco-picco "
+            f"{np.median(np.diff(pk)) / fps:.2f} s, "
+            f"cicli {n_cicli}, "
+            f"IC mancanti {n_ic_mancanti}, "
+            f"lato {lato}, "
+            f"frame validi per punto: {vis_txt}."
+        )
+
+        riepilogo_to = _riepilogo_to(debug_eventi)
+        if riepilogo_to:
+            diag += (
+                " Diagnostica TO: "
+                + riepilogo_to
+                + "."
+            )
+
+        raise ValueError(
+            f"Solo {n_validi} cicli validi su {n_cicli}. "
+            f"Motivi di scarto: {dettaglio}."
+            f"{misure}{diag} "
+            "Il fallimento può dipendere da tracking, soglie "
+            "o segmentazione dei cicli; non dimostra da solo "
+            "che la ripresa sia inutilizzabile."
+        )
+
+    # --- Avvisi ---
+    if n_validi < 8:
+        avvisi.append(
+            f"Solo {n_validi} cicli validi dello stesso piede: "
+            "le statistiche sono basate su un campione piccolo."
+        )
+
+    if fps < 60:
+        avvisi.append(
+            f"A {fps:.0f} fps l'intervallo tra frame è "
+            f"{1000.0 / fps:.0f} ms. "
+            "IC e TO restano stime da verificare sul video; "
+            "l'errore può superare un intervallo di frame."
+        )
+
+    avvisi.append(
+        "Soglia minima TO impostata a "
+        f"{MOLTIPLICATORE_TOL_TO:g} × tol. "
+        "Configurazione sperimentale: verificare gli eventi "
+        "sui frame prima di interpretare il tempo di contatto."
+    )
+
+    avvisi.append(
+        "Analisi 2D: angoli proiettati sul piano immagine. "
+        "Scala in cm indicativa, derivata da proporzioni medie "
+        "e altezza dichiarata, non da calibrazione del video."
+    )
+
+    if scartati:
+        avvisi.append(
+            f"Scartati {scartati} cicli su {n_cicli}. "
+            "Le medie descrivono solo i cicli accettati."
+        )
+
+    # --- Classificazione dell'appoggio ---
+    classi = [
+        (
+            "tallone"
+            if valore > FSA_TALLONE
+            else (
+                "avampiede"
+                if valore < FSA_AVAMPIEDE
+                else "mesopiede"
+            )
+        )
+        for valore in m["fsa"]
+    ]
+
     conteggio = Counter(classi)
     classe_prevalente = conteggio.most_common(1)[0][0]
-    distribuzione = {c: round(100.0 * conteggio.get(c, 0) / n_validi, 1)
-                     for c in ("tallone", "mesopiede", "avampiede")}
+
+    distribuzione = {
+        classe: round(
+            100.0 * conteggio.get(classe, 0) / n_validi,
+            1,
+        )
+        for classe in ("tallone", "mesopiede", "avampiede")
+    }
 
     tempo_stride_medio = float(np.mean(m["stride"]))
-    cadenza = 120.0 / tempo_stride_medio  # passi/min (2 passi per ciclo dello stesso piede)
+    cadenza = 120.0 / tempo_stride_medio
 
-    flex_fasi = [_stat(m["flex_ic"]), _stat(m["flex_stance"]), _stat(m["flex_to"]), _stat(m["flex_swing"])]
-    fasi = ["Contatto iniziale", "Max flessione (appoggio)", "Stacco", "Max flessione (oscillazione)"]
+    flex_fasi = [
+        _stat(m["flex_ic"]),
+        _stat(m["flex_stance"]),
+        _stat(m["flex_to"]),
+        _stat(m["flex_swing"]),
+    ]
+
+    fasi = [
+        "Contatto iniziale",
+        "Max flessione (appoggio)",
+        "Stacco",
+        "Max flessione (oscillazione)",
+    ]
+
+    # Sceglie un contatto realmente rilevato, non un frame intermedio.
+    mediana_ic = float(np.median(ic_validi))
+    ic_centrale = min(
+        ic_validi,
+        key=lambda frame: abs(frame - mediana_ic),
+    )
 
     return {
-        # ---- metadati e qualità ----
-        "lato_analizzato": "Sinistro" if lato == "sx" else "Destro",
-        "direzione_corsa": "verso destra" if direzione > 0 else "verso sinistra",
-        "fps_video": round(float(fps), 1),
-        "frame_strike_analizzato": int(np.median(ic_validi)),
+        # Metadati
+        "lato_analizzato": (
+            "Sinistro" if lato == "sx" else "Destro"
+        ),
+        "direzione_corsa": (
+            "verso destra"
+            if direzione > 0
+            else "verso sinistra"
+        ),
+        "fps_video": round(fps, 1),
+        "frame_strike_analizzato": int(ic_centrale),
         "frame_contatto": [int(v) for v in ic_validi],
+        "frame_stacco": [int(v) for v in to_validi],
+
+        # Qualità
         "qualita": {
             "frame_totali": int(n),
-            "frame_tracking_valido_pct": round(fraz_core * 100, 1),
+            "frame_tracking_valido_pct": round(
+                fraz_core * 100,
+                1,
+            ),
             "passi_validi": int(n_validi),
             "passi_scartati": int(scartati),
-            "risoluzione_temporale_ms": round(1000.0 / fps, 1),
-            "scala_cm_per_pixel": round(float(scala), 4),
+            "cicli_validi": int(n_validi),
+            "cicli_scartati": int(scartati),
+            "risoluzione_temporale_ms": round(
+                1000.0 / fps,
+                1,
+            ),
+            "scala_cm_per_pixel": round(scala, 4),
         },
         "avvisi": avvisi,
-        # ---- metriche (media ± SD sui passi) ----
+
+        # Metriche
         "cadenza_spm": round(cadenza, 1),
         "tempo_contatto_ms": _stat(m["contatto"], 0),
-        "overstride_cm": round(float(np.mean(m["over_cm"])), 1),          # compatibilità pagina
-        "overstride": {"cm": _stat(m["over_cm"]), "pct_lunghezza_arto": _stat(m["over_pct"])},
+
+        "overstride_cm": round(
+            float(np.mean(m["over_cm"])),
+            1,
+        ),
+        "overstride": {
+            "cm": _stat(m["over_cm"]),
+            "pct_lunghezza_arto": _stat(m["over_pct"]),
+        },
+
         "angolo_tibia_contatto_gradi": _stat(m["tibia"]),
-        "flessione_ginocchio_gradi": dict(zip(fasi, flex_fasi)),
-        "angolo_ginocchio_appoggio": round(180.0 - float(np.mean(m["flex_ic"])), 1),  # angolo incluso all'IC
-        "angolo_inclinazione_busto": round(float(np.mean(m["busto"])), 1),            # + = in avanti
+        "flessione_ginocchio_gradi": dict(
+            zip(fasi, flex_fasi)
+        ),
+
+        "angolo_ginocchio_appoggio": round(
+            180.0 - float(np.mean(m["flex_ic"])),
+            1,
+        ),
+
+        "angolo_inclinazione_busto": round(
+            float(np.mean(m["busto"])),
+            1,
+        ),
         "inclinazione_busto_gradi": _stat(m["busto"]),
-        "oscillazione_verticale": round(float(np.mean(m["vo"])), 1),                   # cm, compatibilità
+
+        "oscillazione_verticale": round(
+            float(np.mean(m["vo"])),
+            1,
+        ),
         "oscillazione_verticale_cm": _stat(m["vo"]),
+
         "foot_strike_angle_gradi": _stat(m["fsa"]),
-        "tipo_appoggio": ETICHETTE_APPOGGIO[classe_prevalente],
+        "tipo_appoggio": ETICHETTE_APPOGGIO[
+            classe_prevalente
+        ],
         "distribuzione_appoggio_pct": distribuzione,
-        # ---- per i grafici delle fasi (angolo incluso, come nella versione precedente) ----
+
+        # Compatibilità grafici
         "fasi_gait": fasi,
-        "angoli_fase": [round(180.0 - s["media"], 1) for s in flex_fasi],
+        "angoli_fase": [
+            (
+                round(180.0 - s["media"], 1)
+                if s["media"] is not None
+                else None
+            )
+            for s in flex_fasi
+        ],
+
+        # Diagnostica serializzabile
+        "diagnostica": {
+            "periodo_autocorr_s": (
+                round(periodo, 3)
+                if periodo is not None
+                else None
+            ),
+            "picchi_piede_frame": [int(v) for v in pk],
+            "lunghezza_arto_px": round(lung_arto_px, 2),
+            "tolleranza_suolo_px": round(tol, 2),
+            "moltiplicatore_tol_to": (
+                MOLTIPLICATORE_TOL_TO
+            ),
+            "frazione_ampiezza_to": FRAZ_AMPIEZZA_TO,
+            "copertura_landmark_pct": {
+                parte: round(frazioni[parte] * 100, 1)
+                for parte in PARTI
+            },
+            "motivi_scarto": dict(motivi),
+            "eventi": debug_eventi,
+            "validazione_cicli": debug_validazione,
+        },
+
         "note_metodologiche": [
-            "Passi ancorati al picco verticale del piede; IC = primo frame con il punto più basso del piede "
-            "vicino al suolo dopo tale picco; TO = prima risalita del piede dopo il contatto minimo. "
-            "Le tolleranze sono relative all'escursione verticale del piede in ogni ciclo.",
-            "Verso di corsa ricavato dallo spostamento caviglia-anca tra IC e TO (all'indietro in appoggio).",
-            "Overstride = distanza orizzontale caviglia-anca all'IC (positiva = piede davanti).",
-            "Flessione ginocchio = 180° - angolo anca-ginocchio-caviglia (0° = gamba estesa).",
-            "FSA: > 8° tallone, da -1,6° a 8° mesopiede, < -1,6° avampiede (Altman & Davis 2012).",
-            "Nessun indice di rischio infortunio: non è stimabile in modo valido da un video 2D.",
+            (
+                "I cicli candidati sono delimitati da picchi "
+                "di sollevamento del piede. Un picco non è "
+                "garantito per ogni ciclo."
+            ),
+            (
+                "IC = primo avvicinamento del punto più basso "
+                "del piede al livello di suolo stimato "
+                "nel ciclo."
+            ),
+            (
+                "TO = primo attraversamento della soglia "
+                "di risalita dopo il contatto minimo. "
+                "Non è una misura diretta del distacco."
+            ),
+            (
+                "Verso di corsa stimato dal movimento "
+                "caviglia-anca IC→TO, con ripiego "
+                "sull'orientamento tallone-punta."
+            ),
+            (
+                "Overstride = distanza orizzontale "
+                "caviglia-anca all'IC; positiva se "
+                "il piede è davanti all'anca."
+            ),
+            (
+                "Flessione ginocchio = 180° meno "
+                "l'angolo anca-ginocchio-caviglia."
+            ),
+            (
+                "Classificazione FSA con soglie configurate: "
+                "> 8° tallone; da -1,6° a 8° mesopiede; "
+                "< -1,6° avampiede. Soglie da verificare "
+                "rispetto al protocollo di misura."
+            ),
+            (
+                "Cadenza = 120 / periodo medio dello stesso "
+                "piede: presuppone due passi per ciclo."
+            ),
+            (
+                "Le chiavi passi_validi e passi_scartati "
+                "contano cicli dello stesso piede."
+            ),
+            (
+                "Nessun indice di rischio infortunio "
+                "o carico articolare viene calcolato."
+            ),
         ],
     }
 
+
+# ----------------------------------------------------------------------------
+# API pubblica
+# ----------------------------------------------------------------------------
 
 def analizza_running_video(
     video_path,
     altezza_cm=175,
     model_complexity=1,
+    debug=DEBUG_EVENTI,
 ):
     """
-    Analizza il video con il modello legacy 1.
-    Non tenta automaticamente il modello heavy.
+    Analizza il video usando il modello legacy 1.
+
+    Il modello heavy e il fallback automatico sono disattivati
+    per evitare il download nella cartella protetta del pacchetto.
     """
     if model_complexity != 1:
         raise ValueError(
-            "In questo deployment usa model_complexity=1. "
-            "Il modello heavy richiede una configurazione "
-            "specifica dei file e dei permessi."
+            "Questa configurazione usa model_complexity=1. "
+            "Il modello heavy e il fallback automatico "
+            "sono disattivati per evitare l'errore "
+            "di permessi sul file del modello."
         )
 
     punti, fps, avvisi = estrai_landmarks(
@@ -549,40 +1274,111 @@ def analizza_running_video(
     return analizza_serie(
         punti,
         fps,
-        altezza_cm,
+        altezza_cm=altezza_cm,
         avvisi_iniziali=avvisi,
+        debug=debug,
     )
 
 
-def diagnostica_video(video_path, altezza_cm=175, model_complexity=1):
-    """Stampa cosa vede MediaPipe nel video reale: utile quando l'analisi fallisce."""
-    punti, fps, avvisi = estrai_landmarks(video_path, model_complexity=model_complexity)
+def diagnostica_video(
+    video_path,
+    altezza_cm=175,
+    model_complexity=1,
+):
+    """Stampa tracking, eventi rilevati e risultato dell'analisi."""
+    if model_complexity != 1:
+        raise ValueError(
+            "Usa model_complexity=1 in questo deployment."
+        )
+
+    punti, fps, avvisi = estrai_landmarks(
+        video_path,
+        model_complexity=1,
+    )
+
     n = next(iter(punti.values())).shape[0]
-    print(f"Frame: {n}  FPS: {fps:.1f}  Durata: {n / fps:.1f} s")
-    for a in avvisi:
-        print("AVVISO:", a)
-    print("Frame con scheletro rilevato / visibilità media / frame con vis>=%.1f" % VIS_MIN)
+
+    print(
+        f"Frame: {n} | FPS: {fps:.1f} | "
+        f"Durata approssimativa: {n / fps:.1f} s"
+    )
+
+    for avviso in avvisi:
+        print("AVVISO:", avviso)
+
+    print(
+        "Tracking per landmark: rilevato / "
+        "visibilità media / coordinate valide sopra soglia"
+    )
+
     for lato in LATI:
         for parte in PARTI:
             d = punti[(parte, lato)]
-            vis = np.nan_to_num(d[:, 2], nan=0.0)
-            print(f"  {lato} {parte:10s} rilevato {100 * np.mean(~np.isnan(d[:, 0])):5.1f}%  "
-                  f"vis media {vis.mean():.2f}  validi {100 * np.mean(vis >= VIS_MIN):5.1f}%")
+            vis = np.nan_to_num(
+                d[:, 2],
+                nan=0.0,
+                posinf=0.0,
+                neginf=0.0,
+            )
+            rilevato = np.isfinite(d[:, :2]).all(axis=1)
+            validi = _maschera_valida(d)
+
+            print(
+                f"  {lato} {parte:10s} "
+                f"rilevato {100 * rilevato.mean():5.1f}% | "
+                f"vis media {vis.mean():.2f} | "
+                f"validi {100 * validi.mean():5.1f}%"
+            )
+
     try:
-        r = analizza_serie(punti, fps, altezza_cm, avvisi_iniziali=avvisi)
-        print("\nANALISI OK:", r["qualita"]["passi_validi"], "passi validi, cadenza", r["cadenza_spm"],
-              "spm, contatto", r["tempo_contatto_ms"]["media"], "ms,", r["direzione_corsa"])
-        for a in r["avvisi"]:
-            print("AVVISO:", a)
-    except ValueError as e:
-        print("\nANALISI NON RIUSCITA:", e)
+        risultato = analizza_serie(
+            punti,
+            fps,
+            altezza_cm=altezza_cm,
+            avvisi_iniziali=avvisi,
+            debug=True,
+        )
+
+        print(
+            "\nANALISI OK:",
+            risultato["qualita"]["cicli_validi"],
+            "cicli validi | cadenza",
+            risultato["cadenza_spm"],
+            "spm | contatto",
+            risultato["tempo_contatto_ms"]["media"],
+            "ms |",
+            risultato["direzione_corsa"],
+        )
+
+        for avviso in risultato["avvisi"]:
+            print("AVVISO:", avviso)
+
+        return risultato
+
+    except ValueError as exc:
+        print("\nANALISI NON RIUSCITA:", exc)
+        return None
 
 
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) < 2:
-        print("Uso: python computer_vision.py video.mp4 [altezza_cm] [model_complexity]")
+        print(
+            "Uso: python utils/computer_vision.py "
+            "video.mp4 [altezza_cm] [model_complexity]"
+        )
     else:
-        diagnostica_video(sys.argv[1],
-                          float(sys.argv[2]) if len(sys.argv) > 2 else 175.0,
-                          int(sys.argv[3]) if len(sys.argv) > 3 else 1)
+        diagnostica_video(
+            sys.argv[1],
+            altezza_cm=(
+                float(sys.argv[2])
+                if len(sys.argv) > 2
+                else 175.0
+            ),
+            model_complexity=(
+                int(sys.argv[3])
+                if len(sys.argv) > 3
+                else 1
+            ),
+        )
