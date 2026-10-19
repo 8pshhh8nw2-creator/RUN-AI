@@ -303,15 +303,36 @@ def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None):
     m = {k: [] for k in ("stride", "contatto", "over_cm", "over_pct", "tibia", "flex_ic",
                          "flex_stance", "flex_to", "flex_swing", "fsa", "busto", "vo")}
     ic_validi, scartati = [], 0
+    motivi = Counter()
+    dbg_stride, dbg_cont = [], []
     for k in range(len(fm) - 1):
         i0, i1, t0 = ic[k], ic[k + 1], to[k]
-        if i0 is None or i1 is None or t0 is None or not (i0 < t0 < i1) or i1 >= n:
+        if i0 is None or i1 is None:
             scartati += 1
+            motivi["contatto iniziale non trovato"] += 1
+            continue
+        if t0 is None:
+            scartati += 1
+            motivi["stacco (toe-off) non trovato: il piede non risale abbastanza"] += 1
+            continue
+        if not (i0 < t0 < i1) or i1 >= n:
+            scartati += 1
+            motivi["sequenza contatto/stacco incoerente"] += 1
             continue
         t_stride, t_cont = (i1 - i0) / fps, (t0 - i0) / fps
-        if (inaff[i0:i1 + 1].any() or not (STRIDE_MIN_S <= t_stride <= STRIDE_MAX_S)
-                or not (CONTATTO_MIN_S <= t_cont <= CONTATTO_MAX_S)):
+        dbg_stride.append(t_stride)
+        dbg_cont.append(t_cont)
+        if inaff[i0:i1 + 1].any():
             scartati += 1
+            motivi["tracking interrotto per troppo tempo"] += 1
+            continue
+        if not (STRIDE_MIN_S <= t_stride <= STRIDE_MAX_S):
+            scartati += 1
+            motivi[f"durata del ciclo fuori range ({STRIDE_MIN_S}-{STRIDE_MAX_S} s)"] += 1
+            continue
+        if not (CONTATTO_MIN_S <= t_cont <= CONTATTO_MAX_S):
+            scartati += 1
+            motivi[f"tempo di contatto fuori range ({CONTATTO_MIN_S}-{CONTATTO_MAX_S} s)"] += 1
             continue
         ic_validi.append(i0)
         m["stride"].append(t_stride)
@@ -331,9 +352,14 @@ def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None):
 
     n_validi = len(ic_validi)
     if n_validi < 3:
+        dettaglio = "; ".join(f"{v}× {k}" for k, v in motivi.items()) or "nessun dettaglio"
+        misure = ""
+        if dbg_stride:
+            misure = (f" Valori misurati: ciclo {min(dbg_stride):.2f}-{max(dbg_stride):.2f} s, "
+                      f"contatto {min(dbg_cont):.2f}-{max(dbg_cont):.2f} s a {fps:.0f} fps.")
         raise ValueError(
-            f"Solo {n_validi} passi validi su {len(fm) - 1}. Migliora la ripresa "
-            "(laterale, camera ferma e perpendicolare, corridore intero)."
+            f"Solo {n_validi} passi validi su {len(fm) - 1}. Motivi di scarto: {dettaglio}.{misure} "
+            "Migliora la ripresa (laterale, camera ferma e perpendicolare, corridore intero)."
         )
     if n_validi < 8:
         avvisi.append(f"Solo {n_validi} passi validi: le stime sono poco stabili (consigliati almeno 10).")
