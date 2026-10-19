@@ -64,6 +64,7 @@ TOL_SUOLO = 0.03         # tolleranza minima "piede a terra" (frazione lunghezza
 FRAZ_AMPIEZZA_IC = 0.15  # tolleranza IC come frazione dell'escursione verticale del piede nel passo
 FRAZ_AMPIEZZA_TO = 0.35  # tolleranza TO come frazione dell'escursione verticale del piede nel passo
 PRE_IC_S, POST_IC_S = 0.08, 0.25   # finestra di ricerca dell'IC attorno al massimo avanzamento
+CORR_MIN_DIREZIONE = 0.15          # sotto questa |correlazione| il verso di corsa dalla dinamica non è affidabile
 CONTATTO_MIN_S, CONTATTO_MAX_S = 0.10, 0.45
 STRIDE_MIN_S, STRIDE_MAX_S = 0.45, 1.60
 FSA_TALLONE, FSA_AVAMPIEDE = 8.0, -1.6
@@ -254,8 +255,26 @@ def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None):
         for c, nome in ((0, "x"), (1, "y")):
             S[(p, nome)] = _savgol(np.interp(idx, idx[valido], P[p][valido, c]), finestra)
 
-    # --- direzione di corsa: verso in cui punta il piede ---
-    direzione = 1.0 if np.median((P["punta"][:, 0] - P["tallone"][:, 0])[valido]) >= 0 else -1.0
+    # --- direzione di corsa ---
+    # Metodo principale (dinamica): con il piede a terra (y alta nell'immagine) la caviglia
+    # si sposta all'indietro rispetto all'anca, in volo avanza. Il segno della correlazione
+    # tra velocità relativa e quota del piede dà il verso di corsa, indipendentemente
+    # dall'orientamento del piede e da eventuali movimenti della camera.
+    # Ripiego: verso in cui punta il piede (meno affidabile: tallone/punta sono rumorosi).
+    dir_piede = 1.0 if np.median((P["punta"][:, 0] - P["tallone"][:, 0])[valido]) >= 0 else -1.0
+    v_rel = np.gradient(S[("caviglia", "x")] - S[("anca", "x")])
+    y_pdi = np.maximum(S[("tallone", "y")], S[("punta", "y")])
+    with np.errstate(invalid="ignore", divide="ignore"):
+        corr_dir = float(np.nan_to_num(np.corrcoef(v_rel[valido], y_pdi[valido])[0, 1]))
+    if abs(corr_dir) >= CORR_MIN_DIREZIONE:
+        direzione = -1.0 if corr_dir > 0 else 1.0
+        if direzione != dir_piede:
+            avvisi.append("Il verso di corsa ricavato dal movimento non coincide con l'orientamento del piede "
+                          "(tallone/punta): uso il movimento. Controlla che la ripresa sia laterale.")
+    else:
+        direzione = dir_piede
+        avvisi.append("Verso di corsa stimato solo dall'orientamento del piede: il movimento delle gambe "
+                      "non è abbastanza chiaro (video corto o ripresa non laterale).")
 
     # --- scala pixel -> cm da lunghezza coscia + gamba ---
     coscia = np.hypot(S[("anca", "x")] - S[("ginocchio", "x")], S[("anca", "y")] - S[("ginocchio", "y")])
@@ -291,6 +310,7 @@ def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None):
     tol = TOL_SUOLO * lung_arto_px
     pre, post = int(round(PRE_IC_S * fps)), int(round(POST_IC_S * fps))
     ic, to = [], []
+    n_ic_stimati = n_to_stimati = 0
     for k, f in enumerate(fm):
         fine = fm[k + 1] if k + 1 < len(fm) else min(n - 1, f + int(round(1.0 * fps)))
         seg = y_piede[f:fine + 1]
@@ -301,13 +321,23 @@ def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None):
         tol_to = max(2 * tol, FRAZ_AMPIEZZA_TO * ampiezza)
         a, b = max(0, f - pre), min(fine, f + post)
         c = np.where(y_piede[a:b + 1] >= suolo - tol_ic)[0]
-        ic_k = a + int(c[0]) if len(c) else None
+        if len(c):
+            ic_k = a + int(c[0])
+        else:
+            ic_k = int(f)                      # ripiego: massimo avanzamento del piede
+            n_ic_stimati += 1
+        # stacco: prima risalita del piede, cercata solo dopo il contatto minimo plausibile
+        # e fino al passo successivo (non più entro una finestra fissa)
+        a2, b2 = ic_k + int(round(CONTATTO_MIN_S * fps)), min(n - 1, fine)
         to_k = None
-        if ic_k is not None:
-            a2, b2 = ic_k + int(round(0.08 * fps)), min(n - 1, ic_k + int(round(0.5 * fps)))
-            if a2 <= b2:
-                c2 = np.where(y_piede[a2:b2 + 1] < suolo - tol_to)[0]
-                to_k = a2 + int(c2[0]) if len(c2) else None
+        if a2 <= b2:
+            c2 = np.where(y_piede[a2:b2 + 1] < suolo - tol_to)[0]
+            if len(c2):
+                to_k = a2 + int(c2[0])
+        if to_k is None and ic_k + 1 < b2:
+            # ripiego (Zeni et al. 2008): massimo arretramento della caviglia rispetto all'anca
+            to_k = ic_k + 1 + int(np.argmin(xrel[ic_k + 1:b2 + 1]))
+            n_to_stimati += 1
         ic.append(ic_k)
         to.append(to_k)
 
@@ -369,10 +399,20 @@ def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None):
         if dbg_stride:
             misure = (f" Valori misurati: ciclo {min(dbg_stride):.2f}-{max(dbg_stride):.2f} s, "
                       f"contatto {min(dbg_cont):.2f}-{max(dbg_cont):.2f} s a {fps:.0f} fps.")
+        diag = (f" Diagnostica: verso {'destra' if direzione > 0 else 'sinistra'} "
+                f"(correlazione dinamica {corr_dir:.2f}, piede verso {'destra' if dir_piede > 0 else 'sinistra'}), "
+                f"ciclo tra massimi {np.median(np.diff(fm)) / fps:.2f} s, "
+                f"IC stimati {n_ic_stimati}, TO stimati {n_to_stimati}, lato {lato}.")
         raise ValueError(
-            f"Solo {n_validi} passi validi su {len(fm) - 1}. Motivi di scarto: {dettaglio}.{misure} "
+            f"Solo {n_validi} passi validi su {len(fm) - 1}. Motivi di scarto: {dettaglio}.{misure}{diag} "
             "Migliora la ripresa (laterale, camera ferma e perpendicolare, corridore intero)."
         )
+    if n_ic_stimati:
+        avvisi.append(f"Contatto iniziale stimato dal massimo avanzamento del piede in {n_ic_stimati} passi "
+                      f"su {len(fm)}: overstride meno preciso.")
+    if n_to_stimati:
+        avvisi.append(f"Stacco stimato dal massimo arretramento della caviglia in {n_to_stimati} passi "
+                      f"su {len(fm)}: tempo di contatto meno preciso.")
     if n_validi < 8:
         avvisi.append(f"Solo {n_validi} passi validi: le stime sono poco stabili (consigliati almeno 10).")
     if fps < 60:
