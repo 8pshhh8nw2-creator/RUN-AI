@@ -281,20 +281,25 @@ def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None):
             "lateralmente, con la camera ferma."
         )
 
-    tol = TOL_SUOLO * lung_arto_px
-    pre, post = int(round(0.03 * fps)), int(round(0.25 * fps))
+        tol = TOL_SUOLO * lung_arto_px
+    pre, post = int(round(0.08 * fps)), int(round(0.25 * fps))   # pre più ampio
     ic, to = [], []
     for k, f in enumerate(fm):
         fine = fm[k + 1] if k + 1 < len(fm) else min(n - 1, f + int(round(1.0 * fps)))
-        suolo = np.percentile(y_piede[f:fine + 1], 95)
+        seg = y_piede[f:fine + 1]
+        suolo = np.percentile(seg, 90)                 # meno sensibile agli spike
+        alto = np.percentile(seg, 5)
+        ampiezza = max(suolo - alto, tol)              # escursione verticale del piede
+        tol_ic = max(tol, 0.15 * ampiezza)             # tolleranze relative al passo
+        tol_to = max(2 * tol, 0.35 * ampiezza)
         a, b = max(0, f - pre), min(fine, f + post)
-        c = np.where(y_piede[a:b + 1] >= suolo - tol)[0]
+        c = np.where(y_piede[a:b + 1] >= suolo - tol_ic)[0]
         ic_k = a + int(c[0]) if len(c) else None
         to_k = None
         if ic_k is not None:
             a2, b2 = ic_k + int(round(0.08 * fps)), min(n - 1, ic_k + int(round(0.5 * fps)))
             if a2 <= b2:
-                c2 = np.where(y_piede[a2:b2 + 1] < suolo - 2 * tol)[0]
+                c2 = np.where(y_piede[a2:b2 + 1] < suolo - tol_to)[0]
                 to_k = a2 + int(c2[0]) if len(c2) else None
         ic.append(ic_k)
         to.append(to_k)
