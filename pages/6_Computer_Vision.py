@@ -215,4 +215,72 @@ if video_file is not None:
                 <path d="M 50 150 L 90 150 L 130 20 L 170 90 C 240 90, 360 55, 470 150 L 550 150" fill="none" stroke="#FF6A3D" stroke-width="2.5" stroke-linejoin="round"/>
                 <circle cx="130" cy="20" r="5" fill="#FFFFFF" stroke="#FF6A3D" stroke-width="2"/>
                 <line x1="130" y1="20" x2="190" y2="20" stroke="#FF6A3D" stroke-width="1"/>
-                <rect x="195" y="10" width="195" height="20"
+                <rect x="195" y="10" width="195" height="20" fill="#0A0F17" stroke="#FF6A3D" stroke-width="1" rx="3"/>
+                <text x="202" y="24" fill="#FF6A3D" font-family="monospace" font-size="9" font-weight="bold">OVERSTRIDE: {dati_REALI['overstride_cm']} CM</text>
+                <text x="270" y="185" fill="#566178" font-family="monospace" font-size="8">TEMPO DI CONTATTO (ms)</text>
+            </svg>
+            """
+            st.components.v1.html(grf_real_svg, height=195, scrolling=False)
+            st.markdown("<p style='font-size:0.75em; color:#8792A3; margin-top:2px;'><strong>Spiegazione:</strong> Grafico illustrativo delle forze d'impatto al suolo (GRF), stimato a partire dall'overstride e dall'angolo di ginocchio rilevati nel video.</p>", unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown("<h2>Report Biomeccanico e Scheletrico Dettagliato</h2>", unsafe_allow_html=True)
+        c_met1, c_met2, c_met3, c_met4 = st.columns(4)
+        c_met1.metric("Angolo Ginocchio", f"{dati_cv['angolo_ginocchio_appoggio']:.1f}°", "Target > 150°")
+        c_met2.metric("Inclinazione Busto", f"{dati_cv['angolo_inclinazione_busto']:.1f}°", "Ottimale 5-8°")
+        c_met3.metric("Overstride (Anticipo)", f"{dati_cv['overstride_cm']:.1f} cm", "Target < 10cm")
+        c_met4.metric("Oscillazione Vert.", f"{dati_cv['oscillazione_verticale']:.1f} cm", "Target < 8cm")
+        st.markdown("<br>", unsafe_allow_html=True)
+        cg1, cg2, cg3 = st.columns(3)
+
+        with cg1:
+            st.markdown("### 1. Mappatura Sovraccarico (%)")
+            fig_bar_load = px.bar(
+                x=dati_cv['articolazioni_carico'], y=dati_cv['carichi_pct'],
+                labels={'x': 'Distretto', 'y': '% Impatto'},
+                color=dati_cv['carichi_pct'], color_continuous_scale=[[0, '#00E5FF'], [0.5, '#FFB020'], [1, '#FF6A3D']]
+            )
+            fig_bar_load.update_layout(height=320, coloraxis_showscale=False)
+            st.plotly_chart(style_fig(fig_bar_load), use_container_width=True)
+            st.markdown("<div class='explain-text'><strong>Analisi Carichi:</strong> Stima euristica dello stress relativo sui distretti articolari, calcolata da overstride, angolo di ginocchio, tipo di appoggio e inclinazione del busto misurati nel video.</div>", unsafe_allow_html=True)
+        with cg2:
+            st.markdown("### 2. Angoli Articolari (Falcata)")
+            coppie = [(f, a) for f, a in zip(dati_cv['fasi_gait'], dati_cv['angoli_fase']) if a is not None]
+            fig_radar_angles = go.Figure(go.Scatterpolar(
+                r=[a for _, a in coppie] + ([coppie[0][1]] if coppie else []),
+                theta=[f for f, _ in coppie] + ([coppie[0][0]] if coppie else []),
+                fill='toself',
+                marker=dict(color='#00F5A0'), line=dict(color='#00F5A0')
+            ))
+            fig_radar_angles.update_layout(
+                polar=dict(radialaxis=dict(visible=True, range=[60, 190], gridcolor='#1c2333'), angularaxis=dict(gridcolor='#1c2333')),
+                height=320
+            )
+            st.plotly_chart(style_fig(fig_radar_angles), use_container_width=True)
+            st.markdown("<div class='explain-text'><strong>Analisi Angolare:</strong> Angolo anca-ginocchio-caviglia nelle quattro fasi del ciclo del passo (contatto, massima flessione in appoggio, stacco, oscillazione), individuate dal tracking.</div>", unsafe_allow_html=True)
+        with cg3:
+            st.markdown("### 3. Rischio per Distretto (%)")
+            fig_ml_risk = px.bar(
+                x=dati_cv['distretti_rischio'], y=dati_cv['rischi_ml'],
+                labels={'x': 'Patologia/Distretto', 'y': 'Peso relativo (%)'},
+                color=dati_cv['rischi_ml'], color_continuous_scale=[[0, '#00F5A0'], [0.5, '#FFB020'], [1, '#FF6A3D']]
+            )
+            fig_ml_risk.update_layout(height=320, coloraxis_showscale=False)
+            st.plotly_chart(style_fig(fig_ml_risk), use_container_width=True)
+            st.markdown("<div class='explain-text'><strong>Stima del Rischio:</strong> Punteggio euristico calcolato dalle feature biomeccaniche reali. Non è un modello clinico addestrato su dataset di infortuni reali.</div>", unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown("<h3>Diagnosi Posturale, Errori e Stima del Rischio</h3>", unsafe_allow_html=True)
+
+        st.error(f"PATTERN RILEVATO — {dati_cv['tipo_appoggio']}: angolo del ginocchio al contatto di {dati_cv['angolo_ginocchio_appoggio']}° e overstride di {dati_cv['overstride_cm']} cm, misurati sul frame di appoggio del video.")
+        st.warning(f"ZONA DI SOVRACCARICO PRINCIPALE: {dati_cv['sovraccarico_prevalente']}, in base alla distribuzione di carico calcolata sopra.")
+        st.markdown(f"""
+        <div class='danger-box' style='border-left-color: #FF6A3D;'>
+            <h3 style='color: #FF6A3D; margin-top:0;'>STIMA DI RISCHIO (Indice: {dati_cv['probabilita_infortunio_ml']}%)</h3>
+            <p style='color: #E8ECF2; font-size: 1.05em;'>In base al pattern di overstride e al tipo di appoggio rilevati nel video, il distretto con il punteggio di rischio relativo più alto è: <strong style='color: #FF6A3D;'>{dati_cv['infortunio_predetto']}</strong>. Questa è una stima euristica orientativa, non una diagnosi medica.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.info("PROTOCOLLO DI CORREZIONE BIOMECCANICA CONSIGLIATO:\n1. Riduzione dell'ampiezza della falcata per eliminare l'over-stride anteriore al baricentro.\n2. Incremento della frequenza di passo a 176-180 falcate al minuto (SPM) per facilitare l'atterraggio sul mesopiede.\n3. Integrazione di esercizi di forza eccentrica per il quadricipite e protocollo di rinforzo progressivo per il tendine d'Achille.\n4. Consulta un fisioterapista o un tecnico di corsa per una valutazione clinica completa prima di modificare la tecnica.")
+else:
+    st.info("Suggerimento: Carica un video registrato lateralmente (profilo laterale, corridore ben visibile per almeno 5-10 secondi) per attivare l'estrazione dello scheletro e l'analisi biomeccanica reale.")
