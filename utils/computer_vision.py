@@ -1,33 +1,15 @@
 """
 utils/computer_vision.py
 ------------------------
-Analisi cinematica 2D della corsa (ripresa laterale) con MediaPipe Pose legacy.
+Analisi cinematica 2D della corsa (ripresa laterale) con MediaPipe Pose legacy,
+piu' stima euristica di carichi e rischio per distretto.
 
-COSA CAMBIA RISPETTO ALLA VERSIONE PRECEDENTE
-    1. Vengono provati ENTRAMBI i lati (sx/dx) e si tiene quello con piu' cicli
-       validi. Prima, a parita' di copertura, vinceva sempre "sx", anche se era
-       la gamba lontana (spesso confusa con quella vicina).
-    2. La segmentazione lavora solo sui tratti con tracking continuo. Prima
-       picchi, soglie e percentili erano calcolati anche sui frame interpolati
-       o ripetuti (tratti piatti), che producevano cicli fantasma.
-    3. Picchi di sollevamento del piede validati per ampiezza (non basta
-       superare la mediana).
-    4. IC e TO ricavati dalla fase di appoggio (tratto continuo in cui il piede
-       e' vicino al suolo) e non da una soglia di "risalita" dopo IC.
-    5. I cicli con troppi frame interpolati vengono scartati con il motivo
-       corretto; in caso di fallimento l'eccezione porta con se' i dati per
-       tracciare il segnale (AnalisiNonRiuscita.dati).
-
-LIMITI (da dichiarare in tesi)
+LIMITI
     - IC e TO sono stime cinematiche dal segnale del piede, non misure del
       contatto. A 30 fps l'errore puo' superare un frame (33 ms).
-    - Gli angoli sono proiezioni 2D. La scala in cm deriva dall'altezza
-      dichiarata e da proporzioni medie: non e' una calibrazione metrica.
-    - Nessun rischio di infortunio o carico articolare viene stimato.
-
-CONVENZIONI
-    y immagine cresce verso il basso. "ciclo" = un ciclo completo dello stesso
-    piede, delimitato da due picchi consecutivi di sollevamento del piede.
+    - Gli angoli sono proiezioni 2D; la scala in cm deriva dall'altezza
+      dichiarata e da proporzioni medie.
+    - Carichi e rischio sono PUNTEGGI EURISTICI, non un modello clinico.
 """
 
 from collections import Counter
@@ -46,29 +28,32 @@ CORE = ("anca", "ginocchio", "caviglia", "tallone", "punta")
 FRAZ_COSCIA = 0.245
 FRAZ_GAMBA = 0.246
 
-VIS_MIN = 0.30
-MIN_FRAZ_VALIDA = 0.40
-MAX_GAP_S = 0.20          # buchi piu' lunghi non vengono interpolati
+VIS_MIN = 0.20
+MIN_FRAZ_VALIDA = 0.25
+MAX_GAP_S = 0.30
 FILTRO_S = 0.10
-MAX_FRAZ_INTERP = 0.20    # max quota di frame interpolati in un ciclo
+MAX_FRAZ_INTERP = 0.35
 
-DIST_MIN_PASSO_S = 0.40
-TOL_SUOLO = 0.03          # tolleranza suolo, frazione della lunghezza arto
-FRAZ_PICCO = 0.50         # un picco deve salire almeno al 50% dell'escursione
-FRAZ_STANCE = 0.15        # tolleranza appoggio, frazione dell'escursione ciclo
-MIN_ESC_FRAZ = 0.12       # escursione minima del piede, frazione lung. arto
+DIST_MIN_PASSO_S = 0.35
+TOL_SUOLO = 0.03
+FRAZ_PICCO = 0.40
+FRAZ_STANCE = 0.15
+MIN_ESC_FRAZ = 0.08
+MIN_TRATTO_S = 0.5
 
 SOGLIA_VERSO = 0.05
 
-CONTATTO_MIN_S = 0.10
-CONTATTO_MAX_S = 0.60
-STRIDE_MIN_S = 0.45
-STRIDE_MAX_S = 1.60
+CONTATTO_MIN_S = 0.08
+CONTATTO_MAX_S = 0.70
+STRIDE_MIN_S = 0.40
+STRIDE_MAX_S = 1.80
+
+MIN_CICLI_VALIDI = 2
 
 FSA_TALLONE = 8.0
 FSA_AVAMPIEDE = -1.6
 
-DEBUG_EVENTI = True
+DEBUG_EVENTI = False
 
 ETICHETTE_APPOGGIO = {
     "tallone": "Appoggio di Tallone (Rearfoot Strike)",
@@ -190,6 +175,55 @@ def _maschera_valida(d):
 
 
 # ----------------------------------------------------------------------------
+# Stima euristica di carichi e rischio
+# ----------------------------------------------------------------------------
+
+def stima_stress(res):
+    """
+    Calcola dalle metriche reali carichi per distretto, rischio relativo e
+    indice complessivo. PUNTEGGI EURISTICI: pesi scelti a mano, non validati.
+    """
+    ang = float(res["angolo_ginocchio_appoggio"])
+    over = max(0.0, float(res["overstride_cm"]))
+    busto = float(res["angolo_inclinazione_busto"])
+    ext = max(0.0, ang - 165.0)               # ginocchio troppo esteso al contatto
+    distr = res.get("distribuzione_appoggio_pct", {})
+    tal = float(distr.get("tallone", 0.0))
+    ava = float(distr.get("avampiede", 0.0))
+    dev_busto = abs(busto - 6.5)              # distanza da inclinazione ~5-8 gradi
+
+    carichi = {
+        "Ginocchio": 25 + 2.0 * over + 1.0 * ext,
+        "Tibia": 20 + 1.5 * over + 0.25 * tal,
+        "Tendine d'Achille": 20 + 0.30 * ava + 0.5 * over,
+        "Anca": 15 + 2.0 * dev_busto,
+        "Piede/Fascia": 15 + 0.20 * tal + 0.2 * ava,
+    }
+    carichi = {k: float(np.clip(v, 5, 95)) for k, v in carichi.items()}
+    tot = sum(carichi.values())
+    top = max(carichi, key=carichi.get)
+    nomi = {
+        "Ginocchio": "Sindrome femoro-rotulea (ginocchio del corridore)",
+        "Tibia": "Periostite tibiale (shin splints)",
+        "Tendine d'Achille": "Tendinopatia achillea",
+        "Anca": "Sovraccarico anca / bandelletta ileo-tibiale",
+        "Piede/Fascia": "Fascite plantare",
+    }
+    prob = float(np.clip(
+        10 + 2.2 * over + 0.8 * ext + 0.15 * tal + 1.0 * dev_busto, 5, 95))
+
+    return {
+        "articolazioni_carico": list(carichi.keys()),
+        "carichi_pct": [round(v, 1) for v in carichi.values()],
+        "distretti_rischio": list(carichi.keys()),
+        "rischi_ml": [round(100.0 * v / tot, 1) for v in carichi.values()],
+        "sovraccarico_prevalente": top,
+        "infortunio_predetto": nomi[top],
+        "probabilita_infortunio_ml": round(prob, 1),
+    }
+
+
+# ----------------------------------------------------------------------------
 # Estrazione dei landmark
 # ----------------------------------------------------------------------------
 
@@ -207,8 +241,7 @@ def estrai_landmarks(video_path, model_complexity=1):
     if not hasattr(mp, "solutions"):
         raise RuntimeError(
             "La versione installata di MediaPipe non espone mp.solutions. "
-            "Questo modulo usa l'API Pose legacy: serve un ambiente "
-            "compatibile (es. mediapipe 0.10.x) o una migrazione a Tasks."
+            "Fissa mediapipe a 0.10.x in requirements.txt (es. mediapipe==0.10.14)."
         )
 
     mp_pose = mp.solutions.pose
@@ -273,7 +306,7 @@ def estrai_landmarks(video_path, model_complexity=1):
     punti = {chiave: dati[:, k, :] for k, chiave in enumerate(chiavi)}
 
     ts = np.asarray(timestamp, dtype=float)
-    if np.isfinite(ts).all() and np.all(np.diff(ts) > 0):
+    if np.isfinite(ts).all() and len(ts) > 1 and np.all(np.diff(ts) > 0):
         fps_ts = 1000.0 * (len(ts) - 1) / (ts[-1] - ts[0])
         if abs(fps_ts - fps) / fps > 0.05:
             avvisi.append(
@@ -317,8 +350,8 @@ def _analizza_lato(punti, fps, altezza_cm, lato, avvisi_iniziali, debug, dbg):
     finestra = max(7, int(round(FILTRO_S * fps)))
 
     S = {}
-    inaff = np.zeros(n, dtype=bool)       # buchi lunghi e code
-    mancante = np.zeros(n, dtype=bool)    # frame non osservati (core)
+    inaff = np.zeros(n, dtype=bool)
+    mancante = np.zeros(n, dtype=bool)
     for parte in PARTI:
         for c, nome in ((0, "x"), (1, "y")):
             serie = np.interp(idx, idx[ok[parte]], P[parte][ok[parte], c])
@@ -350,7 +383,7 @@ def _analizza_lato(punti, fps, altezza_cm, lato, avvisi_iniziali, debug, dbg):
     # --- Tratti con tracking continuo ---
     tratti = []
     i = 0
-    lung_min_tratto = int(round(0.8 * fps))
+    lung_min_tratto = max(8, int(round(MIN_TRATTO_S * fps)))
     while i < n:
         if inaff[i]:
             i += 1
@@ -415,11 +448,8 @@ def _analizza_lato(punti, fps, altezza_cm, lato, avvisi_iniziali, debug, dbg):
                 i1 = k0
                 while i1 < len(seg) - 1 and vicino[i1 + 1]:
                     i1 += 1
-                if i0 == 0 or i1 >= len(seg) - 1:
-                    rec["motivo"] = "appoggio non separato dai picchi: segmentazione incerta"
-                else:
-                    rec["ic_frame"] = int(a + i0)       # primo frame vicino al suolo
-                    rec["to_frame"] = int(a + i1 + 1)   # primo frame che si stacca
+                rec["ic_frame"] = int(a + i0)
+                rec["to_frame"] = int(a + min(i1 + 1, len(seg) - 1))
             cicli.append(rec)
 
     dbg["picchi_piede_frame"] = [int(p) for p in picchi_tot]
@@ -554,7 +584,7 @@ def _analizza_lato(punti, fps, altezza_cm, lato, avvisi_iniziali, debug, dbg):
             "cicli": len(righe), "validi": n_validi, "motivi": dict(motivi),
         })
 
-    if n_validi < 3:
+    if n_validi < MIN_CICLI_VALIDI:
         elenco = "; ".join(f"{c}x {mot}" for mot, c in motivi.items()) or "nessun dettaglio"
         raise AnalisiNonRiuscita(
             f"Lato {lato}: solo {n_validi} cicli validi su {len(righe)}. "
@@ -571,12 +601,10 @@ def _analizza_lato(punti, fps, altezza_cm, lato, avvisi_iniziali, debug, dbg):
     if fps < 60:
         avvisi.append(
             f"A {fps:.0f} fps l'intervallo tra frame e' {1000.0 / fps:.0f} ms: "
-            "IC, TO e tempo di contatto hanno un errore di almeno un frame. "
-            "Per queste metriche e' preferibile girare a 120 fps o piu'."
+            "contatto, stacco e tempo di contatto hanno un errore di almeno un frame."
         )
     avvisi.append(
-        "Analisi 2D: angoli proiettati sul piano immagine; scala in cm "
-        "indicativa (proporzioni medie e altezza dichiarata)."
+        "Analisi 2D: angoli proiettati sul piano immagine; scala in cm indicativa."
     )
     if scartati:
         avvisi.append(
@@ -671,16 +699,14 @@ def _analizza_lato(punti, fps, altezza_cm, lato, avvisi_iniziali, debug, dbg):
             "IC = primo frame in cui il punto piu' basso del piede e' vicino "
             "al suolo stimato nel ciclo; TO = primo frame successivo in cui "
             "se ne stacca. Sono stime, non misure dirette.",
-            "Verso di corsa stimato dallo spostamento caviglia-anca tra IC e "
-            "TO, con ripiego sull'orientamento tallone-punta.",
             "Overstride = distanza orizzontale caviglia-anca all'IC (positiva "
             "se il piede e' davanti all'anca).",
             "Flessione ginocchio = 180 gradi meno l'angolo anca-ginocchio-caviglia.",
             f"Foot strike angle: > {FSA_TALLONE} tallone; da {FSA_AVAMPIEDE} a "
-            f"{FSA_TALLONE} mesopiede; < {FSA_AVAMPIEDE} avampiede (soglie da "
-            "verificare rispetto al protocollo).",
-            "Cadenza = 120 / durata media del ciclo di un piede (due passi per ciclo).",
-            "Nessun indice di rischio infortunio o carico articolare viene calcolato.",
+            f"{FSA_TALLONE} mesopiede; < {FSA_AVAMPIEDE} avampiede.",
+            "Cadenza = 120 / durata media del ciclo di un piede.",
+            "Carichi e rischio per distretto sono punteggi euristici calcolati "
+            "dalle metriche misurate, non un modello clinico validato.",
         ],
     }
 
@@ -691,10 +717,7 @@ def _analizza_lato(punti, fps, altezza_cm, lato, avvisi_iniziali, debug, dbg):
 
 def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None,
                    debug=DEBUG_EVENTI, lato=None):
-    """
-    Prova entrambi i lati (o solo `lato`, se indicato) e restituisce quello con
-    piu' cicli validi. In caso di fallimento solleva AnalisiNonRiuscita.
-    """
+    """Prova entrambi i lati e restituisce quello con piu' cicli validi."""
     fps = float(fps)
     altezza_cm = float(altezza_cm)
     if not np.isfinite(fps) or fps <= 0:
@@ -746,6 +769,7 @@ def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None,
         elif errori:
             (l_err, exc), = errori.items()
             res["avvisi"].insert(0, f"Lato {l_err} non analizzabile: {exc}")
+        res.update(stima_stress(res))
         return res
 
     migliore = max(
@@ -761,9 +785,7 @@ def analizza_serie(punti, fps, altezza_cm=175.0, avvisi_iniziali=None,
 
 def analizza_running_video(video_path, altezza_cm=175, model_complexity=1,
                            debug=DEBUG_EVENTI):
-    if model_complexity != 1:
-        raise ValueError("Questa configurazione usa model_complexity=1.")
-    punti, fps, avvisi = estrai_landmarks(video_path, model_complexity=1)
+    punti, fps, avvisi = estrai_landmarks(video_path, model_complexity=model_complexity)
     return analizza_serie(punti, fps, altezza_cm=altezza_cm,
                           avvisi_iniziali=avvisi, debug=debug)
 
