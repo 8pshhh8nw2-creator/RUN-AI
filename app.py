@@ -66,7 +66,7 @@ delta_km = km_ultimi_15 - km_precedenti_15 if km_precedenti_15 > 0 else 0
 delta_pct = (delta_km / km_precedenti_15 * 100) if km_precedenti_15 > 0 else 0
 
 col_h1, col_h2, col_h3, col_h4 = st.columns(4)
-col_h1.metric("KM Totali (90gg)", f"{tot_km:.0f} km",
+col_h1.metric("KM Totali", f"{tot_km:.0f} km",
                f"{delta_pct:+.0f}% ultime 2 sett." if km_precedenti_15 > 0 else None)
 col_h2.metric("Sessioni Monitorate", f"{n_sessioni}")
 col_h3.metric("Modelli ML Attivi", "5 Algoritmi", "Random Forest, Regressioni, K-Means")
