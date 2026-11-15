@@ -11,6 +11,7 @@ from utils.style import carica_css
 from utils.data import genera_dati
 from utils.components import header_block, style_fig, get_svg_url, SVG_CV
 from utils.computer_vision import analizza_running_video
+from utils.skeleton_video import genera_video_scheletro
 from utils.sidebar import sidebar_comune
 
 st.set_page_config(page_title="Computer Vision", layout="wide")
@@ -100,12 +101,14 @@ if video_file is not None:
         st.session_state['cv_firma'] = firma
         st.session_state['cv_analizzato'] = False
         st.session_state.pop('cv_dati', None)
+        st.session_state.pop('cv_video', None)
 
     # Dati salvati da una versione vecchia del modulo: scartali
     if st.session_state.get('cv_analizzato', False):
-        if CHIAVI_OK - set(st.session_state.get('cv_dati', {}).keys()):
+        if CHIAVI_OK - set(st.session_state.get('cv_dati', {}).keys()) or 'cv_video' not in st.session_state:
             st.session_state['cv_analizzato'] = False
             st.session_state.pop('cv_dati', None)
+            st.session_state.pop('cv_video', None)
 
     if not st.session_state.get('cv_analizzato', False):
         if st.button("ELABORA SCHELETRO E STIMA INFORTUNIO", use_container_width=True):
@@ -118,6 +121,11 @@ if video_file is not None:
                 with st.spinner("Estrazione scheletro (MediaPipe Pose) e calcolo biomeccanico in corso..."):
                     dati_estratti = analizza_running_video(video_path, altezza_cm=altezza_cm)
                     st.session_state.cv_dati = stima_rischio(dati_estratti)
+                    # Video con scheletro disegnato (None se non riesce: si mostra l'originale)
+                    try:
+                        st.session_state.cv_video = genera_video_scheletro(video_path, st.session_state.cv_dati)
+                    except Exception:
+                        st.session_state.cv_video = None
                     st.session_state.cv_analizzato = True
                     ok = True
             except ValueError as e:
@@ -136,8 +144,6 @@ if video_file is not None:
             f"Analisi video completata. Scheletro tracciato lato {dati_cv['lato_analizzato']}, "
             f"{dati_cv['fps_video']} FPS, appoggio analizzato al frame {dati_cv['frame_strike_analizzato']}."
         )
-        for av in dati_cv.get('avvisi', []):
-            st.warning(av)
         st.markdown("---")
 
         st.markdown("<p style='font-size:0.82em; color:#00E5FF; font-family:\"JetBrains Mono\",monospace; margin-bottom:4px; letter-spacing:0.1em;'>KINEMATIC WIREFRAME // GAIT ANALYSIS FRAME</p>", unsafe_allow_html=True)
@@ -148,16 +154,27 @@ if video_file is not None:
         mc3.metric("Fase", "Strike", f"Frame {dati_cv['frame_strike_analizzato']}")
         st.markdown("<p style='font-size:0.85em; color:#8792A3; margin-top:8px; margin-bottom:16px;'>Tracciamento articolare e analisi vettoriale basata sui dati reali del video:</p>", unsafe_allow_html=True)
 
-        col_out1, col_out2 = st.columns([1, 1.1])
+        # Video con scheletro (o originale se la generazione non e' riuscita)
+        res_video = st.session_state.get('cv_video')
+        if res_video:
+            video_mostrato, vw, vh = res_video
+        else:
+            video_mostrato, vw, vh = contenuto, 16, 9
+        verticale = vh > vw
+        st.markdown(
+            "<style>div[data-testid='stVideo'] video{max-height:740px; width:100%; object-fit:contain;}</style>",
+            unsafe_allow_html=True
+        )
+        col_out1, col_out2 = st.columns([0.7, 1.3] if verticale else [1, 1.1])
 
         with col_out1:
-            st.video(contenuto)
+            st.video(video_mostrato)
             st.markdown("<p style='font-size:0.75em; color:#00F5A0; text-align:center; font-family:\"JetBrains Mono\",monospace; margin-top:10px;'>OUTPUT: AI TRACKING COMPLETATO</p>", unsafe_allow_html=True)
         with col_out2:
             dati_REALI = dati_cv
             st.markdown("<p style='font-size:0.82em; color:#00E5FF; font-family:\"JetBrains Mono\",monospace; margin-bottom:6px; letter-spacing:0.1em;'>DIGITAL TWIN // KINEMATIC STRESS MAP (REALE)</p>", unsafe_allow_html=True)
             digital_twin_real_svg = f"""
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 320" style="background: radial-gradient(circle at center, #0B111A 0%, #04070B 100%); border-radius: 12px; border: 1px solid #1c2333; width: 100%; box-shadow: 0 8px 30px rgba(0,229,255,0.08);">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 320" style="background: radial-gradient(circle at center, #0B111A 0%, #04070B 100%); border-radius: 12px; border: 1px solid #1c2333; width: 100%; height: 100%; box-shadow: 0 8px 30px rgba(0,229,255,0.08);">
               <defs>
                 <filter id="glow-red-real" x="-50%" y="-50%" width="200%" height="200%">
                   <feGaussianBlur stdDeviation="6" result="blur" />
@@ -194,11 +211,11 @@ if video_file is not None:
               <text x="28" y="298" fill="#FF6A3D" font-family="monospace" font-size="7">STATUS: {"CRITICO" if dati_REALI['probabilita_infortunio_ml'] > 60 else "MODERATO" if dati_REALI['probabilita_infortunio_ml'] > 35 else "BASSO"}</text>
             </svg>
             """
-            st.components.v1.html(digital_twin_real_svg, height=330, scrolling=False)
+            st.components.v1.html(digital_twin_real_svg, height=380, scrolling=False)
             st.markdown("<p style='font-size:0.75em; color:#8792A3; margin-top:2px; margin-bottom:12px;'><strong>Spiegazione:</strong> Mappa anatomica vettoriale guidata dai dati biometrici reali del video, che evidenzia i distretti sottoposti a picchi di stress strutturale.</p>", unsafe_allow_html=True)
             st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
             grf_real_svg = f"""
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" style="background: #080B12; border-radius: 12px; border: 1px solid #1c2333; width: 100%;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" style="background: #080B12; border-radius: 12px; border: 1px solid #1c2333; width: 100%; height: 100%;">
                 <defs>
                     <linearGradient id="grfGradReal" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" stop-color="#FF6A3D" stop-opacity="0.5"/>
@@ -220,7 +237,7 @@ if video_file is not None:
                 <text x="270" y="185" fill="#566178" font-family="monospace" font-size="8">TEMPO DI CONTATTO (ms)</text>
             </svg>
             """
-            st.components.v1.html(grf_real_svg, height=195, scrolling=False)
+            st.components.v1.html(grf_real_svg, height=235, scrolling=False)
             st.markdown("<p style='font-size:0.75em; color:#8792A3; margin-top:2px;'><strong>Spiegazione:</strong> Grafico illustrativo delle forze d'impatto al suolo (GRF), stimato a partire dall'overstride e dall'angolo di ginocchio rilevati nel video.</p>", unsafe_allow_html=True)
 
         st.markdown("---")
