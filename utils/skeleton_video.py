@@ -82,26 +82,62 @@ def _hud(frame, righe):
 
 
 def _ffmpeg_candidati():
-    """Prima il ffmpeg statico di imageio-ffmpeg (ha sempre libx264), poi quello di sistema."""
-    lista = []
+    """Prima il ffmpeg statico di imageio-ffmpeg (ha sempre libx264), poi quello di sistema.
+    Ritorna (lista_eseguibili, lista_errori)."""
+    lista, errori = [], []
     try:
         import imageio_ffmpeg
         lista.append(imageio_ffmpeg.get_ffmpeg_exe())
-    except Exception:
-        pass
+    except Exception as e:
+        errori.append(f"imageio-ffmpeg: {type(e).__name__}: {e}")
     w = shutil.which("ffmpeg")
     if w and w not in lista:
         lista.append(w)
-    return lista
+    return lista, errori
 
 
-def _codifica_browser(raw_path, out_dir):
+def _codifica_pyav(raw_path, out_dir, fps):
+    """Alternativa senza eseguibili esterni: libreria PyAV (pip install av), che include libx264."""
+    import av
+    from fractions import Fraction
+    cap = cv2.VideoCapture(raw_path)
+    ok, fr = cap.read()
+    if not ok:
+        cap.release()
+        raise RuntimeError("video intermedio vuoto")
+    h, w = fr.shape[:2]
+    out = os.path.join(out_dir, "out_av.mp4")
+    ultimo = None
+    for codec in ("libx264", "h264"):
+        try:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            cont = av.open(out, "w", options={"movflags": "faststart"})
+            st = cont.add_stream(codec, rate=Fraction(fps).limit_denominator(1000))
+            st.width, st.height, st.pix_fmt = w, h, "yuv420p"
+            st.options = {"crf": "23", "preset": "veryfast"}
+            while True:
+                ok, fr = cap.read()
+                if not ok:
+                    break
+                vf = av.VideoFrame.from_ndarray(cv2.cvtColor(fr, cv2.COLOR_BGR2RGB), format="rgb24")
+                for pkt in st.encode(vf):
+                    cont.mux(pkt)
+            for pkt in st.encode():
+                cont.mux(pkt)
+            cont.close()
+            if os.path.exists(out) and os.path.getsize(out) > 1000:
+                cap.release()
+                return out
+        except Exception as e:
+            ultimo = e
+    cap.release()
+    raise RuntimeError(f"PyAV senza encoder H.264: {ultimo}")
+
+
+def _codifica_browser(raw_path, out_dir, fps):
     """Converte il file mp4v in H.264 (yuv420p, faststart): riproducibile in Chrome, Safari e Firefox.
     Ritorna (percorso, mime, None) oppure (None, None, motivo)."""
-    exes = _ffmpeg_candidati()
-    if not exes:
-        return None, None, "ffmpeg non trovato: aggiungi 'imageio-ffmpeg' a requirements.txt"
-    ultimo = ""
+    exes, errori = _ffmpeg_candidati()
     for exe in exes:
         for enc in ("libx264", "libopenh264"):
             out = os.path.join(out_dir, "out.mp4")
@@ -112,13 +148,18 @@ def _codifica_browser(raw_path, out_dir):
             cmd += ["-movflags", "+faststart", out]
             try:
                 r = subprocess.run(cmd, capture_output=True, timeout=300)
+                if r.returncode == 0 and os.path.exists(out) and os.path.getsize(out) > 1000:
+                    return out, "video/mp4", None
+                errori.append(f"{os.path.basename(exe)}/{enc}: {(r.stderr or b'').decode('utf-8', 'ignore')[-150:].strip()}")
             except Exception as e:
-                ultimo = str(e)
-                continue
-            if r.returncode == 0 and os.path.exists(out) and os.path.getsize(out) > 1000:
-                return out, "video/mp4", None
-            ultimo = (r.stderr or b"").decode("utf-8", "ignore")[-200:]
-    return None, None, f"encoder H.264 non disponibile ({ultimo.strip()})"
+                errori.append(f"{os.path.basename(exe)}/{enc}: {e}")
+    try:
+        return _codifica_pyav(raw_path, out_dir, fps), "video/mp4", None
+    except ImportError:
+        errori.append("PyAV (pacchetto 'av') non installato")
+    except Exception as e:
+        errori.append(f"PyAV: {e}")
+    return None, None, " | ".join(errori) or "nessun encoder disponibile"
 
 
 def genera_video_scheletro(video_path, metriche=None, altezza_cm=175):
@@ -248,7 +289,7 @@ def genera_video_scheletro(video_path, metriche=None, altezza_cm=175):
         serie["cm_per_px"] = scala
         serie["fps"] = float(fps)
 
-        path, mime, motivo = _codifica_browser(raw_path, tmp_dir)
+        path, mime, motivo = _codifica_browser(raw_path, tmp_dir, fps)
         if path is None:
             return {"ok": False, "errore": motivo, "serie": serie, "frames": frames_jpg}
         with open(path, "rb") as f:
