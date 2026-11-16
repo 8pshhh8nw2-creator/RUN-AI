@@ -268,7 +268,7 @@ if video_file is not None:
 
     # Dati salvati da una versione vecchia del modulo: scartali
     if st.session_state.get('cv_analizzato', False):
-        if CHIAVI_OK - set(st.session_state.get('cv_dati', {}).keys()) or 'cv_media' not in st.session_state:
+        if CHIAVI_OK - set(st.session_state.get('cv_dati', {}).keys()) or 'frames' not in (st.session_state.get('cv_media') or {}):
             st.session_state['cv_analizzato'] = False
             st.session_state.pop('cv_dati', None)
             st.session_state.pop('cv_media', None)
@@ -321,12 +321,15 @@ if video_file is not None:
         # Video con scheletro (o originale se la generazione non e' riuscita)
         media = st.session_state.get('cv_media') or {}
         verticale = media.get('ok') and media['h'] > media['w']
+        ar = f"aspect-ratio:{media['w']} / {media['h']};" if media.get('ok') else "aspect-ratio:9 / 16;"
         st.markdown(
-            "<style>div[data-testid='stVideo'] video{max-height:940px; width:100%; height:auto; object-fit:contain; border-radius:12px;}</style>",
+            "<style>div[data-testid='stVideo'] video{width:100%; height:auto; max-height:960px; "
+            "object-fit:contain; background:#000; border-radius:12px; " + ar + "}</style>",
             unsafe_allow_html=True
         )
+        h_twin, h_grf = (270, 175) if verticale else (380, 235)
         analisi = costruisci_analisi(media['serie'], dati_cv) if media.get('serie') else {}
-        col_out1, col_out2 = st.columns([0.9, 1.1] if verticale else [1, 1.1])
+        col_out1, col_out2 = st.columns([1.05, 0.95] if verticale else [1, 1.1])
 
         with col_out1:
             if media.get('ok'):
@@ -335,6 +338,12 @@ if video_file is not None:
                 if media.get('errore'):
                     st.error(f"Video con scheletro non generato: {media['errore']}")
                 st.video(contenuto)
+            frames = media.get('frames') or []
+            if frames:
+                with st.expander("Il video non parte? Scorri i fotogrammi con lo scheletro", expanded=not media.get('ok')):
+                    idx = st.slider("Fotogramma", 0, len(frames) - 1, 0, key="cv_frame_idx",
+                                    format="%d", label_visibility="collapsed")
+                    st.image(frames[idx][1], caption=f"t = {frames[idx][0]:.2f} s", use_container_width=True)
             st.markdown("<p style='font-size:0.75em; color:#00F5A0; text-align:center; font-family:\"JetBrains Mono\",monospace; margin-top:10px;'>OUTPUT: AI TRACKING COMPLETATO</p>", unsafe_allow_html=True)
         with col_out2:
             dati_REALI = dati_cv
@@ -377,7 +386,7 @@ if video_file is not None:
               <text x="28" y="298" fill="#FF6A3D" font-family="monospace" font-size="7">STATUS: {"CRITICO" if dati_REALI['probabilita_infortunio_ml'] > 60 else "MODERATO" if dati_REALI['probabilita_infortunio_ml'] > 35 else "BASSO"}</text>
             </svg>
             """
-            st.components.v1.html(digital_twin_real_svg, height=380, scrolling=False)
+            st.components.v1.html(digital_twin_real_svg, height=h_twin, scrolling=False)
             st.markdown("<p style='font-size:0.75em; color:#8792A3; margin-top:2px; margin-bottom:12px;'><strong>Spiegazione:</strong> Mappa anatomica vettoriale guidata dai dati biometrici reali del video, che evidenzia i distretti sottoposti a picchi di stress strutturale.</p>", unsafe_allow_html=True)
             st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
             grf_real_svg = f"""
@@ -403,7 +412,7 @@ if video_file is not None:
                 <text x="270" y="185" fill="#566178" font-family="monospace" font-size="8">TEMPO DI CONTATTO (ms)</text>
             </svg>
             """
-            st.components.v1.html(grf_real_svg, height=235, scrolling=False)
+            st.components.v1.html(grf_real_svg, height=h_grf, scrolling=False)
             st.markdown("<p style='font-size:0.75em; color:#8792A3; margin-top:2px;'><strong>Spiegazione:</strong> Grafico illustrativo delle forze d'impatto al suolo (GRF), stimato a partire dall'overstride e dall'angolo di ginocchio rilevati nel video.</p>", unsafe_allow_html=True)
             if 'ginocchio' in analisi:
                 st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
