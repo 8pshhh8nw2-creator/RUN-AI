@@ -81,50 +81,44 @@ def _hud(frame, righe):
                     cv2.FONT_HERSHEY_SIMPLEX, fs, BIANCO, sp_t, cv2.LINE_AA)
 
 
-def _ffmpeg_exe():
-    exe = shutil.which("ffmpeg")
-    if exe:
-        return exe
+def _ffmpeg_candidati():
+    """Prima il ffmpeg statico di imageio-ffmpeg (ha sempre libx264), poi quello di sistema."""
+    lista = []
     try:
         import imageio_ffmpeg
-        return imageio_ffmpeg.get_ffmpeg_exe()
+        lista.append(imageio_ffmpeg.get_ffmpeg_exe())
     except Exception:
-        return None
+        pass
+    w = shutil.which("ffmpeg")
+    if w and w not in lista:
+        lista.append(w)
+    return lista
 
 
-def _codifica_browser(raw_path, out_dir, fps, size):
-    """Converte il file mp4v in un formato riproducibile dal browser.
-    Ritorna (percorso, mime) oppure None."""
-    exe = _ffmpeg_exe()
-    if exe:
-        out = os.path.join(out_dir, "out.mp4")
-        r = subprocess.run([exe, "-y", "-v", "error", "-i", raw_path,
-                            "-c:v", "libx264", "-pix_fmt", "yuv420p",
-                            "-movflags", "+faststart", out], capture_output=True)
-        if r.returncode == 0 and os.path.exists(out) and os.path.getsize(out) > 1000:
-            return out, "video/mp4"
-    # Fallback: encoder di OpenCV
-    for fourcc, ext, mime in (("avc1", "mp4", "video/mp4"),
-                              ("H264", "mp4", "video/mp4"),
-                              ("VP80", "webm", "video/webm")):
-        out = os.path.join(out_dir, f"cv_{fourcc}.{ext}")
-        try:
-            wr = cv2.VideoWriter(out, cv2.VideoWriter_fourcc(*fourcc), fps, size)
-            if not wr.isOpened():
+def _codifica_browser(raw_path, out_dir):
+    """Converte il file mp4v in H.264 (yuv420p, faststart): riproducibile in Chrome, Safari e Firefox.
+    Ritorna (percorso, mime, None) oppure (None, None, motivo)."""
+    exes = _ffmpeg_candidati()
+    if not exes:
+        return None, None, "ffmpeg non trovato: aggiungi 'imageio-ffmpeg' a requirements.txt"
+    ultimo = ""
+    for exe in exes:
+        for enc in ("libx264", "libopenh264"):
+            out = os.path.join(out_dir, "out.mp4")
+            cmd = [exe, "-y", "-v", "error", "-i", raw_path, "-an",
+                   "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", "-c:v", enc, "-pix_fmt", "yuv420p"]
+            if enc == "libx264":
+                cmd += ["-profile:v", "main", "-preset", "veryfast", "-crf", "23"]
+            cmd += ["-movflags", "+faststart", out]
+            try:
+                r = subprocess.run(cmd, capture_output=True, timeout=300)
+            except Exception as e:
+                ultimo = str(e)
                 continue
-            cap = cv2.VideoCapture(raw_path)
-            while True:
-                ok, fr = cap.read()
-                if not ok:
-                    break
-                wr.write(fr)
-            cap.release()
-            wr.release()
-            if os.path.exists(out) and os.path.getsize(out) > 1000:
-                return out, mime
-        except Exception:
-            continue
-    return None
+            if r.returncode == 0 and os.path.exists(out) and os.path.getsize(out) > 1000:
+                return out, "video/mp4", None
+            ultimo = (r.stderr or b"").decode("utf-8", "ignore")[-200:]
+    return None, None, f"encoder H.264 non disponibile ({ultimo.strip()})"
 
 
 def genera_video_scheletro(video_path, metriche=None, altezza_cm=175):
@@ -157,6 +151,9 @@ def genera_video_scheletro(video_path, metriche=None, altezza_cm=175):
     serie = {k: [] for k in ("t", "ginocchio_sx", "ginocchio_dx", "busto",
                              "anca_y", "caviglia_y_sx", "caviglia_y_dx")}
     gambe_px = []
+    frames_jpg = []
+    totale = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+    passo = max(1, totale // 80) if totale else 4
     n = 0
 
     try:
@@ -222,6 +219,11 @@ def genera_video_scheletro(video_path, metriche=None, altezza_cm=175):
                     if righe:
                         _hud(frame, righe)
                     writer.write(frame)
+                    if n % passo == 0:
+                        piccolo = cv2.resize(frame, (540, int(540 * h / w)), interpolation=cv2.INTER_AREA)
+                        okj, buf = cv2.imencode(".jpg", piccolo, [cv2.IMWRITE_JPEG_QUALITY, 82])
+                        if okj:
+                            frames_jpg.append((n / fps, buf.tobytes()))
 
                     serie["t"].append(n / fps)
                     serie["ginocchio_sx"].append(riga["gx"])
@@ -246,15 +248,13 @@ def genera_video_scheletro(video_path, metriche=None, altezza_cm=175):
         serie["cm_per_px"] = scala
         serie["fps"] = float(fps)
 
-        enc = _codifica_browser(raw_path, tmp_dir, fps, size)
-        if enc is None:
-            return {"ok": False,
-                    "errore": "nessun encoder video compatibile col browser (installa ffmpeg oppure: pip install imageio-ffmpeg)",
-                    "serie": serie}
-        path, mime = enc
+        path, mime, motivo = _codifica_browser(raw_path, tmp_dir)
+        if path is None:
+            return {"ok": False, "errore": motivo, "serie": serie, "frames": frames_jpg}
         with open(path, "rb") as f:
             data = f.read()
-        return {"ok": True, "bytes": data, "mime": mime, "w": size[0], "h": size[1], "serie": serie}
+        return {"ok": True, "bytes": data, "mime": mime, "w": size[0], "h": size[1],
+                "serie": serie, "frames": frames_jpg}
     except Exception as e:
         return {"ok": False, "errore": str(e)}
     finally:
