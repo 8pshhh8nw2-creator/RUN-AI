@@ -74,6 +74,169 @@ def stima_rischio(d):
 
 
 # ---------------------------------------------------------
+# Analisi temporale: grafici + spiegazioni ricavati dal video
+# ---------------------------------------------------------
+def _f(x, nd=1):
+    return f"{x:.{nd}f}" if x is not None and np.isfinite(x) else "n/d"
+
+
+def _pre(y, w):
+    """Interpola i buchi (landmark non visibili) e leviga. None se i dati sono troppo pochi."""
+    y = np.asarray(y, dtype=float)
+    m = np.isfinite(y)
+    if m.sum() < max(10, 0.3 * len(y)):
+        return None
+    x = np.arange(len(y))
+    y = np.interp(x, x[m], y[m])
+    w = max(1, int(w))
+    if w >= 2:
+        pad = np.pad(y, (w // 2, w - 1 - w // 2), mode='edge')
+        y = np.convolve(pad, np.ones(w) / w, mode='valid')
+    return y
+
+
+def _picchi(y, dist, prom):
+    try:
+        from scipy.signal import find_peaks
+        p, _ = find_peaks(y, distance=max(1, int(dist)), prominence=prom)
+        return np.asarray(p, dtype=int)
+    except Exception:
+        p = []
+        for i in range(1, len(y) - 1):
+            if y[i] > y[i - 1] and y[i] >= y[i + 1] and (not p or i - p[-1] >= dist):
+                p.append(i)
+        return np.asarray(p, dtype=int)
+
+
+def costruisci_analisi(serie, dati_cv):
+    """Ritorna {chiave: (figura, spiegazione_html)} calcolati sulle serie estratte dal video."""
+    out = {}
+    fps = float(serie['fps'])
+    t = np.array(serie['t'], dtype=float)
+    scala = serie.get('cm_per_px')
+    unita = 'cm'
+    if scala is None or not np.isfinite(scala):
+        scala, unita = 1.0, 'px'
+    w_sm = max(3, int(0.12 * fps))
+    ts = dati_cv['frame_strike_analizzato'] / fps
+    C_CY, C_GR, C_AM, C_OR = '#00E5FF', '#00F5A0', '#FFB020', '#FF6A3D'
+
+    # 1) Angolo del ginocchio nel tempo ----------------------------------
+    gs = _pre(serie['ginocchio_sx'], w_sm)
+    gd = _pre(serie['ginocchio_dx'], w_sm)
+    if gs is not None or gd is not None:
+        fig = go.Figure()
+        parti = []
+        for nome, y, col in (("Ginocchio sx", gs, C_CY), ("Ginocchio dx", gd, C_GR)):
+            if y is not None:
+                fig.add_trace(go.Scatter(x=t, y=y, name=nome, line=dict(color=col, width=2)))
+                parti.append(f"{nome.lower()}: da {_f(np.min(y))}° (massima flessione) a {_f(np.max(y))}° (estensione), escursione {_f(np.ptp(y))}°")
+        fig.add_vline(x=ts, line=dict(color=C_OR, dash='dash', width=1.5))
+        fig.update_layout(height=300, xaxis_title='Tempo (s)', yaxis_title='Angolo anca-ginocchio-caviglia (°)',
+                          legend=dict(orientation='h', y=1.12))
+        testo = ("<strong>Angolo del ginocchio nel tempo:</strong> " + "; ".join(parti) +
+                 f". La linea tratteggiata marca l'appoggio analizzato (frame {dati_cv['frame_strike_analizzato']}, a {ts:.2f} s), "
+                 f"dove il ginocchio misura {_f(float(dati_cv['angolo_ginocchio_appoggio']))}°. Un'escursione ampia indica una buona ammortizzazione in appoggio.")
+        out['ginocchio'] = (fig, testo)
+
+    # 2) Oscillazione verticale del bacino -------------------------------
+    anca = _pre(serie['anca_y'], max(3, int(0.05 * fps)))
+    if anca is not None:
+        trend = _pre(anca, max(3, int(1.0 * fps)))
+        disp = -(anca - trend) * scala
+        osc = float(np.percentile(disp, 95) - np.percentile(disp, 5))
+        fig = go.Figure(go.Scatter(x=t, y=disp, line=dict(color=C_AM, width=2), fill='tozeroy',
+                                   fillcolor='rgba(255,176,32,0.15)'))
+        fig.update_layout(height=300, xaxis_title='Tempo (s)', yaxis_title=f'Spostamento verticale anca ({unita})')
+        giudizio = ("entro il target di 8 cm" if osc < 8 else "sopra il target di 8 cm: parte dell'energia va in rimbalzo verticale anziché in avanzamento") if unita == 'cm' else "scala in cm non disponibile"
+        testo = (f"<strong>Rimbalzo del bacino:</strong> l'altezza dell'anca oscilla di {_f(osc)} {unita} (picco-picco, 5°-95° percentile), {giudizio}. "
+                 f"Il valore riportato nel report è {_f(float(dati_cv['oscillazione_verticale']))} cm. La scala px→cm è indicativa (gamba ≈ 53% dell'altezza inserita).")
+        out['oscillazione'] = (fig, testo)
+
+    # 3) Inclinazione del busto -------------------------------------------
+    bu = _pre(serie['busto'], w_sm)
+    if bu is not None:
+        fig = go.Figure(go.Scatter(x=t, y=bu, line=dict(color=C_GR, width=2)))
+        fig.add_hrect(y0=5, y1=8, fillcolor='rgba(0,229,255,0.15)', line_width=0)
+        fig.update_layout(height=300, xaxis_title='Tempo (s)', yaxis_title='Inclinazione busto (°)')
+        m = float(np.mean(bu))
+        if m < 5:
+            g = "busto troppo verticale: tende a frenare l'avanzamento"
+        elif m > 8:
+            g = "busto molto inclinato in avanti: aumenta il carico su anca e lombare"
+        else:
+            g = "dentro la fascia ottimale 5-8°"
+        testo = (f"<strong>Postura del busto:</strong> inclinazione media {_f(m)}° (min {_f(np.min(bu))}°, max {_f(np.max(bu))}°); {g}. "
+                 "La fascia azzurra è l'intervallo ottimale. Misura l'angolo rispetto alla verticale, senza segno.")
+        out['busto'] = (fig, testo)
+
+    # 4) Altezza dei piedi e cadenza ---------------------------------------
+    fig = go.Figure()
+    tempi_picchi = []
+    dett = []
+    for nome, key, col in (("Piede sx", 'caviglia_y_sx', C_CY), ("Piede dx", 'caviglia_y_dx', C_GR)):
+        y = _pre(serie[key], max(3, int(0.06 * fps)))
+        if y is None:
+            continue
+        h = -y
+        h = (h - h.min()) * scala
+        rng = float(np.ptp(h))
+        fig.add_trace(go.Scatter(x=t, y=h, name=nome, line=dict(color=col, width=2)))
+        if rng > 0:
+            pk = _picchi(h, 0.25 * fps, 0.25 * rng)
+            if len(pk):
+                fig.add_trace(go.Scatter(x=t[pk], y=h[pk], mode='markers', showlegend=False,
+                                         marker=dict(color=C_OR, size=8)))
+                tempi_picchi += list(t[pk])
+                dett.append(f"{nome.lower()}: {len(pk)} oscillazioni, sollevamento massimo {_f(float(np.max(h[pk])))} {unita}")
+    if len(fig.data):
+        fig.update_layout(height=300, xaxis_title='Tempo (s)', yaxis_title=f'Altezza caviglia ({unita})',
+                          legend=dict(orientation='h', y=1.12))
+        tp = np.sort(np.array(tempi_picchi))
+        if len(tp) >= 3 and (t[-1] - t[0]) > 0:
+            cad = len(tp) / (t[-1] - t[0]) * 60.0
+            iv = np.diff(tp)
+            cv_iv = float(np.std(iv) / np.mean(iv) * 100) if np.mean(iv) > 0 else float('nan')
+            nota = ""
+            if not (100 <= cad <= 230):
+                nota = " Valore fuori dall'intervallo tipico della corsa: verifica che il corridore sia inquadrato per intero."
+            testo = (f"<strong>Passi e cadenza:</strong> " + "; ".join(dett) +
+                     f". Cadenza stimata ≈ {cad:.0f} passi/min (obiettivo 170-180), intervallo medio tra passi {np.mean(iv) * 1000:.0f} ms "
+                     f"con variabilità {_f(cv_iv)}% (più è bassa, più il ritmo è regolare).{nota}")
+        else:
+            testo = "<strong>Passi e cadenza:</strong> troppe poche oscillazioni del piede rilevate nel video per stimare la cadenza."
+        out['piedi'] = (fig, testo)
+
+    # 5) Distribuzione dell'appoggio ---------------------------------------
+    distr = dati_cv.get('distribuzione_appoggio_pct') or {}
+    if distr:
+        fig = go.Figure(go.Pie(labels=[k.capitalize() for k in distr.keys()], values=list(distr.values()), hole=0.55,
+                               marker=dict(colors=[C_OR, C_GR, C_CY, C_AM][:len(distr)]), textinfo='label+percent'))
+        fig.update_layout(height=300, showlegend=False)
+        dom = max(distr, key=distr.get)
+        testo = (f"<strong>Tipo di appoggio:</strong> {dati_cv['tipo_appoggio']}. La zona di contatto prevalente è {dom} "
+                 f"({_f(float(distr[dom]), 0)}%). Un appoggio di tallone molto avanti al baricentro aumenta l'impatto su ginocchio e tibia.")
+        out['appoggio'] = (fig, testo)
+
+    # 6) Simmetria destra/sinistra -------------------------------------------
+    if gs is not None and gd is not None:
+        rom_s, rom_d = float(np.ptp(gs)), float(np.ptp(gd))
+        med_s, med_d = float(np.mean(gs)), float(np.mean(gd))
+        sim = 100.0 * min(rom_s, rom_d) / max(rom_s, rom_d) if max(rom_s, rom_d) > 0 else float('nan')
+        fig = go.Figure()
+        fig.add_trace(go.Bar(name='Escursione (°)', x=['Sx', 'Dx'], y=[rom_s, rom_d], marker_color=C_CY))
+        fig.add_trace(go.Bar(name='Angolo medio (°)', x=['Sx', 'Dx'], y=[med_s, med_d], marker_color=C_GR))
+        fig.update_layout(height=300, barmode='group', legend=dict(orientation='h', y=1.12))
+        g = "buona simmetria" if sim >= 90 else "asimmetria da tenere sotto controllo"
+        testo = (f"<strong>Simmetria sx/dx:</strong> escursione del ginocchio {_f(rom_s)}° a sinistra contro {_f(rom_d)}° a destra, "
+                 f"indice di simmetria {_f(sim, 0)}% ({g}). Una gamba che si flette molto meno dell'altra può indicare compenso o dolore.")
+        out['simmetria'] = (fig, testo)
+
+    return out
+
+
+
+# ---------------------------------------------------------
 # PAGINA 6: COMPUTER VISION & BIOMECHANIC AI (DATI REALI)
 # ---------------------------------------------------------
 header_block(
@@ -101,14 +264,14 @@ if video_file is not None:
         st.session_state['cv_firma'] = firma
         st.session_state['cv_analizzato'] = False
         st.session_state.pop('cv_dati', None)
-        st.session_state.pop('cv_video', None)
+        st.session_state.pop('cv_media', None)
 
     # Dati salvati da una versione vecchia del modulo: scartali
     if st.session_state.get('cv_analizzato', False):
-        if CHIAVI_OK - set(st.session_state.get('cv_dati', {}).keys()) or 'cv_video' not in st.session_state:
+        if CHIAVI_OK - set(st.session_state.get('cv_dati', {}).keys()) or 'cv_media' not in st.session_state:
             st.session_state['cv_analizzato'] = False
             st.session_state.pop('cv_dati', None)
-            st.session_state.pop('cv_video', None)
+            st.session_state.pop('cv_media', None)
 
     if not st.session_state.get('cv_analizzato', False):
         if st.button("ELABORA SCHELETRO E STIMA INFORTUNIO", use_container_width=True):
@@ -123,9 +286,10 @@ if video_file is not None:
                     st.session_state.cv_dati = stima_rischio(dati_estratti)
                     # Video con scheletro disegnato (None se non riesce: si mostra l'originale)
                     try:
-                        st.session_state.cv_video = genera_video_scheletro(video_path, st.session_state.cv_dati)
-                    except Exception:
-                        st.session_state.cv_video = None
+                        st.session_state.cv_media = genera_video_scheletro(
+                            video_path, st.session_state.cv_dati, altezza_cm=altezza_cm)
+                    except Exception as e_media:
+                        st.session_state.cv_media = {"ok": False, "errore": str(e_media)}
                     st.session_state.cv_analizzato = True
                     ok = True
             except ValueError as e:
@@ -155,20 +319,22 @@ if video_file is not None:
         st.markdown("<p style='font-size:0.85em; color:#8792A3; margin-top:8px; margin-bottom:16px;'>Tracciamento articolare e analisi vettoriale basata sui dati reali del video:</p>", unsafe_allow_html=True)
 
         # Video con scheletro (o originale se la generazione non e' riuscita)
-        res_video = st.session_state.get('cv_video')
-        if res_video:
-            video_mostrato, vw, vh = res_video
-        else:
-            video_mostrato, vw, vh = contenuto, 16, 9
-        verticale = vh > vw
+        media = st.session_state.get('cv_media') or {}
+        verticale = media.get('ok') and media['h'] > media['w']
         st.markdown(
-            "<style>div[data-testid='stVideo'] video{max-height:740px; width:100%; object-fit:contain;}</style>",
+            "<style>div[data-testid='stVideo'] video{max-height:940px; width:100%; height:auto; object-fit:contain; border-radius:12px;}</style>",
             unsafe_allow_html=True
         )
-        col_out1, col_out2 = st.columns([0.7, 1.3] if verticale else [1, 1.1])
+        analisi = costruisci_analisi(media['serie'], dati_cv) if media.get('serie') else {}
+        col_out1, col_out2 = st.columns([0.9, 1.1] if verticale else [1, 1.1])
 
         with col_out1:
-            st.video(video_mostrato)
+            if media.get('ok'):
+                st.video(media['bytes'], format=media['mime'])
+            else:
+                if media.get('errore'):
+                    st.error(f"Video con scheletro non generato: {media['errore']}")
+                st.video(contenuto)
             st.markdown("<p style='font-size:0.75em; color:#00F5A0; text-align:center; font-family:\"JetBrains Mono\",monospace; margin-top:10px;'>OUTPUT: AI TRACKING COMPLETATO</p>", unsafe_allow_html=True)
         with col_out2:
             dati_REALI = dati_cv
@@ -239,6 +405,11 @@ if video_file is not None:
             """
             st.components.v1.html(grf_real_svg, height=235, scrolling=False)
             st.markdown("<p style='font-size:0.75em; color:#8792A3; margin-top:2px;'><strong>Spiegazione:</strong> Grafico illustrativo delle forze d'impatto al suolo (GRF), stimato a partire dall'overstride e dall'angolo di ginocchio rilevati nel video.</p>", unsafe_allow_html=True)
+            if 'ginocchio' in analisi:
+                st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+                st.markdown("### Angolo del ginocchio nel tempo")
+                st.plotly_chart(style_fig(analisi['ginocchio'][0]), use_container_width=True)
+                st.markdown(f"<div class='explain-text'>{analisi['ginocchio'][1]}</div>", unsafe_allow_html=True)
 
         st.markdown("---")
         st.markdown("<h2>Report Biomeccanico e Scheletrico Dettagliato</h2>", unsafe_allow_html=True)
@@ -285,6 +456,22 @@ if video_file is not None:
             fig_ml_risk.update_layout(height=320, coloraxis_showscale=False)
             st.plotly_chart(style_fig(fig_ml_risk), use_container_width=True)
             st.markdown("<div class='explain-text'><strong>Stima del Rischio:</strong> Punteggio euristico calcolato dalle feature biomeccaniche reali. Non è un modello clinico addestrato su dataset di infortuni reali.</div>", unsafe_allow_html=True)
+
+        if analisi:
+            st.markdown("---")
+            st.markdown("<h2>Analisi Temporale Estratta dal Video</h2>", unsafe_allow_html=True)
+            righe_graf = [
+                [("oscillazione", "Rimbalzo verticale del bacino"), ("busto", "Inclinazione del busto"), ("piedi", "Altezza dei piedi e cadenza")],
+                [("appoggio", "Distribuzione dell'appoggio"), ("simmetria", "Simmetria destra/sinistra")],
+            ]
+            for riga in righe_graf:
+                cols = st.columns(len(riga))
+                for col, (chiave, titolo) in zip(cols, riga):
+                    if chiave in analisi:
+                        with col:
+                            st.markdown(f"### {titolo}")
+                            st.plotly_chart(style_fig(analisi[chiave][0]), use_container_width=True)
+                            st.markdown(f"<div class='explain-text'>{analisi[chiave][1]}</div>", unsafe_allow_html=True)
 
         st.markdown("---")
         st.markdown("<h3>Diagnosi Posturale, Errori e Stima del Rischio</h3>", unsafe_allow_html=True)
