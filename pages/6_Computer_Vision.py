@@ -337,6 +337,11 @@ if video_file is not None:
             else:
                 if media.get('errore'):
                     st.error(f"Video con scheletro non generato: {media['errore']}")
+                if st.button("Rigenera video con scheletro", key="cv_retry", use_container_width=True):
+                    st.session_state['cv_analizzato'] = False
+                    st.session_state.pop('cv_dati', None)
+                    st.session_state.pop('cv_media', None)
+                    st.rerun()
                 st.video(contenuto)
             frames = media.get('frames') or []
             if frames:
